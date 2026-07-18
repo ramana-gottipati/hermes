@@ -1077,13 +1077,13 @@ sector... consider both the minor index and the broader index together, and iden
 Built as: sector gate (>+8% RS vs Nifty 500) -> stocks assigned to sectors by **PIT correlation** -> stock must
 beat **BOTH** its own sector index AND Nifty 500 -> equal-weight, quarterly, adjusted prices, EQ+BE+BZ.
 
-**✅ THE 15i BLOCKER IS DISSOLVED - membership is NOT needed.** `sector_assign_validate.py`: assigning a stock
+**✅ THE 16BB BLOCKER IS DISSOLVED - membership is NOT needed.** `sector_assign_validate.py`: assigning a stock
 to the sector index its EXCESS returns correlate with most (trailing 500d) reproduces **NSE's own labels at
 85.1% top-1 / 93.1% top-3** (random = 6.2%), on 202 symbols with real labels. **Excess-vs-excess is the trick**
 (raw correlation just measures shared market beta). **Every weak sector is an OVERLAPPING one** - Bank 1/3,
 Private Bank 3/5, Financial Services 11/6, Infrastructure 4/8 - i.e. the method picking an equally-correct
 sibling index, so true accuracy is higher. **This works for DEAD companies too** (they have returns to their
-last day) -> the full 21 years are testable with **NO classification job** (15i's ~1,973-name job is MOOT).
+last day) -> the full 21 years are testable with **NO classification job** (16BB's ~1,973-name job is MOOT).
 
 **Result, 2006-2026 (bench CAGR 11.7% / retvol 0.55 / 8.97x on this later start):**
 
@@ -1272,7 +1272,7 @@ assumptions x 4 slippage levels x 3 windows x 2 liquidity bars. **ZERO beat Nift
 untested.** Today defines its job precisely: **it must NOT pick better (selection already works at +7%/yr) —
 it must FIX THE POND.** The sector filter has to yield a universe that does not structurally bleed -4.9%/yr.
 Plausible (the sector layer showed alpha at index level, 15f) but **a HYPOTHESIS, not a finding** — and still
-gated on the ~1,973-name classification job (15i). **Do not sell it as likely; five assumptions failed today.**
+gated on the ~1,973-name classification job (16BB). **Do not sell it as likely; five assumptions failed today.**
 
 **Session scoreboard for method (the durable output):** 15h ETF legs · 15i survivorship · 15j hysteresis
 transfer · 15k fill quality · 15L the `series` filter — **five headline numbers, five unchecked assumptions,
@@ -1459,7 +1459,7 @@ book already delivering **beta 0.78 / MaxDD -50.6% net of 2% slip**, not just th
 **Module:** `research/explosive_moves/stock_rs_pit2.py` (read-only; `.venv/bin/python ... data/hermes.db`).
 **Built because Ramana asked "what alpha have we generated?" and the honest answer was "none - nothing exists".**
 
-**Why it is SURVIVORSHIP-FREE (the whole point - contrast 15i's trap):** the universe at each rebalance comes
+**Why it is SURVIVORSHIP-FREE (the whole point - contrast 16BB's trap):** the universe at each rebalance comes
 from the **bhavcopy itself** - every EQ stock actually trading that month with ADV >= Rs 5cr **that month**.
 Companies that later delisted ARE present on the dates they were tradeable (46% of the 2011 universe is dead;
 all of them are in). **No index membership, no sector labels** -> nothing is selected for having survived, and
@@ -1508,10 +1508,10 @@ naive "buy the strongest stocks" without beating 0.66 / -60.9% / 13.12x net of c
 
 **WHAT IT MEANS FOR RAMANA'S DESIGN (it does NOT falsify it):** this book has **no sector step** - it buys the
 strongest stocks in the whole market. Ramana's design buys strong stocks **inside strong sectors**, and
-specifically stocks beating **their own sector** (`rs_vs_sector`, 15i). Different filter, untested. **But the
+specifically stocks beating **their own sector** (`rs_vs_sector`, 16BB). Different filter, untested. **But the
 stakes are now measured: the sector conditioning is not polish on a working book - it must rescue a LOSING
 one, creating the entire edge from alpha -0.5%.** Worth knowing BEFORE spending days classifying the 280 dead
-names (15i). **The 15h/15i pre-registered bar is unchanged and now has a concrete floor: beat return/vol 0.66
+names (16BB). **The 15h/15i pre-registered bar is unchanged and now has a concrete floor: beat return/vol 0.66
 and MaxDD -60.9% net of realistic stock costs, or it is a REJECTION.**
 
 ### 2026-07-16BB — 🔴 DATA AUDIT before the stock build: PIT sector membership is the ONE blocker, and it is BOUNDED (~1,973 names, 280 of them dead)
@@ -1633,7 +1633,7 @@ performance filter, so the bias is structurally much smaller — but it is real:
 that delisted before 2026-07-15, is mis-handled. **It fails CONSERVATIVE, the opposite direction from the banned
 mistake: delisted names are EXCLUDED from the universe entirely, never fabricated a performance.** This is a
 first, honestly-scoped, genuinely primary-sourced simulation on **268 live names** — not yet the canon's
-ultimate ~1,973-symbol PIT-safe build (§15i) with its ~280 dead names and two-sided bias bound. That remains
+ultimate ~1,973-symbol PIT-safe build (§16BB) with its ~280 dead names and two-sided bias bound. That remains
 owed; this is real, useful evidence in the meantime, not a substitute for it.
 
 **Results — n=258 months (21.5y), reproduced against production `data/hermes.db`, three cost scenarios to
@@ -1675,7 +1675,7 @@ RS-excess vs the sector's own composite — the engine does not force-fill to hi
 constraint, not underbuilding).
 
 **Owed before this can be called final (do not re-run hoping for a different number without these):** ① the
-canon's ~1,973-symbol PIT-safe classification with the two-sided dead-name bias bound (§15i) — this 268-name
+canon's ~1,973-symbol PIT-safe classification with the two-sided dead-name bias bound (§16BB) — this 268-name
 live-only cut is a first pass, not that build; ② a real per-name ADV/impact cost model replacing the flat
 0.40%/side proxy (same rigor item as the sector layer's own owed instrument audit, §6-bis); ③ a significance
 pass on THIS result (same JK/bootstrap/MDE discipline as §15i) before treating even the REJECTION as more than

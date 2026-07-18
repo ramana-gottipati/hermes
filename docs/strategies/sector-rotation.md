@@ -234,7 +234,7 @@ the SIMPLER, immediately-available version of it, not a substitute for it.
 
 ---
 
-#### The original spec (SCOPED 2026-07-15i — feasible, gated on ONE dataset; the target for the next iteration)
+#### The original spec (SCOPED 2026-07-16BB — feasible, gated on ONE dataset; the target for the next iteration)
 
 **Ramana's design (his words, 2026-07-15 — this is the spec, do not paraphrase it away):** invest **directly in
 stocks**, because *"for media, realty, consumer durables we cannot invest directly; we must invest through the
@@ -245,7 +245,7 @@ stocks."* Identify **the top-performing stocks within the strongest sectors**. *
 different and harder test than a stock merely carried by its sector. Same question applies when choosing among
 Nifty 50/100/200 — the size-index call also has to resolve down to underlying stocks (incl. V21's Next-50 sleeve).
 
-**Data audit (ledger §2026-07-15i — measured, do NOT re-derive):** sector strength ✅ (`index_rows` 2005→2026) ·
+**Data audit (ledger §2026-07-16BB — measured, do NOT re-derive):** sector strength ✅ (`index_rows` 2005→2026) ·
 stock RS-vs-own-sector vocabulary ✅ (`stock_signals.rs_vs_sector_today` + slopes/`rsi_of_rs`/`rs_phase`,
 2011→2026, 5.97M rows) · stock prices incl. dead names ✅ (`bhavcopy_rows` 2004→2026, 9.39M rows).
 **❌ THE ONE BLOCKER: `stock_index_membership` holds 4 WEEKS** (2026-06-17→07-14). Today's members only.
@@ -256,7 +256,7 @@ list = **survivorship fake, plausibly Sharpe 1.5–2.0 and worthless.** Do not b
 280 dead)**; at ₹25cr only **113 dead**. Live side = NSE industry classification (primary source, Guardrail
 #8-clean, automatable). Dead side = the genuine work, but it is 280 names, not 1,500 shells.
 
-**DECIDED design — build our OWN sector composites, not index membership** (ledger 15i): a sector = *every
+**DECIDED design — build our OWN sector composites, not index membership** (ledger 16BB): a sector = *every
 liquid stock classified in that industry at date d*; we build the composite. **Investable by construction**
 (the sector IS a stock basket → kills the §6-bis untradeable-leg flaw) · **wider pond** (Nifty Auto ≈15 names,
 the Auto *industry* ≈60) · **far less survivorship bias** (a company doesn't EARN its way into "Auto" by
