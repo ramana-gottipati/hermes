@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """doc_hygiene_gate.py — the documentation-governance backstop (S128 audit follow-up).
 
-Three independent checks, each a RATCHET (like scripts/color_gate.py): the current
+Four independent checks, each a RATCHET (like scripts/color_gate.py): the current
 backlog is grandfathered so the gate lands GREEN today, but any NEW drift fails it.
 Grandfather floors may only SHRINK — never add a name back.
 
@@ -17,6 +17,12 @@ Grandfather floors may only SHRINK — never add a name back.
                        and AGENTS.md. Catches the drift where a critical ban/rule is
                        updated in one twin but not the other. (Presence-parity only —
                        it does NOT diff wording; a full semantic diff is out of scope.)
+  D. LEDGER TAG UNIQ — every `### 2026-…` heading in docs/strategy-ledger.md mints a
+                       UNIQUE tag (`2026-07-16AX`). Two parallel lanes each grabbing the
+                       next free letter collide on one tag and silently break every
+                       inbound `[16AX]` citation — the tag-race. The 16AO/16AX/16AY
+                       firings (S180/S187) are its recorded history; this is the durable
+                       L4 fix the S187 flag asked for (a dup heading fails the commit).
 
 Pure stdlib, no app import → safe to run in a git pre-commit hook and offline.
 Run:   python scripts/doc_hygiene_gate.py
@@ -36,6 +42,7 @@ DOCS = ROOT / "docs"
 DOC_INDEX = DOCS / "DOC_INDEX.md"
 CLAUDE_MD = ROOT / "CLAUDE.md"
 AGENTS_MD = ROOT / "AGENTS.md"
+STRATEGY_LEDGER = DOCS / "strategy-ledger.md"
 
 # Docs that are intentionally NOT catalogued in DOC_INDEX.md (the index itself; and
 # the strategy pages, which have their own coverage gate: test_strategy_docs_coverage).
@@ -51,6 +58,12 @@ TRANSIENT_NAME = re.compile(
     re.IGNORECASE,
 )
 LIFECYCLE = re.compile(r"Lifecycle:\s*(TRANSIENT|LIVING|PERMANENT|RETIRE)", re.IGNORECASE)
+
+# A strategy-ledger entry heading is `### 2026-07-16AX — <desc>`; the dated tag (`2026-07-16AX`,
+# case-sensitive — `15l` and `15L` are DISTINCT) is the entry's id, cited estate-wide as `[16AX]`.
+# Match the tag token only (require a following space/EOL so plain-date headings like
+# `### 2026-07-17 — COORDINATION`, which carry no letter-suffix, are correctly ignored).
+LEDGER_TAG = re.compile(r"###\s+(20\d{2}-\d{2}-\d{1,2}[A-Za-z]{1,3})(?=\s|$)")
 
 # Canonical rules that MUST appear (case-insensitively) in BOTH CLAUDE.md and AGENTS.md.
 # Keep these as short, stable substrings of the actual rule text.
@@ -70,6 +83,13 @@ TWIN_INVARIANTS = {
 # a name here would mean "known debt, do not regress", and a NEW offender must fail the gate.
 GRANDFATHERED_UNINDEXED: set[str] = set()   # empty — full DOC_INDEX coverage (2026-07-14)
 GRANDFATHERED_UNBANNERED: set[str] = set()  # empty — all transient docs carry a Lifecycle banner (2026-07-14)
+# ONE pre-existing tag collision, from before this gate existed: `2026-07-15i` is used by TWO
+# distinct entries — the "PIT-sector DATA AUDIT" blocker (cited as §15i by codex-stock-selection-brief)
+# and the "SIGNIFICANCE PASS" that drove D139 (cited as §15i / 15i-sig by the carryforward). The
+# citations already disambiguate by context and renumbering a historical heading would rewrite the
+# genuinely-ambiguous inbound refs (work from other sessions), so it is grandfathered as documented
+# debt, NOT healed here. The gate blocks every NEW collision (the 16AX/16AY class it was built for).
+GRANDFATHERED_DUP_TAGS: set[str] = {"2026-07-15i"}
 # ─────────────────────────────────────────────────────────────────────────────────────
 
 
@@ -145,6 +165,21 @@ def _twin_drift() -> list[str]:
     return drift
 
 
+def _ledger_dup_tags() -> list[str]:
+    """Strategy-ledger tags that appear on more than one `### ` heading (the tag-race collision).
+    Returns the bare duplicate tag tokens (e.g. `2026-07-16AX`), sorted — comparable against the
+    ratchet floor. To locate both offending lines: grep the tag in docs/strategy-ledger.md."""
+    if not STRATEGY_LEDGER.exists():
+        return []
+    text = STRATEGY_LEDGER.read_text(encoding="utf-8", errors="replace")
+    counts: dict[str, int] = {}
+    for line in text.splitlines():
+        m = LEDGER_TAG.match(line)
+        if m:
+            counts[m.group(1)] = counts.get(m.group(1), 0) + 1
+    return sorted(tag for tag, n in counts.items() if n > 1)
+
+
 def _ratchet(name: str, current: list[str], floor: set[str]) -> int:
     new = [x for x in current if x not in floor]
     cleared = sorted(floor - set(current))
@@ -172,6 +207,10 @@ def main() -> int:
         for x in _find_unbannered():
             print(f"    {x!r},")
         print("}")
+        print("GRANDFATHERED_DUP_TAGS = {")
+        for x in _ledger_dup_tags():
+            print(f"    {x!r},")
+        print("}")
         return 0
 
     fail = 0
@@ -187,6 +226,8 @@ def main() -> int:
         fail = 1
     else:
         print(f"  clean - all {len(TWIN_INVARIANTS)} canonical rules present in both twins.")
+
+    fail |= _ratchet("D. strategy-ledger tag uniqueness", _ledger_dup_tags(), GRANDFATHERED_DUP_TAGS)
 
     print("PASS - doc hygiene held (backlog only shrank)." if not fail
           else "FAIL - new documentation drift. Fix, or add to the ratchet floor only with a reason.")

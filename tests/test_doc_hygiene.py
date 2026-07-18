@@ -43,8 +43,22 @@ def test_claude_agents_twins_in_sync() -> None:
     assert not drift, f"CLAUDE.md <-> AGENTS.md canonical-rule drift: {drift}"
 
 
+def test_ledger_tags_are_unique() -> None:
+    """Every `### 2026-…` strategy-ledger tag is unique (the tag-race collision class, S187).
+
+    A duplicate tag is the failure the 16AX/16AY collisions were: two parallel lanes each mint the
+    same id and every inbound `[16AX]` citation becomes ambiguous. The ONE grandfathered pre-existing
+    dup (`2026-07-15i`) is excused; any NEW collision fails."""
+    extra = sorted(set(gate._ledger_dup_tags()) - gate.GRANDFATHERED_DUP_TAGS)
+    assert not extra, (
+        "duplicate strategy-ledger tag(s) — two entries minting the same id breaks every inbound "
+        f"citation; renumber the later entry to the next free tag: {extra}"
+    )
+
+
 if __name__ == "__main__":  # allow a bare run outside pytest
     test_every_doc_is_indexed()
     test_transient_docs_carry_a_lifecycle_banner()
     test_claude_agents_twins_in_sync()
-    print("doc-hygiene pytest checks OK — index coverage / transient banners / twin-sync all clean")
+    test_ledger_tags_are_unique()
+    print("doc-hygiene pytest checks OK — index coverage / transient banners / twin-sync / ledger-tags all clean")
