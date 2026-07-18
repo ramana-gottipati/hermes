@@ -232,7 +232,7 @@ same evening / N hrs"). ~0.5s total, live from season day 1.
 ### 6.6 PROJECT_STATE/docs hygiene (one pass, week 2)
 Reconstruct missing S78 entry · backfill S79/S80x commit hashes · sweep the 13 stale-open contradictions
 (§5.2) · fix the TL;DR two false claims · retire `docs/SESSION-72-CARRYFORWARD.md` (owner session) · note the
-D68/D79-D80 numbering collisions · **update `strategy_runs` + `/dash/testing`** — it still renders "none
+D68/D79-D80 numbering collisions (D68 HEALED S194c → renumbered D145; D79/D80 now each unique — Check E gates the class) · **update `strategy_runs` + `/dash/testing`** — it still renders "none
 beats B&H net" (superseded 2026-07-02) and lacks the C-BLEND champion + PEAD-fail rows: a false claim on a
 trust surface. Also amend charter by D-log: D-05 premise; X-02/X-06/E-02/E-06 corrections (§2).
 

@@ -27,8 +27,8 @@ Grandfather floors may only SHRINK — never add a name back.
                        UNIQUE id (`D143`; suffixed variants like `D142-RECONCILE` stay
                        distinct). Same tag-race, higher blast radius — D-numbers are cited
                        ~78× across docs AND code. Its recorded history: the D110/D111/D113
-                       renumbers and the still-live `D68` collision (strategic-review flags
-                       "D68/D79-D80 numbering collisions").
+                       renumbers and the `D68` collision (healed S194c — the GLM-reviewer
+                       decision was renumbered to D145; the floor is now empty).
 
 Pure stdlib, no app import → safe to run in a git pre-commit hook and offline.
 Run:   python scripts/doc_hygiene_gate.py
@@ -106,13 +106,12 @@ GRANDFATHERED_UNBANNERED: set[str] = set()  # empty — all transient docs carry
 # genuinely-ambiguous inbound refs (work from other sessions), so it is grandfathered as documented
 # debt, NOT healed here. The gate blocks every NEW collision (the 16AX/16AY class it was built for).
 GRANDFATHERED_DUP_TAGS: set[str] = {"2026-07-15i"}
-# ONE pre-existing Decision-log collision (acknowledged in docs/strategic-review-2026-07-07.md as
-# "D68/D79-D80 numbering collisions"): `D68` names TWO distinct decisions — the GLM-5.2 headless code
-# reviewer (session 39) and the rotation-vocabulary unification / mini_rrg (session 38). BOTH are
-# load-bearing and cited across docs AND live code (relative-strength.md ×5, cockpit.py, dashboard.py,
-# mini_rrg.py vs. the code_review file-tree + AUD-28), so renumbering would churn other sessions' work
-# for a cosmetic id fix — grandfathered as documented debt. The gate blocks every NEW D-collision.
-GRANDFATHERED_DUP_DECISIONS: set[str] = {"D68"}
+# Decision-log D-numbers are globally unique. (The one historical collision, `D68`, was HEALED in
+# S194c: the GLM-5.2 code-reviewer decision (session 39) was renumbered D68 → D145, so it no longer
+# clashes with the rotation-vocabulary/mini_rrg unification (session 38), which keeps D68. The floor
+# is therefore EMPTY and the gate enforces zero Decision-log dups; a name here would mean "known debt,
+# do not regress", and a NEW collision must fail the gate.)
+GRANDFATHERED_DUP_DECISIONS: set[str] = set()
 # ─────────────────────────────────────────────────────────────────────────────────────
 
 

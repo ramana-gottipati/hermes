@@ -44,7 +44,7 @@ pip install -r requirements.txt --quiet
 # (units + drop-ins captured verbatim from the box) into /etc + daemon-reload. It NEVER
 # enables or starts anything — starting a hermes timer fires its job immediately (AUD-95),
 # so enable/start stay deliberate human actions (see the header). Dormant units (e.g. the
-# nous-review reviewer, D68) are installed-but-disabled by exactly this never-enable behaviour.
+# nous-review reviewer, D145) are installed-but-disabled by exactly this never-enable behaviour.
 echo "==> Installing systemd units from scripts/systemd/vps-live/ (canonical, drift-checked)"
 bash "${TARGET}/scripts/install-systemd.sh" --install
 

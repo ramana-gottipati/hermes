@@ -59,9 +59,9 @@ def test_ledger_tags_are_unique() -> None:
 def test_decision_log_ids_are_unique() -> None:
     """Every `### D<n>` Decision-log id in PROJECT_STATE.md is unique (the tag-race, code-cited).
 
-    Two distinct decisions sharing an id (`D68` today) breaks ~78×-cited inbound refs across docs and
-    code. Suffixed variants (`D142-RECONCILE`) stay distinct. The ONE grandfathered pre-existing dup
-    (`D68`) is excused; any NEW collision fails."""
+    Two distinct decisions sharing an id breaks ~78×-cited inbound refs across docs and code. Suffixed
+    variants (`D142-RECONCILE`) stay distinct. The one historical dup (`D68`) was healed in S194c
+    (GLM-reviewer renumbered to D145), so the floor is empty now; any collision fails."""
     extra = sorted(set(gate._decision_dup_ids()) - gate.GRANDFATHERED_DUP_DECISIONS)
     assert not extra, (
         "duplicate Decision-log id(s) — two decisions minting the same D-number breaks every inbound "
