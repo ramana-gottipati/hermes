@@ -47,8 +47,8 @@ def test_ledger_tags_are_unique() -> None:
     """Every `### 2026-…` strategy-ledger tag is unique (the tag-race collision class, S187).
 
     A duplicate tag is the failure the 16AX/16AY collisions were: two parallel lanes each mint the
-    same id and every inbound `[16AX]` citation becomes ambiguous. The ONE grandfathered pre-existing
-    dup (`2026-07-15i`) is excused; any NEW collision fails."""
+    same id and every inbound `[16AX]` citation becomes ambiguous. The pre-existing `2026-07-15i` dup
+    was HEALED (S195, renumbered to `2026-07-16BB`); the floor is empty and ANY collision now fails."""
     extra = sorted(set(gate._ledger_dup_tags()) - gate.GRANDFATHERED_DUP_TAGS)
     assert not extra, (
         "duplicate strategy-ledger tag(s) — two entries minting the same id breaks every inbound "

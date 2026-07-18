@@ -1514,7 +1514,9 @@ one, creating the entire edge from alpha -0.5%.** Worth knowing BEFORE spending 
 names (15i). **The 15h/15i pre-registered bar is unchanged and now has a concrete floor: beat return/vol 0.66
 and MaxDD -60.9% net of realistic stock costs, or it is a REJECTION.**
 
-### 2026-07-15i — 🔴 DATA AUDIT before the stock build: PIT sector membership is the ONE blocker, and it is BOUNDED (~1,973 names, 280 of them dead)
+### 2026-07-16BB — 🔴 DATA AUDIT before the stock build: PIT sector membership is the ONE blocker, and it is BOUNDED (~1,973 names, 280 of them dead)
+
+> **⚠ Tag note (renumbered 2026-07-18, S195):** minted as `2026-07-15i`; renumbered to **`2026-07-16BB`** to heal a duplicate-tag collision (the SIGNIFICANCE PASS that drove **D139** keeps `§15i`). Older inbound refs to "§15i" that mean the *data audit / classification blocker* — `codex-stock-selection-brief.md` (now `§16BB`) and `docs/strategies/sector-rotation.md` §"original spec" (still labelled §15i) — belong HERE, not to the significance entry.
 
 **Ramana's directive (2026-07-15):** build the strategy on STOCKS, not indices. *"For media, realty, consumer
 durables we cannot invest directly; we must invest through the stocks."* + *"identify the top-performing stocks
@@ -1735,6 +1737,8 @@ index book counts as a REJECTION, not a result.** ② the instrument/ADV audit +
 re-cut + significance pass (still owed, four selection rounds deep).
 
 ### 2026-07-15i — SIGNIFICANCE PASS (closes the §15h owed item ③, significance half): the V21→V24→V32 ladder's final rungs are NOT STATISTICALLY DISTINGUISHABLE — and the "Sharpe" label is wrong
+
+> **⚠ Tag note:** the PIT-sector DATA AUDIT once shared this `15i` tag; it was renumbered to **§2026-07-16BB** (2026-07-18, S195) to resolve the collision. Inbound "§15i" refs meaning the *classification blocker / ~1,973-name audit* belong to **§16BB**, not this entry.
 
 **What this settles.** §15h left three items owed; this closes the significance half of ③. The ladder's
 *arithmetic* was never in question (§15h: "the numbers reproduce"). What was never asked is whether the

@@ -172,7 +172,7 @@ kind that then announces a bonus/split. **Dividends are deliberately left unadju
 *price* index, so omitting dividends from both sides is like-for-like); **RIGHTS issues (368) are
 unhandled**, disclosed not hidden; 157 of 669 SPLIT rows lack usable ratios (512 usable).
 
-**§15i's classification blocker — DISSOLVED, same commit (`bab75cf`).** The earlier plan (yours and a
+**§16BB's classification blocker — DISSOLVED, same commit (`bab75cf`).** The earlier plan (yours and a
 sibling's both, independently) was to hand-build a PIT-safe sector classification for ~1,973 symbols
 (1,693 live + 280 dead) from a primary industry-classification source. **A much better, already-owned-data
 solution was found and validated instead:** `research/explosive_moves/sector_assign_validate.py` —
@@ -298,7 +298,7 @@ extreme) — very possibly both, and they may be the same fix seen two ways.
    beats decile 10 on both mean and compounded return, simultaneously (§15P). This is the central,
    load-bearing finding of the entire day and should shape the redesign directly.
 5. **Sector classification does not need an external data-sourcing project.** The correlation-based method
-   is validated at 85.1%/93.1% accuracy and covers dead companies for free (§15i's dissolution, above).
+   is validated at 85.1%/93.1% accuracy and covers dead companies for free (§16BB's dissolution, above).
 6. **A crude "catch the reversal" sign-flip carries no signal** (§15Q) — but more precise formulations of
    the same idea are untested, not falsified.
 7. **Hysteresis, validated as the single best lever at the sector layer, backfires when applied naively at
@@ -363,7 +363,7 @@ layer.
 
 - Using `stock_index_membership` (or anything derived from it, like `stock_signals.primary_sector`/
   `rs_vs_sector_today`) as a historical sector label — it only holds 4 weeks; using it as if valid for 2011
-  reproduces a survivorship trap that would print a fake Sharpe of 1.5-2.0 (§15i's original framing, before
+  reproduces a survivorship trap that would print a fake Sharpe of 1.5-2.0 (§16BB's original framing, before
   the correlation method dissolved the need for it).
 - Filtering `bhavcopy_rows` to `series='EQ'` only, for any stock-level return calculation (§15L).
 - Using raw `bhavcopy_rows.close` without corporate-action adjustment, for any stock-level return

@@ -99,13 +99,13 @@ TWIN_INVARIANTS = {
 # a name here would mean "known debt, do not regress", and a NEW offender must fail the gate.
 GRANDFATHERED_UNINDEXED: set[str] = set()   # empty — full DOC_INDEX coverage (2026-07-14)
 GRANDFATHERED_UNBANNERED: set[str] = set()  # empty — all transient docs carry a Lifecycle banner (2026-07-14)
-# ONE pre-existing tag collision, from before this gate existed: `2026-07-15i` is used by TWO
-# distinct entries — the "PIT-sector DATA AUDIT" blocker (cited as §15i by codex-stock-selection-brief)
-# and the "SIGNIFICANCE PASS" that drove D139 (cited as §15i / 15i-sig by the carryforward). The
-# citations already disambiguate by context and renumbering a historical heading would rewrite the
-# genuinely-ambiguous inbound refs (work from other sessions), so it is grandfathered as documented
-# debt, NOT healed here. The gate blocks every NEW collision (the 16AX/16AY class it was built for).
-GRANDFATHERED_DUP_TAGS: set[str] = {"2026-07-15i"}
+# HEALED 2026-07-18 (S195): the one pre-existing tag collision is gone, floor now EMPTY. `2026-07-15i`
+# had named TWO distinct entries — the "PIT-sector DATA AUDIT" blocker (cited §15i by codex-stock-
+# selection-brief) and the "SIGNIFICANCE PASS" that drove D139 (cited §15i / 15i-sig by the carryforward).
+# The DATA AUDIT was renumbered to `2026-07-16BB` (its 3 unambiguous codex-brief refs updated; both ledger
+# entries carry a disambiguation note so stale §15i data-audit refs resolve via the breadcrumb); the
+# SIGNIFICANCE PASS keeps `§15i`. Keep this empty — a NEW collision must fail (the 16AX/16AY class).
+GRANDFATHERED_DUP_TAGS: set[str] = set()
 # Decision-log D-numbers are globally unique. (The one historical collision, `D68`, was HEALED in
 # S194c: the GLM-5.2 code-reviewer decision (session 39) was renumbered D68 → D145, so it no longer
 # clashes with the rotation-vocabulary/mini_rrg unification (session 38), which keeps D68. The floor
