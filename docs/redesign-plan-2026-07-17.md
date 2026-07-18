@@ -8,8 +8,14 @@
 
 **Status: M0+M1+M2 APPROVED (Ramana, 2026-07-17) and reviewed by both external stakeholders —
 Codex `APPROVE-WITH-CHANGES` and Gemini `APPROVE-WITH-CHANGES`; all blocking findings accepted
-and dispositioned in `docs/redesign-coordination.md` (the approval + communication record).
-M3–M8 remain pending owner approval.**
+and dispositioned in `docs/redesign-coordination.md` (the approval + communication record).**
+
+**🔴 2026-07-18 — CONSTRUCTION PAUSED BY OWNER.** Ramana's correction: approvals were of
+direction; before any further building he requires the deeper planning below — competitive
+research, style retention, navigation architecture, cross-links/connectivity, and the user
+journey. That plan is **PART II** (from §A onward). M0–M3 exist as built opt-in preview modules
+(M3's final walk was interrupted; revert = `.bak-s189c`); **nothing further is built until
+PART II is reviewed and approved.**
 
 **Method.** Grounded in a four-way sweep of the real estate on 2026-07-17 (not memory): the live
 registry (`src/web/lens_registry.py` L65–338 — 73 Lens records: 71 routed + 2 overlay-only), the
@@ -426,3 +432,522 @@ queries over existing tables; LLM spend unchanged (Pat's existing Gemini path on
 After those: M3–M5 (dock, dossier, Today) as the second approval — that is the moment the product
 becomes "stocks + news + context on one screen," demo-able against the audit's beginner and expert
 walks.
+
+---
+---
+
+# PART II — THE CONNECTIVITY & JOURNEY PLAN (v2, 2026-07-18 · for owner review, plan-only)
+
+**Method.** Three research streams run 2026-07-18: (1) live teardown of five INDIAN platforms
+(Screener.in · Trendlyne · Tickertape · StockEdge · Moneycontrol — fetched pages, RELIANCE as the
+common specimen); (2) live teardown of four GLOBAL platforms (TradingView · Koyfin · Simply Wall
+St · fiscal.ai); (3) an evidence brief on navigation architecture, cross-linking, and dual-audience
+journeys from primary UX research (NN/g controlled studies, Baymard, GOV.UK/USWDS design systems,
+Shneiderman, Wikipedia's linking manual). Unverifiable items were marked UNVERIFIED in the raw
+reports and are not load-bearing below.
+
+## A. THE COMPETITIVE LANDSCAPE — how nine comparable products organize these sections
+
+| Platform | Primary nav | Stock page | News placement | Education | The lesson for us |
+|---|---|---|---|---|---|
+| Screener.in | 4 items | ONE scroll, 11 sticky anchors; summary grid → pros/cons → chart → peers → statements → filings | none — filings only | none in-context | Single-scroll + anchors = zero navigation cost; filings-first matches our primary-source DNA |
+| Trendlyne | ~22 items | 14 tabs; Overview = linked digest led by DVM scores + SWOT counts | per-stock tab + top-level Results/Insider/Events | word-verdicts + tooltips | A small named score vocabulary reused site-wide works; 22 nav items is label soup |
+| Tickertape | 6 items | 8 tabs; header scorecard of 6 word-grades; sector baseline beside every metric | last tab; home news block | best in-context: grades + inline "learn more" + hub | Plain-word grades orient novices; **sector context beside each metric, no click** |
+| StockEdge | 4 (+13 side) | app chips; scans double as per-stock badges | dedicated filtered daily feed; FII/DII + Deals top-level | deepest: Learn, courses, per-stock Club | Named concepts loop screener↔stock↔learning; broken deep links kill citability |
+| Moneycontrol | 16 items | 15+ anchor-tabs on one long page; SWOT + Stock Vitals + per-stock Seasonality | everywhere (newsroom) | editorial section only | Per-stock seasonality and pass-count checklists are proven; monetization noise destroys trust |
+| TradingView | 5 items | 12 tabs; **Overview = preview-card index of every tab**; taxonomy breadcrumb; auto-FAQ foot | `/news/` hub + symbol tab + dockable panel; **symbol chip on every headline** | auto-generated per-symbol FAQs | Overview-as-preview-index; news always anchored to the instrument |
+| Koyfin | ~10-12 left-nav | sectioned security mode; user-saveable analysis templates | news in left nav + persistent right-rail icon + earnings calendar | starter dashboards (never blank) | **`/` command bar: ticker ⏎ code chains** — expert speed as a thin layer over routes |
+| Simply Wall St | 8 items | ONE narrative scroll: Snowflake → 8 sections, each = 6 **pass/fail checks with stated thresholds** | inside the report only | the score explains itself; methodology public on GitHub | **Checks-as-UI — the evidence IS the interface**; one visual grammar at every altitude |
+| fiscal.ai | 6 items | overview + financials/segments/transcripts; AI answers carry **citation-per-claim** to filings | no headline feed; flow = documents | example prompts | Every rendered number should link to its primary source |
+
+**Convergences (all nine):** primary nav settles at **4–8**; depth lives inside the symbol page or
+a browse taxonomy, never the top bar. Every platform that onboards novices well uses (a) a SMALL
+named plain-word verdict vocabulary introduced once and reused everywhere, and (b) an
+overview-that-previews-everything so nobody chooses a tab cold. **Universal failure modes:** nav
+items minted per-dataset (Trendlyne, Moneycontrol — exactly our current 71-lens condition), and
+verdicts whose evidence is paywalled/hidden (Trendlyne, Tickertape) — the opposite of our moat.
+
+**The archetype decision this forces:** our v1 dossier design ("tabs become in-page sections")
+sharpens into a committed archetype — **Simply Wall St's evidence-scroll inside TradingView's
+preview-index shell**: ONE scrolling stock page with a sticky section index; the top block is a
+digest where every section gets a preview card that anchors down; every verdict decomposes into
+pass/fail checks with the real thresholds and numbers shown (our gates/fences already ARE this —
+they have just never been rendered as UI). No 12-tab wall, ever.
+
+## B. OUR STYLE — what makes Patearn Patearn, and the retention rules
+
+The flavor, extracted from the estate (all of it already exists in code or doctrine — this
+charter makes it binding for every new surface):
+
+1. **Evidence-first.** A number beside every verdict; a check with its threshold beside every
+   claim; failures published with the same prominence as wins (the falsification-forward moat).
+   SWS renders checks; we render checks **plus the recorded falsifications** — no competitor can
+   copy that without our discipline.
+2. **Descriptive-only voice.** Word-states, never advice verbs; the mood strip's regime words are
+   the ONE vocabulary; `infographics.fence()` is the ONE boundary phrasing source.
+3. **Citation-per-claim.** Every metric names its source column/filing/date (our "?" provenance
+   popovers, praised in the audit as "better than most vendor terminals", extended by the
+   fiscal.ai pattern: numbers deep-link to their source row).
+4. **Instrument-panel visuals.** Dark-first, tabular mono numerals, up/down colors reserved
+   strictly for signed values, categorical hues never verdict-colored (the `ui_tokens` value
+   contract — inherited verbatim by any new theme).
+5. **Plain-English-first labels.** "Delivery size ·DVPT·", never the code alone (naming law +
+   the term-chip pattern); origin badges 🧑/🏠/📚 disclose lineage.
+
+**Retention rules (binding on every future module):** the v3 token layer inherits the value
+contract byte-for-byte; regime words, fence copy, glossary, and Pat corpus each stay
+single-sourced; every new verdict ships as decomposable checks; every new number ships with its
+source. Style drift = a gate failure, not a taste debate.
+
+## C. THE NAVIGATION ARCHITECTURE CONTRACT — identical from page to page
+
+*(evidence: NN/g controlled studies + USWDS/GOV.UK; citations in the research brief, kept with
+the coordination record)*
+
+1. **Two frozen tiers.** A global bar of the 6 destinations — identical on every page, current
+   destination marked — and a per-destination left rail listing that destination's sub-views in a
+   FIXED order with the current one highlighted. USWDS literally tests "same location and order on
+   every page"; that test becomes ours.
+2. **Never hidden on desktop.** No icon-only collapse as default (hidden nav halved discoverability
+   in NN/g's n=179 study — worse on desktop than mobile).
+3. **Canonical breadcrumbs.** `Home > Markets > Rotation > TCS` on every drill-down page — the
+   page's home in the hierarchy, never the click path — sitting under the global bar. Arriving by
+   search or cross-link still shows the canonical trail: the breadcrumb teaches the IA. Mobile
+   collapses to "‹ up one level".
+4. **Three altitudes, one move per link** (Shneiderman's overview → zoom/filter → detail):
+   Today/Markets = overview · screeners/sectors/strategy-library = filter · the stock page =
+   detail. Every cross-link moves exactly ONE altitude; no link ever strands a user two levels
+   from a nav anchor.
+5. **Hub-and-spoke stock page.** The stock page is the hub; a lens's deep page (opened `?sym=`)
+   is a spoke — one click out, one click back (breadcrumb + "‹ back to TCS"). Spoke-to-spoke
+   chains are banned.
+6. **Sticky discipline.** Thin sticky global bar on data pages; long reading pages (methodology,
+   strategy-ref) get a sticky in-page section index instead — which is also the stock page's
+   sticky section nav (the §A archetype).
+7. **Search-first AND browse-first.** The omnipresent search box resolves symbol + company name +
+   lens + glossary term in one index (row format `TCS · Tata Consultancy Services · IT · NSE`,
+   symbol-exact ranked first). ⌘K stays the analyst accelerator and is NEVER the only path.
+   Koyfin's chaining maps onto our URLs — `/dash/<dest>/<view>?sym=` already is the mnemonic
+   system; the palette later learns chained input ("TCS rotation" → the rotation view for TCS).
+8. **Mobile mirrors desktop.** 5 bottom tabs = the same destination names and order as the
+   desktop bar (the contract survives the form factor); a destination's sub-views become an
+   on-page chip row; the stock page's sections become accordions with the verdict visible in each
+   collapsed header; wide tables freeze the symbol column and scroll inside their container.
+
+## D. THE CROSS-LINK & CONNECTIVITY SYSTEM — internal, external, and the logical flow
+
+**Three link classes, three fixed treatments (never mixed):**
+- **Inline contextual** — a term/metric links to its definition at FIRST occurrence per section
+  (Wikipedia's once-per-section rule; over-linking dilutes every link). The affordance is ONE
+  system site-wide: the dotted-underline chip/popover with "full definition →" inside.
+- **Related block** — one "Related" strip in one fixed position per page (end of focus column),
+  **capped at 5**, ranked same-entity-first (TCS on another lens) then same-lens-other-entity,
+  driven from the registry (the existing `related_strip` formalized with the cap) — never ad-hoc
+  per page.
+- **Navigational** — lives only in nav components (bar, rail, breadcrumb, section index).
+
+**Link-label law (the 4 Ss):** specific, sincere, substantial, succinct — "TCS relative-strength
+history", never "View more"/"Click here"; every label must predict its destination out of context
+(also the screen-reader requirement).
+
+**The connectivity graph (the logical flow, made explicit):**
+
+```
+Today board tile ──▶ lens page (overview → filter: one altitude)
+lens row [SYM] ────▶ stock hub (?sym= — filter → detail)
+stock hub section ─▶ lens deep page ?sym= (spoke; "‹ back to TCS")
+news headline ─────▶ symbol chip ─▶ stock hub   (news is NEVER free-floating)
+any metric ────────▶ glossary chip ─▶ methodology page ─▶ validation record
+fired-lens badge ──▶ that lens filtered to the symbol (the StockEdge loop:
+                     the same named concept appears in screener, stock, learning)
+```
+
+Rules the graph enforces: every link moves one altitude · every page reachable from nav in ≤2
+clicks · every symbol link is `?sym=` (never `symbol=`) · no orphans (the existing route gate
+already machine-enforces this) · verdict → evidence → methodology → validation is an unbroken
+chain from ANY starting point.
+
+**External links (citations):** primary-source references (NSE/BSE filing, bhav-copy date) open
+same-tab by default with a visible ↗ marker and `rel="noopener noreferrer"`; a new tab only when
+leaving would lose in-progress work, and then the label says so (W3C G200). Every claim's number
+carries its source — the citation-per-claim rule — which is also the citability answer: every
+view is a canonical URL (StockEdge's broken deep links are the cautionary tale; for a research
+product the URL is the citation).
+
+## E. THE USER JOURNEY — per persona, on real data
+
+*(evidence is unusually one-sided here: upfront tours FAILED in NN/g's n=70 study — skippers
+rated apps easier than readers; what works is contextual pull-help, teaching empty states, and
+accelerators invisible to novices. v1's M6 "coach-mark journey" is REVISED accordingly.)*
+
+- **The newcomer:** lands on Today → the mood strip in plain words + one identity sentence →
+  types a company NAME into the search box ("tata consultancy" → TCS, already live) → the stock
+  hub opens on the word-verdict digest (our 8 tiles as plain-word states, every one a chip whose
+  evidence is one tap away) → a SINGLE one-shot nudge points at one dotted term ("every dotted
+  term explains itself — tap one"); that tap IS the proprietary-language onboarding → scrolls the
+  evidence sections; "How to read this page" sits in the same position on every page → empty
+  states always teach ("no stocks pass — loosen X") → tracks via watchlist (demo book). No
+  welcome tour, ever.
+- **The analyst:** ⌘K or URL directly to a symbol/lens → digest first, one disclosure step to the
+  full raw table (never a third level) → filters/sorts live in the URL → server CSV + /v1 curl on
+  every major table → Proof destination: replay-any-date, spec-sheets with pre-registered hashes,
+  the validation record → saved views. All accelerators invisible to the newcomer (Heuristic #7:
+  layering + accelerators, never two modes).
+- **The skeptic:** starts anywhere → any verdict decomposes into its checks with the actual
+  thresholds and numbers (✓/✗ with values, failures rendered as loudly as passes) → methodology
+  page (origin-badged 🧑/🏠/📚) → the validation record INCLUDING falsifications → prereg hashes.
+  The banned pattern (learned from Trendlyne/Tickertape): a visible verdict whose evidence is
+  hidden. Ours is the inverse and the journey proves it at every step.
+- **The mobile visitor:** the same 5 destinations as bottom tabs → the stock hub as accordions
+  with verdicts visible collapsed → the dock as a swipeable bottom sheet → zero horizontal body
+  scroll at any width (the fit guarantee, already gate-tested at 375px).
+
+The five-step arc (understand → search → learn → form your view → track) survives from v1, but is
+delivered through structure + contextual help, not a tour.
+
+## F. WHAT PART II CHANGES vs PART I
+
+1. **Stock-page archetype committed:** single evidence-scroll + sticky section index + digest top
+   (SWS-inside-TradingView), replacing v1's looser "tabs become sections".
+2. **Checks-as-UI adopted:** every gate/fence/verdict renders as pass/fail checks with real
+   thresholds and numbers — the strongest borrowable pattern for an evidence-first product.
+3. **Word-verdict vocabulary formalized:** a SMALL set of plain-word states (the mood strip's
+   words + per-lens states), reused site-wide, evidence always beside — never a paywalled or
+   hidden number behind a grade.
+4. **Canonical breadcrumbs added** (v1 had none) + the one-altitude-per-link rule.
+5. **Cross-link law:** once-per-section inline links · ONE related block capped at 5 · 4S labels ·
+   same-tab cited external links.
+6. **M6 journey revised:** the coach-mark TOUR is dead (evidence); replaced by one one-shot nudge +
+   contextual pull-help + teaching empty states + the persistent "How to read this page".
+7. **Mobile contract:** bottom tabs mirroring desktop destinations, accordion stock page, frozen
+   symbol columns.
+8. **New EXAMINE queue from the teardowns** (each needs an owner nod before any module adopts it):
+   sector-baseline-beside-every-metric (Tickertape) · per-stock private notes (StockEdge) ·
+   auto-FAQ block per stock (TradingView) · edit-columns-in-place (Screener.in) · palette chaining
+   (Koyfin).
+
+## G. WHERE THIS LEAVES THE PROGRAM
+
+Built and parked (all opt-in, invisible from the default site, one-line revert each): M0 preview
+gate · M1 theme layer · M2 term chips (deployed, walked) · M3 dock (on the box, final walk
+interrupted — say the word to finish the walk or revert via `.bak-s189c`). **Nothing further is
+designed or built until you review PART II.** When you do, the decisions that unlock work, in
+order: (1) ratify or amend §C's navigation contract and §D's connectivity rules — they shape
+every subsequent module; (2) ratify the §A stock-page archetype (it redefines M4); (3) the §F.8
+EXAMINE queue; (4) then M4 (stock hub) gets re-planned against the ratified contract before any
+code.
+
+---
+---
+
+# PART III — PORTFOLIO PRESENTATION & COLUMN ARCHITECTURE (2026-07-18 · plan-only, for owner review)
+
+**Method.** Twelve live teardowns of India's stock-market winners across two cohorts — the
+portfolio-product side (smallcase · WealthDesk · MarketsMojo · Finology · Trendlyne/Starfolio ·
+Value Research) and the tools/broker side (Chartink [walked live in a browser] · Zerodha
+Varsity/Console/Kite · Groww · INDmoney · Tijori · investing.com India) — joined against a full
+inventory of OUR column estate (Screen+'s machine-gated 44-column registry; the ~70-column raw
+pool across stock_signals/MEP/CPR/pt14/C/CCI/fundamentals/F&O; the four engine-locked books'
+stored fields). Every recommended column below is one we ALREADY compute — nothing here requires
+new data. Login-gated specifics are marked UNVERIFIED in the underlying reports.
+
+## H. THE INDIAN SUCCESS FORMULAS — what the portfolio winners actually do
+
+| Platform | Known for | Risk vocabulary | The load-bearing pattern |
+|---|---|---|---|
+| smallcase | basket storefront in your own demat; ₹1.2L-cr+ transacted | Low / Medium / High Volatility (3-tier) | **Provenance firewall:** platform-level "no backtested data; only actual, verifiable performance" |
+| WealthDesk | basket rails behind brokers (Share.Market) | investor personas (New/Strategic/Active/Cautious) | **Consent-based rebalance ledger** — every change a dated, approved, explained event |
+| MarketsMojo | all-stocks algorithmic grading | Conservative / Moderate / Aggressive / High Value | **Row-level falsifiability:** Date of Entry · Entry Price · own Return · BSE500 return, same window, one row |
+| Finology | education-first funnel (Ticker free → One paid) | none — deliberate | **Named lenses with a fence**, including NEGATIVE lenses ("Value Trap", "Growth Bubble") |
+| Trendlyne | DVM scores + Superstar filings tracker | (baskets JS-gated) | **Quarter-matrix table:** 9 quarters of holding-% as columns + "New"/"Filing Awaited" chips + freshness note glued to the table |
+| Value Research | THE fund star-rating since 1992 | Low / Below Avg / Average / Above Avg / High (percentile 5-tier) | **Published methodology as the moat** — the rating is trusted because the machine is public |
+
+**The tools/broker cohort** (second table):
+
+| Site | Known for | Screener columns | Portfolio columns | The load-bearing pattern |
+|---|---|---|---|---|
+| Chartink | 150k+ community scans; 12:53 avg session | default 6 (`Sr. · Stock Name · Symbol · Close · %_change · Volume`); customize = premium | — | **The scan page as a shareable artifact:** one URL = readable English rules + live results + love-count + 9-month clickable backtest + embed widget |
+| Zerodha Varsity | free book-depth curriculum | — | — | **Numbered 17-module ladder** with visible chapter counts — progress legible, brand halo |
+| Zerodha Kite/Console | tax-ready reports; the XIRR truth | — | Kite: `Instrument · Qty. · Avg. cost · LTP · Cur. val · P&L · Net chg. · Day chg.`; Console adds per-holding + portfolio **XIRR, corporate-action-adjusted** | **One trusted number, computed properly** — CA-adjusted XIRR is Indian retail's most trusted portfolio figure |
+| Groww | #1 broker by actives; SEO'd simple stock pages | preset filters, no community | login-gated | "Mutual funds invested" co-presented on the stock page — institutional social proof |
+| INDmoney | net-worth super-app | basic | aggregated net-worth, family accounts | Import-and-aggregate onboarding: value on day one from EXTERNAL holdings |
+| Tijori | segment/KPI/market-share data w/ filing links | NL-query, theme-first | login-gated | Segment-KPI-first company model with filing-linked provenance — our closest philosophical neighbor |
+| investing.com IN | econ calendar + technical scorecards | filter grid | manual watchlist P&L | Per-timeframe verdict strip (30-min vs monthly disagreeing, honestly shown) |
+
+**What makes the Indian winners win — the ranked recurring factors (across all twelve):**
+1. **Free, ungated, SEO-indexable depth as the growth engine** (Groww, Chartink, Varsity,
+   Screener.in; counter-proof: Tijori's login wall caps a superior product at cult status).
+2. **One trusted number, computed properly and defended** (Console's CA-adjusted XIRR).
+3. **User-generated, URL-shareable artifacts that carry their own logic** (Chartink scans).
+4. **Readable rules, no black box** (Chartink's English clause editor; anti-example:
+   investing.com's unexplained "Strong Buy").
+5. **Freemium cuts on speed/quantity, never capability** (delayed-vs-realtime, quotas — never
+   the analytic itself).
+6. **Structured curriculum builds the brand halo** (Varsity's ladder).
+7. **Alerts convert analysis into habit** (Chartink's per-scan alerts; Tijori's top-level ALERTS).
+8. **India-native conventions everywhere** (75/125-min candles, lakh-crore digit grouping,
+   shareholding sections, provenance footers).
+
+Patearn already embodies #1 (public estate), #4 (rule-lab, checks-as-UI, published methodology),
+and #8 partially; the dock's Alerts channel is #7's seed; #2 nominates a decision — our "one
+trusted number" candidates are the CA-adjusted book multiple/CAGR pair and (for tracker books)
+a Console-grade XIRR (EXAMINE: needs cash-flow-aware computation).
+
+**The recurring anti-pattern, everywhere:** the verdict is free, the evidence is gated —
+blurred teaser returns with no benchmark (Finology Recipe), headline CAGR with backtest boundary
+behind login (WealthDesk), "index-beating" in the H1 with constituents paywalled (Trendlyne
+baskets), portfolios named but never shown (Value Research Stock Advisor). **Our doctrine is the
+exact inverse and PART III is built on it: evidence is never gated; convenience may be.**
+
+## I. STRUCTURAL IMPROVEMENTS — our 71 lenses × our portfolios
+
+1. **Portfolios become the organizing spine of the Strategies destination.** Today the estate is
+   organized by LENS (71 destinations — structurally the same per-dataset-nav disease as
+   Trendlyne's 22-item bar). The winners organize by USER JOB. Improvement: each book is a HUB
+   page that *pulls* lenses in as evidence — the lenses become column families, fired-badges, and
+   spokes, not peer destinations. This is Part I's 6-destination collapse, now with the portfolio
+   layer as the spine of one destination.
+2. **The provenance badge becomes uniform UI.** We already hold the taxonomy in code and doctrine
+   (`GROSS_LENS`/`FUNDABLE` consts; ledger statuses FUNDABLE · SEALED-forward · CANDIDATE · PAPER
+   · FALSIFIED): render it as ONE visible chip on every book card, every headline number, every
+   holdings table — the smallcase firewall generalized. A number without a provenance chip
+   becomes a gate failure.
+3. **MarketsMojo's row format on every holdings row:** entry/rebalance date · entry price · since
+   return · benchmark return over the SAME window, one row. We can derive all four on read
+   (`auto_portfolio_holdings` × `auto_portfolio_nav.bench_nav` × `bhavcopy_rows`).
+4. **The churn feed grows into a rebalance LEDGER page per book** (WealthDesk's consent-ledger,
+   descriptive form): every rebalance = a dated entry with ins/outs (`n_churned` + holdings
+   diffs exist) and the one-line WHY from the engine's rule. This is also our audit trail.
+5. **The Trendlyne quarter-matrix** applied to our own primary-source estate: shareholding
+   (`shareholding_history` has symbol × period_end × metric — exactly the shape), and book
+   membership history (holdings snapshots → "in book since / left on" matrix).
+6. **The failure ledger becomes product** (Finology's negative lenses, our discipline): "What we
+   refuted" cards — BOOK_YIELD's β1.54/−82% DD, PEAD's 0.10, MEP-as-alpha — each with its
+   numbers. No competitor ships this; it is our loudest trust signal.
+7. **Methodology link on every book card** (Value Research's lesson): `/dash/strategy-ref` pages
+   already exist per strategy — the card carries the link + the origin badge 🧑/🏠/📚.
+8. **Risk vocabulary: the percentile 5-tier ladder** (Low / Below Average / Average / Above
+   Average / High), computed from realized vol + MaxDD percentile within our book/universe
+   history — pure pctrank (consistent with the standing no-rupee-thresholds rule), descriptive
+   label with the underlying numbers beside it. smallcase's 3-tier is too coarse for an
+   evidence product; VR's 5-tier percentile is exactly our grammar.
+
+## J. THE COLUMN ARCHITECTURE — per portfolio, per risk profile
+
+**Our books mapped to risk profiles** (provenance chip in caps):
+
+| Book | Engine | Risk profile | Chip |
+|---|---|---|---|
+| STEADY-25 | LOWVOL_MOM, quarterly, large-cap | **Conservative / Core** | FUNDABLE-CORE (net 1.19 @₹75cr) |
+| CRAFTSMAN-25 | quality × momentum, monthly | **Balanced / Quality** | GROSS-LENS |
+| PACER-25 | risk-adj momentum, monthly | **Growth / Assertive** | GROSS-LENS |
+| SPRINTER-25 | 12-mo momentum, monthly | **Aggressive** | GROSS-LENS |
+| Classic books (8) | public formulas on our PIT data | **Educational / reference** | PAPER (per-book fidelity label) |
+| Union family | sealed, forward verdict 2026-10-03 | **Aggressive small/mid** | SEALED-FORWARD (display-only until verdict) |
+| The allocation dial | book + G-sec + gold mixes | **The allocation layer** | DESCRIPTIVE (in-sample-optimum trap disclosed) |
+
+**The three-layer column model** (generalizing Screen+'s proven architecture):
+
+1. **IDENTITY SPINE — frozen, never configurable (4):** `Symbol · Sector · CMP · Provenance/entry
+   date`. Frozen first column on every width (the financial-table norm; mobile keeps it).
+2. **BOOK CORE — the default visible set, 10–12 per book,** chosen for what that risk profile's
+   reader actually checks (below).
+3. **EVIDENCE POOL — the configurable set, ~70 columns,** = Screen+'s 44 registry columns (11
+   families: confluence · positioning · MEP · RS · CPR · CCI · Wolfe · reversal · quality ·
+   capital-allocation · context) **+ Fundamentals family (~15:** PE/PB/ROCE/ROE/D-E/promoter/
+   pledge/FII/DII/sales-growth/profit-growth/OPM/EPS/interest-coverage + lender NPA/CET1**)
+   + Key-price family (4) + F&O family (~8**, only for names with futures**)**. Every column is
+   glossary-backed by the existing build gate — a column cannot exist without its teach chip.
+
+**Default column sets per book** (universal honesty columns in every set: `Since rebal % ·
+N500 same-window % · ADV ₹cr` — the MarketsMojo row + the liquidity floor):
+
+| Profile / book | Default columns beyond the spine (target 10–12 visible) | Why these |
+|---|---|---|
+| **Conservative (STEADY-25)** | Target W · W now · Since-rebal vs N500 (pair) · Vol-66d · pt14 tier · ROCE · Div yield · D/E · Promoter % · ADV ₹cr | Stability reader: quality, balance-sheet, income, liquidity — and the honesty pair |
+| **Balanced (CRAFTSMAN-25)** | Target W · Since vs N500 · qualmom score · pt14 tier · C-tier (capital allocation) · CCI tier · Profit growth TTM · ROCE · ADV | Quality-forward: adds the management/allocation evidence layers |
+| **Growth (PACER-25)** | Target W · Since vs N500 · riskadj score · mom6 · RS# · RS trend state · %52wH · Turnover surge 1m · ADV | Momentum-with-brakes reader: risk-adj rank + trend + extension context |
+| **Aggressive (SPRINTER-25)** | Target W · Since vs N500 · mom12 · RS# · RS heat · ×Power · MEP state · Stretch% (band) · ADV | Full-momentum reader: raw rank + tape intensity + how stretched |
+| **Classics (8 books)** | The formula's OWN defining fields (e.g. Piotroski: its score components; Graham: PE·PB·D/E) + Since vs N500 + fidelity label (full/proxy) + ADV | Educational: show the famous rule's inputs, not our house scores |
+| **Union (sealed, display-only)** | Since-seal vs N500 · seal-time headline BESIDE current (drift disclosed) · mult-anchor status · ADV floor · era-flag | The drift-proof-gate discipline (16AS) rendered as columns |
+| **Tracker (owner books)** | today's 8 (Entry · Qty · CMP · P&L · Thesis-health · Since) + any pool column; align labels with the Kite norm (`Avg. cost · LTP · Cur. val · P&L · Day chg.`) Indian users already know; EXAMINE: per-book CA-adjusted XIRR (the Console trusted-number) | The snapshot_json then-vs-now honesty stays the anchor |
+
+**Configurability policy (the "how many" answers):**
+- **Default visible: 10–12** columns per book (mobile: spine + 3, horizontally scrolling
+  in-container). The market's floor validates a small default: Chartink ships SIX columns by
+  default and sells customization; Kite's holdings table is EIGHT. Small default, deep pool.
+- **Configurable pool: ~70** (44 now — the Screen+ registry as-is — growing to ~70 when the
+  Fundamentals/Key-price/F&O families are registered with glossary keys).
+- **Soft cap ~20 simultaneously visible** (beyond that the frozen-pane scan breaks; the reader is
+  better served by a second saved view).
+- **Mechanics:** toggle by FAMILY (the existing 11 group chips) + per-column within a family
+  (new); **named saved views** per user (the Koyfin template pattern; localStorage now); state
+  ALWAYS URL-addressable (playbook 8b — a shared URL reproduces the exact view, and CSV honors
+  the same params); per-book PRESETS ship as named views ("Conservative read" · "Momentum read"
+  · "Forensic read" — the Finology named-lens flavor, fence attached).
+- **The market gates columns as a paywall lever** (Screener.in 15→55; Trendlyne 30→600 metrics).
+  **We do not:** every column is free; evidence is never gated. If we ever monetize, it is on
+  convenience (alerts, exports at scale, API), never on the evidence layer.
+
+## K. WHAT TO APPROVE IN PART III
+
+1. §I.1–I.8 structural improvements (portfolio-spine, provenance chips, row honesty format,
+   rebalance ledger, quarter-matrix, failure-ledger cards, methodology links, 5-tier risk ladder).
+2. §J's book→risk-profile mapping and the per-book default column sets (edit freely — they are
+   proposals grounded in what each profile's reader checks across the nine platforms).
+3. The configurability policy: 10–12 defaults · ~70-column pool · ~20 soft cap · saved views +
+   URL state · columns never paywalled.
+4. §H's borrow queue joins Part II §F.8's EXAMINE list — now including, from the tools cohort:
+   per-book CA-adjusted XIRR (Console) · scan-page-as-shareable-artifact for rule-lab verdict
+   pages (Chartink) · "mutual funds invested" institutional-holding block on the stock hub
+   (Groww, from our shareholding data) · lakh-crore digit grouping site-wide (India-native
+   convention) · a Varsity-style numbered ladder for the Learn destination (long-term).
+
+All three research streams have landed; Part III is complete. All of it is plan-only; nothing
+is built.
+
+---
+---
+
+# PART IV — COMPONENT TREATMENT CONTRACTS (2026-07-18 · the equal-importance layer · plan-only)
+
+**Method.** A full census of every interactive control on every chart/analytical surface
+(file:line evidence per control; the raw report sits with the coordination record): the stock
+chart's four-family rail + drawings toolset + overlay chips, all eight RS-family surfaces, the
+Compare tool, Screen+, and the dense secondary surfaces. The census produced a
+capability-parity matrix (§O) — the ground truth this Part turns into contracts. Key confirmed
+facts: **no favorites or recently-used mechanic exists anywhere in the estate**; the benchmark
+selector exists in **4 visual idioms**; comparison exists in **3 disconnected implementations**
+(only `/dash/compare` persists selection — the stock chart's compare set, capped at 4, dies on
+reload); drawings and overlays exist ONLY on the stock chart; export is near-absent (Screen+
+CSV and drawings-JSON only); glossary hooks are missing from the SVG-first lenses and from the
+stock chart itself.
+
+**The rule this Part enforces: treatment is defined once per COMPONENT TYPE, never improvised
+per page.** A component cannot be undesigned, because every component belongs to a type, and
+every type has a contract. That is how "every component in every area gets equal importance"
+becomes checkable rather than aspirational.
+
+## L. THE COMPONENT-TYPE TAXONOMY — nine types, nine contracts
+
+| # | Type (census instances) | The contract |
+|---|---|---|
+| 1 | **Dense tool rail** — drawings tools, indicator chips, strategy chips | ≤6 items may render flat. Beyond 6: **⭐ pinned favorites + auto MRU (last 3 used) visible; everything else in a grouped dropdown** (the TradingView starred-toolbar reference). Pins persist per user. Flat everything-rows are banned. |
+| 2 | **Benchmark selector** — today 4 idioms (rail chips · reload pills · segmented · fbtn bar) | ONE shared component, one look, one order: `Nifty 500 (default) · Nifty 50 · Sector (where meaningful)`; always URL param `den`; identical placement on every surface that has it. |
+| 3 | **Comparison / object picker** — 3 implementations today | ONE system, canonicalized from `/dash/compare`'s picker (mixed stocks+indices, presets, chips with ✕, URL-persisted): the stock chart's `cmpBar` adopts it; every multi-object surface adopts it. **The comparison SET travels**: selected objects live in the URL (share-safe) + a session carryover, so stock chart → RRG → Compare keeps your objects (§M). |
+| 4 | **Timeline / Play scrubber** — 3 bespoke copies (RRG, RS-Band lanes, clock) | One shared timeline component: Play/Pause · speed · scrubber · period badge; identical keyboard behavior. |
+| 5 | **Saved-view control** — Screen+ saved screens; (Part III's column views) | One mechanism estate-wide: named views; **URL params are the state of record** (a shared URL reproduces the view exactly); localStorage only accelerates. |
+| 6 | **Scope/filter bar** — Screen+ scope chips, sector select, text filter | Chips for ≤8 mutually-visible scopes; dropdown beyond; filter input always debounced + URL-reflected. |
+| 7 | **Segmented view toggle** — Map⇄Weather, Fresh⇄Open, Lanes/Clock/RRG, Rebased/Ratio | One segmented component; active state always also in the URL; a toggle NEVER changes data semantics silently (the label states the frame). |
+| 8 | **Table controls** — sort, export, frozen columns | Every analyst table: click-sort, frozen identity spine, server CSV honoring URL params (the Part I/III rule), lakh-crore digit grouping. |
+| 9 | **Education hooks** — gloss chips, bottom_line, how-to-read | The REQUIRED TRIO on every routed surface: `bottom_line` + `how_to_read_link` + glossary affordance on every custom metric (the census gaps: cycle-clock, momentum pane, divergence, and the stock chart itself). |
+
+## M. THE COMPARISON CONTRACT — the RS example, made explicit and universal
+
+Reiterating the requirement as binding rules:
+
+1. **Same comparisons everywhere.** Any surface that plots a series against a frame offers the
+   SAME benchmark set through the SAME selector (type-2). No surface invents its own benchmark
+   list or its own pill style again.
+2. **Selected objects follow the user.** The comparison set (up to 12 objects, indices +
+   stocks) is one shared concept: chosen once, carried in the URL, offered on every
+   comparison-capable surface — open RRG after comparing three stocks on the price chart and
+   those three stocks are pre-staged there. Today this is FALSE everywhere (the stock chart
+   forgets its compare set on reload; RS surfaces can't receive one).
+3. **Same semantics.** Rebase-to-100 at window start, the same window controls (3M/6M/1Y/Max +
+   pin-anchor), the same max-object cap, everywhere comparison renders.
+4. **Where comparison is deliberately absent** (the rotation 2×2, the divergence board — fixed
+   frames by design), the surface SAYS SO in its education line ("fixed frame: stock vs its
+   sector; for free comparison use Compare →") and links the Compare tool with the current
+   symbol pre-staged. Absence becomes a stated design decision, never an omission.
+
+## N. THE DENSE-RAIL CONTRACT — the drawings example, specified
+
+The drawings rail (census: 8 tools + 5 modifiers, all flat, no favorites) becomes the type-1
+reference implementation:
+
+- **Visible by default:** ⭐ pinned tools (seeded: Trend line · Horizontal line · Fib
+  retracement — the user re-pins freely) + the auto-MRU slot + `All tools ▾`.
+- **The dropdown groups:** Lines (trend/ray/horizontal) · Shapes (rectangle) · Fibonacci
+  (retracement/extension + level picker) · Annotate (text) · Measure.
+- **Modifiers stay outside the dropdown** (magnet · conflux · hide-all · manage-list) — they are
+  modes, not tools. Clear-all keeps its confirm.
+- **Persistence:** pins + MRU per user (localStorage now); drawings themselves keep the existing
+  per-symbol local+server store (already the estate's best persistence — census 1g).
+- The same treatment then applies verbatim to the indicator chip row and strategy chip row the
+  moment either exceeds six items (with overlays injected by modules counted in).
+
+## O. THE PER-SURFACE REITERATION TABLE — coverage made checkable
+
+Census status → target per surface (YES/PARTIAL/NO from the matrix; TARGET = the contract):
+
+| Surface | Compare/bench | Multi-obj rebase | Selection persist | URL state | Export | Education trio | The named gaps to close |
+|---|---|---|---|---|---|---|---|
+| Stock chart | YES | YES (cap 4) | PARTIAL | PARTIAL | PARTIAL (drawings JSON) | PARTIAL | compare set → URL+carryover; adopt type-3 picker; add gloss chips; add data CSV; drawings rail → type-1 |
+| RRG | YES | YES | YES (URL) | YES | NO | YES | add CSV; adopt shared timeline (type-4); receive the comparison set |
+| Rotation | NO (by design) | NO | YES | YES | NO | YES | state the fixed frame + Compare hand-off (§M.4); add CSV |
+| RS-Band | YES | PARTIAL | YES | YES | NO | YES | shared timeline ×2; CSV; canonical-parent decision (Part I) stands |
+| Cycle-clock | NO | NO | NO | NO | NO | PARTIAL | URL params; education trio; fixed-frame statement |
+| Momentum pane | YES (3-way) | NO | YES | YES | NO | PARTIAL | education trio; receive comparison set (its 3-way bench folds into type-2) |
+| Divergence board | NO (by design) | NO | NO | NO | NO | PARTIAL | fixed-frame statement + hand-off; URL state; education trio |
+| Capture-map | YES | NO | YES | YES | NO | YES | CSV; shared type-2 selector |
+| Seasonal trio | NO | NO | PARTIAL | YES | NO | PARTIAL | education trio completion; CSV on the screen table |
+| Internals | NO (by design) | NO | YES | YES | NO | PARTIAL | fixed-frame statement; CSV |
+| Compare tool | YES | YES (12) | YES | YES | NO | PARTIAL | becomes the type-3 canon; add CSV; education trio |
+
+Uniformity rules under the table: URL params are first-class state on EVERY surface (the
+census found cycle-clock and divergence with none); the 4 benchmark idioms collapse to type-2;
+the 3 Play-scrubber copies collapse to type-4; export lands per type-8 on every analyst table.
+
+## P. END-TO-END CONFIRMATION — the complete plan, start to finish
+
+The plan now covers every layer with named artifacts:
+
+| Layer | Where | Status |
+|---|---|---|
+| Estate verdicts + module sequence | Part I | complete |
+| Competitive archetypes · style charter · nav contract · cross-links · journeys | Part II | complete |
+| Portfolio presentation · risk profiles · column architecture | Part III | complete (all 3 research streams landed) |
+| Component treatment contracts + parity targets | **Part IV** | complete (this section) |
+| Owner ratifications | §7.3 + II-§G + III-§K + IV-§P | **awaiting you** |
+| Module re-planning (M4+) against ratified contracts → builds under gates | after ratification | not started, by design |
+
+**Part IV approvals:** (1) the nine type-contracts (§L); (2) the comparison contract (§M) —
+this one reshapes several surfaces; (3) the dense-rail spec (§N) as the drawings/indicators
+treatment; (4) the §O gap list as the component work-queue folded into the affected modules
+(M4 stock hub · M7 clusters), each gap a named checklist item in its module's landing gate.
+
+Nothing in Part IV is built; every contract above is a specification awaiting your review.
+
+## Q. BRAND COMPLETION — Patearn everywhere a human reads (2026-07-18, owner: "yes")
+
+**The naming law (immediate, costs nothing):** *Patearn is the product AND the project name in
+every human-readable context from today* — UI, Telegram, docs prose, PROJECT_STATE session-log
+entries, commit-message prose, session titles. "Hermes" survives ONLY as the frozen
+infra-identifier list: systemd `hermes-*` units/timers, `/opt/hermes`, `hermes.db`,
+`HERMES_*` env keys, `hermes-api`/`hermes-telegram` service names — legacy codenames, not brand.
+Historical records (past session-log entries, sealed docs, the ledger) are NOT rewritten —
+records stay records.
+
+**Q-1 · User-facing sweep (build module, small):** the Telegram bot's identity strings ("Hi —
+I'm Hermes", "Hermes menu", error signatures) → Patearn; the rendered ops-name leaks
+(`hermes-wolfe-scan`, `HERMES_V1_DEV_KEY` shown on web pages) → reworded or fenced as
+"internal job name"; plus a **gate**: a test that fails the build on any user-facing "Hermes"
+in rendered HTML or bot reply strings (grep-based, allowlisting the infra list).
+
+**Q-2 · Doc-spine retitle (safe, prose-only):** CLAUDE.md / AGENTS.md / PROJECT_STATE.md /
+DOC_INDEX headers retitle to "Patearn (repo codename: Hermes)"; new session-log entries open
+under the Patearn name. Twin-sync gate re-checked after.
+
+**Q-3 · The visibility fix — repo + folder rename (OWNER DECISION):** what makes "Hermes"
+feel everywhere is `D:\Hermes` itself — it names the project in every tool, session record,
+and memory path. The rename is a contained one-time migration, NOT plumbing: GitHub repo
+rename (old URLs redirect), local `D:\Hermes` → `D:\Patearn`, worktrees re-added, the
+project memory directory migrated (copy, verify, then retire the old), `.claude/launch.json`
++ settings checked; the VPS is UNTOUCHED (it runs from `/opt/hermes` regardless). Half a day
+with verification, fully reversible until the old dir is deleted. **Recommended: yes, as its
+own standalone step scheduled by you — never bundled with a code deploy.**
+
+**Q-4 · Explicitly deferred:** the infra-identifier migration (units/paths/db/env). High risk,
+zero user visibility, invalidates recorded ops knowledge; revisit only as its own staged
+program with parallel-named units, if ever.
