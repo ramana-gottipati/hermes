@@ -14,7 +14,7 @@ PROJECT_STATE entries are enough.**
 - **What landed:** `scripts/doc_hygiene_gate.py` **Check D** (ledger `### 2026-…` tags, e.g. `16AX`) + **Check E** (PROJECT_STATE `### D<n>` Decision ids) + their pytest twins in `tests/test_doc_hygiene.py`. Two ratchet checks that fail any duplicate id not on the grandfather floor — blocking the tag-race (16AO/16AX/16AY) AND the D-number race (D110/D111/D113, D68/D79-D80) at commit time. Both bite-proven (inject dup → gate exit 1 + pytest fail → revert); full suite **718 passed / 1 skip**. Dev-time gates, no deploy. (`0e73fd7` "…tag-uniqueness gate" was an empty lane-marker; nothing existed on origin/main before S194.)
 - **Check E's finding, then HEAL (S194c) — `D68` was a LIVE collision:** two distinct decisions shared it (GLM-5.2 code reviewer, session 39 · rotation-vocab/mini_rrg, session 38), both cited across docs AND code; already acknowledged in `docs/strategic-review-2026-07-07.md` ("D68/D79-D80 numbering collisions"). **Healed per Ramana:** the GLM-reviewer (later claimant, non-live citation footprint) renumbered **D68 → D145** across PROJECT_STATE + the AUDIT/codex docs + a setup-news comment; the rotation-vocab decision keeps D68; Check E's floor is now **empty** (zero dups enforced). Suffixed variants (`D142-RECONCILE`, `D33-web`, `D49g`) remain correctly distinct.
 - **kickstart-pick-verify catch:** the S193 block below says "The S187 FLAG… is CLOSED" — that was true only for the *renumber*. The **gate** the flag explicitly recommended was never implemented (`0e73fd7` was an empty lane-marker; no assertion existed on origin/main). S192's entry even deferred it to "a STRONG-tier ledger-hygiene lane" — this session (Opus 4.8 STRONG) is that lane. Now genuinely done.
-- **✅ `2026-07-15i` collision HEALED (S195, `89da18b`):** it named two distinct entries — the PIT-sector DATA-AUDIT blocker (cited `§15i` by `codex-stock-selection-brief.md`) and the SIGNIFICANCE PASS that drove **D139** (cited `§15i`/`15i-sig` by this file). The DATA-AUDIT was renumbered `15i → 2026-07-16BB` (next free tag; its 3 unambiguous codex-brief refs updated); the SIGNIFICANCE PASS keeps `§15i`. **Both ledger entries now carry a one-line disambiguation breadcrumb** so the residual §15i data-audit refs the heal's scope leaves in place (`sector-rotation.md` §"original spec" ~L237/248/259 + ~10 ledger-internal narrative tallies like "15i survivorship") resolve WITHOUT a risky mass-rewrite (§4.5 — don't rewrite other sessions' ambiguous refs). `GRANDFATHERED_DUP_TAGS` emptied to `set()` (Check D enforces zero dups); the spawned chip is now moot. **Follow-up sweep DONE (Ramana-approved, same day):** the **11 standalone data-audit refs** swept → `§16BB` (3 in `sector-rotation.md`, 8 in the ledger); the retraction-tally sequences ("15h · 15i survivorship · 15j…") + combined "15h/15i" pair-refs + all SIGNIFICANCE refs deliberately left (breadcrumb covers, §4.5). Nothing left OPEN.
+- **✅ `2026-07-15i` collision HEALED (S195, `89da18b`):** it named two distinct entries — the PIT-sector DATA-AUDIT blocker (cited `§15i` by `codex-stock-selection-brief.md`) and the SIGNIFICANCE PASS that drove **D139** (cited `§15i`/`15i-sig` by this file). The DATA-AUDIT was renumbered `15i → 2026-07-16BB` (next free tag; its 3 unambiguous codex-brief refs updated); the SIGNIFICANCE PASS keeps `§15i`. **Both ledger entries now carry a one-line disambiguation breadcrumb** so the residual §15i data-audit refs the heal's scope leaves in place (`sector-rotation.md` §"original spec" ~L237/248/259 + ~10 ledger-internal narrative tallies like "15i survivorship") resolve WITHOUT a risky mass-rewrite (§4.5 — don't rewrite other sessions' ambiguous refs). `GRANDFATHERED_DUP_TAGS` emptied to `set()` (Check D enforces zero dups); the spawned chip is now moot. **Follow-up sweep DONE (Ramana-approved, same day):** the **11 standalone data-audit refs** swept → `§16BB` (3 in `sector-rotation.md`, 8 in the ledger); then a **2nd pass (Ramana-approved) took the rest** — the retraction-tally refs (`15i survivorship`→`16BB survivorship`; `15h`/`15j` kept) + combined `15h/15i`→`15h/16BB` + this file's own stock-build header/cite. Only genuine SIGNIFICANCE refs keep `§15i` (correct) + one ambiguous scope banner. Nothing left OPEN.
 
 ## ✅ 2026-07-17 — S193 (D143 / portfolio-layer lane, Ramana-driven): the PORTFOLIO LAYER is CLOSED, the STRATEGY-FAMILIES FRAMEWORK (D143) is open + inventoried, the MODEL PORTFOLIO is re-organized by status (4 tiers LIVE), + the drawdown-lever experiment and factor baskets — do NOT redo; kickstart-pick-verify
 - **Portfolio layer done:** gold leg `16AP` · three-asset grid `16AR` (+ the finding: the sealed union book SELECTS gold ETFs, 12/82 — spawned `task_7a70ad77`, RUNNING: exclude ETFs from the union universe, owner-gated on sealed specs) · GOLDBEES split DQ fixed by S182 `16AQ`.
@@ -629,7 +629,7 @@ disk, recoverable. All other tasks (cirqle advisors, daily briefs, `claude-til-d
 | raw prices UNADJUSTED | 1:2 bonus read as −50%; worth ~16pp CAGR | ✅ FIXED → `adjust.py` |
 | "corporate_actions ~30% incomplete" | **FALSE** — DB matches NSE exactly (2011: 47/47; TATAMOTORS 0/0) | ✅ retracted 15S, nothing to fund |
 | stale-price vol · dead-name 0% · ADV look-ahead | inflated inverse-vol / hid losses / leaked | ✅ all FIXED |
-| **8 retractions total** | 15h ETF-legs · 15i survivorship · 15j hysteresis-transfer · 15k fill-quality · 15L series · 15O CA · 15R premise · 15S incompleteness | **every one = asserted then tested against my own assertion** |
+| **8 retractions total** | 15h ETF-legs · 16BB survivorship · 15j hysteresis-transfer · 15k fill-quality · 15L series · 15O CA · 15R premise · 15S incompleteness | **every one = asserted then tested against my own assertion** |
 
 **C. STOCK LAYER — SELECTION & SIZING (adjusted prices; ledger 15j→15Q, 16T):**
 | what | verdict | ledger |
@@ -801,7 +801,7 @@ HIGHER mean (+2.38%) AND LOWER vol (22.75%) → geo −0.21%. "Best of the best"
 ⚠ Codex ruled 15P itself **"INSUFFICIENT EVIDENCE"** — the decile curve is not clean. It is a LEAD.
 
 **🔴 8 RETRACTIONS — every one the same failure: assert a fact, then test against the assertion, not a
-source.** 15h ETF legs (~6/16 sectors have NO liquid instrument) · 15i survivorship · 15j hysteresis
+source.** 15h ETF legs (~6/16 sectors have NO liquid instrument) · 16BB survivorship · 15j hysteresis
 transfer · 15k fill quality · **15L `series='EQ'` read BE surveillance moves as DEATHS (84% of "deaths"
 were fake)** · **15O corporate actions ARE unadjusted — the fix is REAL and necessary** (RELIANCE
 4.8%→15.1%, HDFCBANK 3.7%→18.8%; use `research/explosive_moves/adjust.py`) · 15R Codex's premise ·
@@ -828,14 +828,14 @@ touched by CA residue — re-verify on adjusted prices.
 
 ---
 
-## 🟢 2026-07-15i — THE STOCK BUILD IS SCOPED AND FEASIBLE — gated on ONE dataset. Start here.
+## 🟢 2026-07-16BB — THE STOCK BUILD IS SCOPED AND FEASIBLE — gated on ONE dataset. Start here.
 
 **Ramana's directive:** build on **STOCKS**, not indices. *"Identify the top-performing stocks within the
 strongest sectors"* · *"a portfolio that outperforms — can't rely entirely on one stock, nor diversify
 excessively"* · **the discriminator: *"if a stock is performing well within its NARROW index, we target it"*
 = stock RS vs its OWN sector, not the broad benchmark.**
 
-**Audit is DONE — do NOT re-derive (ledger §2026-07-15i has every number):** sector strength ✅ · stock
+**Audit is DONE — do NOT re-derive (ledger §2026-07-16BB has every number):** sector strength ✅ · stock
 RS-vs-own-sector vocabulary ✅ (`stock_signals.rs_vs_sector_today`+slopes+`rsi_of_rs`+`rs_phase`, 2011→2026,
 5.97M rows) · prices incl. dead names ✅ (bhavcopy 2004→2026, 9.39M rows).
 **❌ ONE BLOCKER: `stock_index_membership` = 4 WEEKS ONLY** (2026-06-17→07-14). **46% of the 2011 universe is
@@ -856,7 +856,7 @@ index membership partly is) · **membership history becomes unnecessary.**
 sector beats broad **AND** stock beats its own sector, ~4–8/sector, weight = sector × stock-RS rank, per-stock
 cap, **≤40 total**, per-sector stops → ⑤ **bias bound**: run twice (dead = average, then worst-decile), report
 the RANGE. **BAR PRE-REGISTERED: stock momentum = BETA not skill (t=1.99); merely matching the sector-index book
-= REJECTION.** Canon: `docs/strategies/sector-rotation.md` §9 #1 · ledger §§15h+15i.
+= REJECTION.** Canon: `docs/strategies/sector-rotation.md` §9 #1 · ledger §§15h+16BB.
 
 ---
 

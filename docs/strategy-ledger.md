@@ -805,7 +805,7 @@ beat 13.8% net, not by beta, beat top-decile on GEOMETRIC return, survive 3 walk
 
 ## METHOD - THE 8TH RETRACTION AND THE LESSON OF THE SESSION
 
-15h ETF legs · 15i survivorship · 15j hysteresis transfer · 15k fill quality · 15L the `series` filter ·
+15h ETF legs · 16BB survivorship · 15j hysteresis transfer · 15k fill quality · 15L the `series` filter ·
 15O corporate actions · 15R's premise · **15S the incompleteness claim itself.** **Every one is the same
 failure: assert a fact, then test against the assertion instead of a source.** The last would have cost
 Ramana real money to repair a database that was already right.
@@ -1103,7 +1103,7 @@ it - expected, not a bug.
 **OWED NEXT (the actually-fair test):** give the stock book **V24's full structure** (30% cap, sleeve,
 tapers, hysteresis, and 15N's ★trail-20% cull) and re-run. Only then is Ramana's design measured.
 
-**METHOD SCOREBOARD - 6 unchecked assumptions, 6 retractions, one session:** 15h ETF legs · 15i survivorship ·
+**METHOD SCOREBOARD - 6 unchecked assumptions, 6 retractions, one session:** 15h ETF legs · 16BB survivorship ·
 15j hysteresis transfer · 15k fill quality · 15L the `series` filter · **15O corporate actions (the deepest -
 it sat in the DATA LAYER under every model, and the repo's own Guardrail #5 named it in advance).**
 **RULE: before ANY stock-level study - (a) `select action_type, count(*) from corporate_actions group by 1`,
@@ -1199,7 +1199,7 @@ risk-appetite decision on borrowed money - Ramana's to make, NOT a research find
 PRICE-index benchmark** - the owed TR re-cut moves both sides. **(c) not promoted:** `/dash/sector-rotation`
 stays on V21; nothing graduates on one window.
 
-**STILL UNTESTED: the stock layer** (15h/15i/15M) - gated on the ~1,973-name classification job, and 15M
+**STILL UNTESTED: the stock layer** (15h/16BB/15M) - gated on the ~1,973-name classification job, and 15M
 defines its job precisely: **fix the pond, do not pick better.**
 
 ### 2026-07-15M - ❌ FINAL: the CULL is real (+6.1pp alpha, Ramana's idea, the biggest lever of the day) but does NOT close the pond gap. The unconditioned RS stock family is REJECTED.
@@ -1268,13 +1268,13 @@ assumptions x 4 slippage levels x 3 windows x 2 liquidity bars. **ZERO beat Nift
 
 ## WHAT REMAINS UNTESTED — and exactly what it must do
 
-**Ramana's ACTUAL design (strong stocks INSIDE strong sectors, beating their OWN sector — 15h/15i) is still
+**Ramana's ACTUAL design (strong stocks INSIDE strong sectors, beating their OWN sector — 15h/16BB) is still
 untested.** Today defines its job precisely: **it must NOT pick better (selection already works at +7%/yr) —
 it must FIX THE POND.** The sector filter has to yield a universe that does not structurally bleed -4.9%/yr.
 Plausible (the sector layer showed alpha at index level, 15f) but **a HYPOTHESIS, not a finding** — and still
 gated on the ~1,973-name classification job (16BB). **Do not sell it as likely; five assumptions failed today.**
 
-**Session scoreboard for method (the durable output):** 15h ETF legs · 15i survivorship · 15j hysteresis
+**Session scoreboard for method (the durable output):** 15h ETF legs · 16BB survivorship · 15j hysteresis
 transfer · 15k fill quality · 15L the `series` filter — **five headline numbers, five unchecked assumptions,
 five retractions.** Ramana was right on the three calls that mattered (the ask was STOCKS not sectors · exits
 are the missing mechanism · a strategy must handle names that collapse). **Audit the universe definition
@@ -1368,7 +1368,7 @@ alpha dies at 2% slippage") was measured on the contaminated universe and **must
 0.47%/qtr of the universe now, so it matters far less than 15L's buggy version implied.
 
 **METHOD LESSON (5th of the session): every prior number came from an assumption that was never checked -
-15h ETF legs / 15i survivorship / 15j hysteresis transfer / 15k fill quality / 15L the `series` filter itself.
+15h ETF legs / 16BB survivorship / 15j hysteresis transfer / 15k fill quality / 15L the `series` filter itself.
 The bug was in the DATA LAYER, beneath every model built on it. Audit the universe definition BEFORE the
 strategy: `select series, count(*) from bhavcopy_rows group by series` would have caught this on day one.**
 
@@ -1445,11 +1445,11 @@ future strategy using a stop inherits this same number.**
 
 **Standing caution:** the +3.5% headline survived ~10 minutes before the robustness check killed it. Fourth
 time in one session that a promising number was an assumption wearing a result's clothes (15h ETF legs /
-15i survivorship / 15j hysteresis transfer / 15k fill quality). **Treat every first-pass number as provisional
+16BB survivorship / 15j hysteresis transfer / 15k fill quality). **Treat every first-pass number as provisional
 until its friction test runs.**
 
 **Ramana's actual design remains UNTESTED** - everything here is the UNCONDITIONED book (no sector step).
-15h/15i's bar is unchanged, and now has a harder floor: the sector-conditioned build must beat a defensive
+15h/16BB's bar is unchanged, and now has a harder floor: the sector-conditioned build must beat a defensive
 book already delivering **beta 0.78 / MaxDD -50.6% net of 2% slip**, not just the raw index.
 
 ### 2026-07-15j - FIRST HONEST STOCK BOOK: PIT-clean stock RS **LOSES to Nifty 500 at every setting** (~20 variants, 21y, zero survivorship). Naive alpha -0.5%/yr; hysteresis makes it WORSE.
@@ -1511,7 +1511,7 @@ strongest stocks in the whole market. Ramana's design buys strong stocks **insid
 specifically stocks beating **their own sector** (`rs_vs_sector`, 16BB). Different filter, untested. **But the
 stakes are now measured: the sector conditioning is not polish on a working book - it must rescue a LOSING
 one, creating the entire edge from alpha -0.5%.** Worth knowing BEFORE spending days classifying the 280 dead
-names (16BB). **The 15h/15i pre-registered bar is unchanged and now has a concrete floor: beat return/vol 0.66
+names (16BB). **The 15h/16BB pre-registered bar is unchanged and now has a concrete floor: beat return/vol 0.66
 and MaxDD -60.9% net of realistic stock costs, or it is a REJECTION.**
 
 ### 2026-07-16BB — 🔴 DATA AUDIT before the stock build: PIT sector membership is the ONE blocker, and it is BOUNDED (~1,973 names, 280 of them dead)
@@ -1627,7 +1627,7 @@ CSVs) so the module is reproducible without re-fetching. Zero Screener dependenc
 
 **🔴 DISCLOSED LIMITATION (read before quoting any number, per the 15h standing rule — above the stat, not
 buried):** this universe is **CURRENT-DAY classification applied statically across 2005–2026**. This is **NOT**
-the survivorship trap 15h/15i already banned (today's narrow INDEX MEMBERSHIP standing in for 2011's, which
+the survivorship trap 15h/16BB already banned (today's narrow INDEX MEMBERSHIP standing in for 2011's, which
 structurally selects names that EARNED their way in by outperforming) — industry/sector classification is not a
 performance filter, so the bias is structurally much smaller — but it is real: a stock that changed industry, or
 that delisted before 2026-07-15, is mis-handled. **It fails CONSERVATIVE, the opposite direction from the banned
