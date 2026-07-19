@@ -951,3 +951,78 @@ own standalone step scheduled by you — never bundled with a code deploy.**
 **Q-4 · Explicitly deferred:** the infra-identifier migration (units/paths/db/env). High risk,
 zero user visibility, invalidates recorded ops knowledge; revisit only as its own staged
 program with parallel-named units, if ever.
+
+---
+---
+
+# PART V — EXTERNAL AI-TOOL EXPLORATION: STITCH MOCKUP REVIEW (2026-07-19 · owner-supplied images, plan-only)
+
+**Method.** Ramana generated nine screens in Google's Stitch (an AI UI-design tool) from a prompt
+describing Patearn's feature set and IA priorities, then asked for a documented review folded
+into this plan — not a new design track. Each screen was read against the
+ALREADY-RATIFIED-OR-PROPOSED verdicts in Parts I–IV (not against a blank slate); nothing below is
+copied verbatim, and nothing below authorizes building anything — Part I's construction stays
+paused pending owner review of Parts II–IV.
+
+**Screens reviewed:** Today/Home · Sector Rotation (Markets) · Stock Hub (BIOCON) · Equities
+Screener (Stocks) · Model Portfolios (Strategies) · a color/type/component style sheet · Market
+Internals & Breadth · Proof & Validation Center · Signal Bus (Attention).
+
+## R. Where Stitch independently converges with the plan — the strongest signal in this review
+
+Nobody fed Stitch a copy of Parts I–IV; it was prompted from feature descriptions alone. That it
+landed on several of the SAME structures already derived from competitor teardowns is
+corroborating evidence, not coincidence to wave past:
+
+| Stitch screen element | Matches (Part/§) | What to take |
+|---|---|---|
+| Proof & Validation Center: a red-flagged "Transparency Log — Published Failures" table (strategy · test period · expected vs. actual · post-mortem) at equal visual weight to passing content | Part III §I.6 ("the failure ledger becomes product... no competitor ships this") + Part I §1e (Proof = flagship destination) | Concrete layout reference: failures render as a TABLE with the same columns as passes, not a footnote. Adopt the pattern; the specific numbers shown are placeholders, not data. |
+| Same screen's "Historical Replay" card (pick a past date + market state, replay conditions) | Part I §1e — replay-any-date already named the single most differentiating trust asset | Confirms card-level treatment (a dedicated, prominent control) is the right register, not a buried link. |
+| Stock Hub: a one-paragraph plain-English narrative synthesizing the verdict tiles, sitting ABOVE the chart, before any tab | Part II §A's committed archetype (SWS evidence-scroll + TradingView preview-index; "the top block is a digest") | Validates "digest first." Stitch's version is a narrative sentence, not our 8-tile strip — the two are complementary (tiles for scanning, one sentence for orientation); worth specifying both in M4. |
+| Sector Rotation: quadrant map beside a ranked table with a top-leaders/laggards drill-down row | Part I §1a (rrg+rotation+cycle-clock+rsband → one "Rotation" sub-view) | Concrete reference for presenting map + ranked list side by side rather than as separate tabs. |
+| Signal Bus (Attention): severity-count tiles (Critical/Elevated/Positive/Neutral) above a checkbox-filterable live event stream | Part I §1a (`attention` KEEP → the dock's Alerts channel + a Today board) + Part IV §L type-6 (scope/filter-bar contract) | A concrete instance of the type-6 filter-bar contract applied to the Alerts channel: per-lens-family checkboxes + a Reset link. Reusable in M3. |
+| Model Portfolios: an "THE HONEST RECORD" panel (worst month + known weakness) beside the performance chart, not on a separate tab | Part III §I.2 (provenance badge as uniform UI) + §I.6 | Confirms the honesty content belongs beside the headline number, same glance — not one click away. |
+
+**Read on this:** five independent convergences is a strong signal the Part I–IV direction is
+sound — a reason to move forward with ratifying Parts II–IV, not a reason to open a third design
+track.
+
+## S. New candidate ideas — added to the EXAMINE queue, none pre-approved
+
+| Idea (source screen) | What it is | Why it needs an owner decision before adoption |
+|---|---|---|
+| "Metric Dimensions" radar/spider chart on the stock hub | A 6-axis (Value/Stability/Yield/Quality/Momentum/Growth) shape per stock — visually the Simply Wall St "Snowflake" Part II §A already named as half our committed archetype | A radar chart's gestalt reads "bigger shape = better stock" — the same scored-verdict trap already flagged for Conviction (Part I §1c: "a sorting heuristic, NOT a validated model"). If adopted it needs the same fence: each axis cites its real underlying number, and the shape must not imply an unvalidated composite score. Decide: adopt-with-fence, or skip as too score-flavored for a descriptive-only product. |
+| "Live Lenses" tappable count-tiles on Today (e.g. "Accumulation · 28 · Tap to screen") | Each fired-lens count is itself a one-tap pre-filtered screener link | Fits the newcomer journey (Part II §E) and the Today "flagship band" (Part I). Cheap to fold into M5 (Today v3) — recommend adopting rather than treating as an open research question. |
+| The style sheet's blue/green/red "Primary/Secondary/Tertiary" palette used as generic UI accents (buttons, active-nav highlight) | A 3-hue brand palette | **Direct doctrine tension, not just a style question:** Part II §B.4 and Part I §5 both bind red/green to signed values ONLY ("verdict-free palettes everywhere else... categorical hues never verdict-colored"). A green button beside a red button reads as an implicit up/down verdict even when it isn't one. Recommend: keep the single-accent-hue rule; do not adopt red/green as brand accent colors. |
+| The floating "What would you like to change or create?" input at the bottom of the Screener mockup | Reads as a free-text prompt bar | **Probably NOT a proposed app feature** — it has the shape of Stitch's own "keep editing this design" canvas control, not a screener feature you described to it. It isn't discussed anywhere in Parts I–IV, and an LLM-driven screening input would cut against the standing rule-based-screening doctrine (CLAUDE.md Guardrail #4). Recommend: disregard unless you confirm you actually want a natural-language screener query box — that would be a new, separate proposal, not a Stitch artifact. |
+
+## T. Doctrine tension flagged for an explicit owner call
+
+Ramana's instruction this session — **"collapse the extra layer on the left side so the full
+window is available whenever the user needs it"** — touches an already-ratified, evidence-cited
+rule and is flagged rather than resolved silently:
+
+> Part II §C.2: *"Never hidden on desktop. No icon-only collapse as default (hidden nav halved
+> discoverability in NN/g's n=179 study — worse on desktop than mobile)."*
+
+The NN/g finding was specifically about nav that is **collapsed by default**. A user-INVOKED,
+reversible collapse toggle (the rail starts visible; the user clicks to reclaim width, and can
+bring it back) is a different thing from a default-hidden nav, and doesn't contradict the cited
+study on its face. **Recommended resolution:** keep the left rail visible by default on desktop
+(per §C.2), and add an explicit, persistent collapse/expand control the user can invoke on
+demand — satisfies "give me the full window when I ask for it" without reintroducing the
+discoverability regression the rule exists to prevent. Flagging rather than deciding, since §C.2
+was a ratified rule with a cited source, not a stylistic default.
+
+## U. What to approve from this Part
+
+Nothing here is a build request. If/when Parts II–IV are ratified:
+1. Fold **R**'s five convergences into the relevant modules' specs (M4 stock hub gets the
+   narrative-digest note; M3's Alerts channel gets the severity-tile + checkbox-filter treatment;
+   M7's Rotation cluster gets the map+ranked-list layout note) — no new owner decision needed,
+   these agree with already-approved direction.
+2. Decide **S**'s three EXAMINE items (radar chart adopt-with-fence-or-skip; count-tile Today
+   pattern — recommend adopt; palette-as-accent — recommend reject) alongside Part II §F.8's
+   EXAMINE queue, since they're the same kind of decision.
+3. Decide **T**'s nav-collapse resolution (recommended: user-toggleable, not default-hidden) as
+   an explicit amendment to Part II §C.2, before M7 builds the rail.
