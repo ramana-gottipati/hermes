@@ -121,9 +121,13 @@ account's honest range is ~18–22%.)
 
 ## 6. Codex independent validations (both confirmed)
 
-- **Factor cost model (review):** corrected NSE txn (0.00307%) + DP (₹15.34); confirmed DP immaterial at ₹1cr;
-  noted entry/exit-only charging slightly UNDERSTATES cost (held-name reweighting) → net is mildly optimistic;
-  flagged capital-gains tax as the biggest gap (now added).
+- **Factor baskets (Codex re-ran + recomputed independently):** Codex re-ran the backtest on the box AND
+  independently recomputed each net CAGR and ₹1cr value from the raw yearly returns — all 8 reproduce to the
+  decimal (STEADY 11.0→11.02% · monthly momentum −13.4→−13.39%). Verdict: numbers trustworthy; the "<20% net ·
+  best 11% (STEADY) · below the index 12.5%" conclusion is correct — and if anything STRENGTHENED, because the
+  caveats it raised (T+1 timing, omitted held-name reweight cost ~7.5–35%/yr one-way, punitive 0.5×ATR slippage)
+  all push strategy nets DOWN, not up. It corrected the schedule (NSE txn 0.00307%, DP ₹15.34 — the stale
+  `bt_zerodha.json` display block trued up 2026-07-20) and flagged capital-gains tax (now added).
 - **Union gauntlet (re-ran it independently):** reproduced the table exactly (flat = seals, K30 17.8/A2 17.2,
   bench 11.7). Verdict: "the sealed engine appears intact and, under this per-name Zerodha + 0.5×ATR gauntlet,
   A2 17.2% and K30 17.8% beat the Nifty 500 index (11.7%) in-sample." Correct wording: **"in-sample survivor

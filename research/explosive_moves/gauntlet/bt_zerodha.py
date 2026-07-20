@@ -227,8 +227,8 @@ bench = {"strategy": "Nifty 500 buy & hold", "risk_tier": "0-REFERENCE",
 
 out = {"validation": valid, "benchmark": bench, "strategies": results,
        "cost_schedule": {"broker": "Zerodha equity delivery", "brokerage": 0,
-        "STT_pct_each_side": 0.1, "nse_exch_pct_side": 0.00297, "sebi_pct_side": 0.0001,
-        "stamp_pct_buy": 0.015, "gst_pct": 18, "dp_rs_per_scrip_sell": 15.93,
+        "STT_pct_each_side": 0.1, "nse_exch_pct_side": 0.00307, "sebi_pct_side": 0.0001,
+        "stamp_pct_buy": 0.015, "gst_pct": 18, "dp_rs_per_scrip_sell": 15.34,
         "market_impact_spread_rt": {"T1_1to5cr": 1.5, "T2_5to25cr": 0.6, "T3_25cr+": 0.25},
         "slippage": "0.5 x ATR14% of each name"}}
 with open("/tmp/bt_zerodha.json", "w") as f:
