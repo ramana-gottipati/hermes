@@ -29,9 +29,10 @@ import argparse
 import json
 import logging
 import os
+import socket
 import sqlite3
 import subprocess
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -823,6 +824,30 @@ def _pp(obj) -> None:
     print(json.dumps(obj, indent=2, default=str))
 
 
+def _page_on_seal_break(rep: dict) -> None:
+    """Autonomous alert: if the prereg/frozen-family seal-integrity check is NOT ok, DM Ramana
+    via the AUD-26 pager (scripts/alert-telegram.sh --text). WHY a bespoke path and not the
+    systemd OnFailure that every other unit uses: a broken seal is deliberately a WARN, not a
+    CRIT (chk_prereg_seals — 'a human must look', no kill-switch coupling), so it never fails the
+    service and OnFailure never fires on it. This closes that gap without flipping the severity.
+    Kept in the CLI (not run()) so run() stays pure/network-free; never raises (a pager failure
+    must not abort the nightly — mirrors alert-telegram.sh's own exit-0 contract)."""
+    try:
+        seal = next((k for k in rep.get("checks", []) if k.get("check") == "prereg.seal_integrity"), None)
+        if seal is None or seal.get("severity") == SEV_OK:
+            return
+        pager = Path(__file__).resolve().parents[2] / "scripts" / "alert-telegram.sh"
+        if not pager.exists():
+            return  # laptop / CI — no pager, nothing to do
+        msg = (f"\U0001F512 SEAL INTEGRITY {seal.get('severity', '?').upper()}: {seal.get('message', '')}\n"
+               f"host: {socket.gethostname()}  time: {datetime.now(timezone.utc):%Y-%m-%dT%H:%M:%SZ}\n"
+               f"A pre-registered study / frozen-family gate changed after sealing. Re-register if the "
+               f"edit was legitimate (prereg --register-all --force --note …), else investigate.")
+        subprocess.run(["/bin/bash", str(pager), "--text", msg], timeout=15, check=False)
+    except Exception:  # noqa: BLE001 — alerting must never crash the monitor
+        pass
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Continuous data-quality monitor (research/provenance lane).")
     ap.add_argument("--run", action="store_true", help="run all checks, print + persist a snapshot")
@@ -842,6 +867,7 @@ def main() -> None:
             print(f"data_quality: {rep['status']}  critical={rep['n_critical']} warn={rep['n_warn']}")
         else:
             _pp(rep)
+        _page_on_seal_break(rep)   # autonomous seal-break DM (WARN-level, so OnFailure won't page)
         return
     ap.print_help()
 

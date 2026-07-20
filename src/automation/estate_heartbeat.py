@@ -57,6 +57,7 @@ import contextlib
 import html
 import importlib
 import io
+import json
 import sqlite3
 import sys
 from datetime import date, datetime, timezone
@@ -152,6 +153,33 @@ def _crit_count(conn: sqlite3.Connection) -> Optional[int]:
         return None
 
 
+def _seal_status(conn: sqlite3.Connection, today: str) -> tuple:
+    """(token, flag) for pre-registration / frozen-family seal integrity, read from the latest
+    data_quality_runs snapshot. Catches BOTH a broken seal (the nightly check WARNed) AND a
+    silently-dead nightly (the snapshot went stale) — so 'no page' can never masquerade as 'all
+    clear' (the failure mode a session-side watcher can't cover). Grace: any absence is a soft
+    'seals n/a' (green, no fault), never raises. green=ok · amber=broken · red=stale."""
+    try:
+        row = conn.execute(
+            "SELECT run_at, report_json FROM data_quality_runs ORDER BY run_at DESC LIMIT 1"
+        ).fetchone()
+        if not row or not row[1]:
+            return "seals n/a", "green"
+        run_day = str(row[0])[:10]
+        age = _age_days(run_day, today)
+        if age is not None and age >= 3:          # nightly stopped persisting → silence≠success
+            return f"seals stale {run_day} ({age}d)", "red"
+        seal = next((k for k in json.loads(row[1]).get("checks", [])
+                     if k.get("check") == "prereg.seal_integrity"), None)
+        if seal is None:
+            return "seals n/a", "green"            # pre-deploy snapshot, no seal check yet
+        if seal.get("severity") == "ok":
+            return "seals ok", "green"
+        return f"seals BROKEN {run_day}", "amber"  # WARN-level: a human must look
+    except Exception:
+        return "seals n/a", "green"
+
+
 def _owner_chat_id() -> Optional[int]:
     """The owner's DM chat id — first numeric token of telegram_allowed_user_ids.
     (Same derivation as signal_alert_telegram/news_feed; replicated deliberately to
@@ -207,6 +235,9 @@ def compose(conn: Optional[sqlite3.Connection] = None, *,
         crit = _crit_count(c)
         crit_part = f"crit {crit}" if crit is not None else "crit n/a"
 
+        seal_part, seal_flag = _seal_status(c, today)  # pre-reg/frozen-family seal integrity
+        flags.append(seal_flag)
+
         # The OWNER NUDGE (S160, Ramana-directed 2026-07-15: "I prefer to have communication
         # take place here in the chat"). The Review Inbox had been accumulating asks for him —
         # AI briefs, rule-lab verdicts, tag proposals — while NO channel said so: Pat could
@@ -244,7 +275,7 @@ def compose(conn: Optional[sqlite3.Connection] = None, *,
 
         verdict = _VERDICT[max(_FLAG_ORDER[f] for f in flags)]
         line = " · ".join([f"estate {verdict}", f"board {board}",
-                           *fresh_parts, crit_part, wait_part, cost_part])
+                           *fresh_parts, crit_part, seal_part, wait_part, cost_part])
         line = line.replace("\n", " ")  # belt-and-braces: the contract is ONE line
         return {"verdict": verdict, "line": line, "board": board, "freshness": fresh,
                 "crit": crit, "waiting": waiting_n, "cost": cost, "today": today}
