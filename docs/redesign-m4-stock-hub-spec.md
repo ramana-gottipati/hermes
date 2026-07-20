@@ -128,10 +128,32 @@ symbols (a liquid F&O name · a thin name · a data-gapped name) at 375/768/1280
 post-build diff pass → VPS deploy per the recipe (preview-only) → live walk → coordination §5
 record. Estimated build: 2–3 sessions.
 
-## 9. Owner decisions AT THIS SPEC'S REVIEW (none block the others)
+## 9. Owner decisions AT THIS SPEC'S REVIEW — DECIDED (Ramana, 2026-07-21)
 
-1. Digest tile ORDER (proposal: Conviction-composite · DVPT · RS · MEP · Quality · CCI ·
-   Structure · 52w-context — mirrors today's strip).
-2. The narrative sentence: adopt as specced (deterministic template) / drop it.
-3. Mobile default: all sections collapsed except Chart (proposal) / digest-only.
-4. News placement: Context-rail card + dock only (proposal, per the audit) / also a section.
+1. **Digest tile ORDER: ADOPT AS SPECCED** (Conviction-composite · DVPT · RS · MEP · Quality ·
+   CCI · Structure · 52w-context, mirroring today's live strip). No concrete reason to invent a
+   new order absent evidence it reads better — preserving the existing order keeps zero
+   re-learning cost for users moving from the legacy dossier to the v3 hub. Revisit only if a
+   live walk surfaces an actual reading-order friction, not speculatively.
+2. **The narrative sentence: ADOPT, with one requirement made explicit and checkable at build:**
+   the contract test suite (§7's `tests/test_v3_stock_hub.py`) must exercise a representative
+   sample of tile-state COMBINATIONS (not just the happy path — include mostly-neutral/no-data
+   combinations), and the template must resolve through the same fence vocabulary the rest of
+   the site uses, not a bespoke word list. This is the concrete safeguard against the real risk
+   here: a single flowing sentence reads closer to a holistic judgment than 8 separately-labeled
+   tiles do, which is exactly what "descriptive, never advice" must keep guarding against as this
+   moves from spec to code.
+3. **Mobile default: ADOPT AS SPECCED — Chart pre-expanded, all other sections collapsed.**
+   This is the internally consistent choice: §6's own payload contract already scopes the
+   initial render as "digest + chart + first section," so pre-expanding Chart costs nothing new;
+   choosing "digest-only" would contradict that already-written contract. It also matches the
+   near-universal competitor convention (TradingView, Tickertape, SWS) of leading with the chart,
+   not a fully collapsed list.
+4. **News placement: ADOPT AS SPECCED — Context-rail card + dock only, no separate section.**
+   This was not actually a fresh open question — Part I §1f already ratified moving News out of
+   the tab list into the Context rail, and this spec's own §2.3 already states that disposition.
+   Restoring News as a section would reintroduce the exact same-content-in-two-places duplication
+   the whole redesign has been removing since Part IV §L's "one contract per component type."
+
+**All 4 decided; nothing in §9 blocks the others.** Next per §8: Codex + Gemini review of this
+spec (as finalized above), then owner go, before any code.
