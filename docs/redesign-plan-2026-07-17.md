@@ -509,7 +509,10 @@ the coordination record)*
    FIXED order with the current one highlighted. USWDS literally tests "same location and order on
    every page"; that test becomes ours.
 2. **Never hidden on desktop.** No icon-only collapse as default (hidden nav halved discoverability
-   in NN/g's n=179 study — worse on desktop than mobile).
+   in NN/g's n=179 study — worse on desktop than mobile). **Amended (Ramana, 2026-07-20, Part V
+   §T):** a user-INVOKED, persistent collapse/expand control is allowed — the rail starts visible;
+   the user may reclaim width on demand and bring it back. This does not contradict the cited
+   finding, which measured DEFAULT-hidden nav, not a user-toggled one.
 3. **Canonical breadcrumbs.** `Home > Markets > Rotation > TCS` on every drill-down page — the
    page's home in the hierarchy, never the click path — sitting under the global bar. Arriving by
    search or cross-link still shows the canonical trail: the breadcrumb teaches the IA. Mobile
@@ -991,38 +994,35 @@ track.
 
 | Idea (source screen) | What it is | Why it needs an owner decision before adoption |
 |---|---|---|
-| "Metric Dimensions" radar/spider chart on the stock hub | A 6-axis (Value/Stability/Yield/Quality/Momentum/Growth) shape per stock — visually the Simply Wall St "Snowflake" Part II §A already named as half our committed archetype | A radar chart's gestalt reads "bigger shape = better stock" — the same scored-verdict trap already flagged for Conviction (Part I §1c: "a sorting heuristic, NOT a validated model"). If adopted it needs the same fence: each axis cites its real underlying number, and the shape must not imply an unvalidated composite score. Decide: adopt-with-fence, or skip as too score-flavored for a descriptive-only product. |
+| ~~"Metric Dimensions" radar/spider chart on the stock hub~~ **DECIDED (Ramana, 2026-07-20): SKIP** | A 6-axis (Value/Stability/Yield/Quality/Momentum/Growth) shape per stock — visually the Simply Wall St "Snowflake" Part II §A already named as half our committed archetype | **Why skip, not adopt-with-fence:** (1) redundant — the dossier already has an at-a-glance multi-dimensional digest, the 8-tile verdict strip (Part I §3), covering the same ground (Positioning/MEP/RS/Quality/CPR/Credibility); a second shape-based summary widget is two visual grammars claiming the same job, exactly what Part IV §L's "one contract per component type" exists to prevent. (2) a filled radar's defining property is comparative AREA — it reads "bigger blob = better stock" regardless of caption, the same over-reading trap already avoided for Conviction (rendered as a plain-label number with an honesty caveat, never a shape/gauge). A fence sentence has been sufficient for number displays sitting beside their own caveat; it hasn't been asked to suppress a chart TYPE's built-in gestalt, and there's no evidence it would. (3) not a permanent ban — if a genuine need surfaces for comparing 2–3 stocks' multi-axis profiles side by side (a different job than a single-stock digest), evaluate that as its own proposal. |
 | "Live Lenses" tappable count-tiles on Today (e.g. "Accumulation · 28 · Tap to screen") | Each fired-lens count is itself a one-tap pre-filtered screener link | Fits the newcomer journey (Part II §E) and the Today "flagship band" (Part I). Cheap to fold into M5 (Today v3) — recommend adopting rather than treating as an open research question. |
 | The style sheet's blue/green/red "Primary/Secondary/Tertiary" palette used as generic UI accents (buttons, active-nav highlight) | A 3-hue brand palette | **Direct doctrine tension, not just a style question:** Part II §B.4 and Part I §5 both bind red/green to signed values ONLY ("verdict-free palettes everywhere else... categorical hues never verdict-colored"). A green button beside a red button reads as an implicit up/down verdict even when it isn't one. Recommend: keep the single-accent-hue rule; do not adopt red/green as brand accent colors. |
 | The floating "What would you like to change or create?" input at the bottom of the Screener mockup | Reads as a free-text prompt bar | **Probably NOT a proposed app feature** — it has the shape of Stitch's own "keep editing this design" canvas control, not a screener feature you described to it. It isn't discussed anywhere in Parts I–IV, and an LLM-driven screening input would cut against the standing rule-based-screening doctrine (CLAUDE.md Guardrail #4). Recommend: disregard unless you confirm you actually want a natural-language screener query box — that would be a new, separate proposal, not a Stitch artifact. |
 
-## T. Doctrine tension flagged for an explicit owner call
+## T. Doctrine tension — DECIDED (Ramana, 2026-07-20)
 
-Ramana's instruction this session — **"collapse the extra layer on the left side so the full
-window is available whenever the user needs it"** — touches an already-ratified, evidence-cited
-rule and is flagged rather than resolved silently:
+Ramana's instruction in S189/Part-V's originating session — **"collapse the extra layer on the
+left side so the full window is available whenever the user needs it"** — touched an
+already-ratified, evidence-cited rule:
 
 > Part II §C.2: *"Never hidden on desktop. No icon-only collapse as default (hidden nav halved
 > discoverability in NN/g's n=179 study — worse on desktop than mobile)."*
 
-The NN/g finding was specifically about nav that is **collapsed by default**. A user-INVOKED,
-reversible collapse toggle (the rail starts visible; the user clicks to reclaim width, and can
-bring it back) is a different thing from a default-hidden nav, and doesn't contradict the cited
-study on its face. **Recommended resolution:** keep the left rail visible by default on desktop
-(per §C.2), and add an explicit, persistent collapse/expand control the user can invoke on
-demand — satisfies "give me the full window when I ask for it" without reintroducing the
-discoverability regression the rule exists to prevent. Flagging rather than deciding, since §C.2
-was a ratified rule with a cited source, not a stylistic default.
+**Decision: the left rail stays visible by default on desktop; a persistent, user-invoked
+collapse/expand control is added.** The NN/g finding was specifically about nav that is
+**collapsed by default** — a user-toggled collapse (rail starts visible; the user reclaims width
+on demand and can bring it back) doesn't contradict the cited study. Recorded as the amendment to
+Part II §C.2 itself (see that section) so the navigation contract stays the single source of
+truth for this rule.
 
 ## U. What to approve from this Part
 
-Nothing here is a build request. If/when Parts II–IV are ratified:
 1. Fold **R**'s five convergences into the relevant modules' specs (M4 stock hub gets the
    narrative-digest note; M3's Alerts channel gets the severity-tile + checkbox-filter treatment;
    M7's Rotation cluster gets the map+ranked-list layout note) — no new owner decision needed,
    these agree with already-approved direction.
-2. Decide **S**'s three EXAMINE items (radar chart adopt-with-fence-or-skip; count-tile Today
-   pattern — recommend adopt; palette-as-accent — recommend reject) alongside Part II §F.8's
-   EXAMINE queue, since they're the same kind of decision.
-3. Decide **T**'s nav-collapse resolution (recommended: user-toggleable, not default-hidden) as
-   an explicit amendment to Part II §C.2, before M7 builds the rail.
+2. **S's radar chart — DECIDED: skip** (see the table above). The other two S items — count-tile
+   Today pattern (recommend adopt) and palette-as-accent (recommend reject) — remain open,
+   decide alongside Part II §F.8's EXAMINE queue.
+3. **T's nav-collapse — DECIDED:** user-toggleable, not default-hidden; Part II §C.2 amended
+   in place.
