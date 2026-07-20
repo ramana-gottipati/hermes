@@ -17,6 +17,16 @@ journey. That plan is **PART II** (from §A onward). M0–M3 exist as built opt-
 (M3's final walk was interrupted; revert = `.bak-s189c`); **nothing further is built until
 PART II is reviewed and approved.**
 
+**🟢 2026-07-20 — SUPERSEDED: PARTS II–IV RATIFIED (Ramana).** The pause above is lifted for
+planning purposes. §C's navigation contract (as amended by Part V §T), §D's connectivity rules,
+§A's stock-page archetype, Part III's structural improvements + column architecture (§I–§J), and
+Part IV's component-type contracts (§L–§N) are all ratified as the working spec — resolutions for
+every EXAMINE-queue item are recorded in place at §F.8 and §K. **What this unlocks:** M4 (stock
+hub) re-planning against the ratified contracts, per §G. **What it does NOT skip:** every module
+still goes through the standing review-then-build gate (`docs/redesign-coordination.md` §1.4) —
+Codex + Gemini review of the re-planned module before any code lands, the same process M0–M3
+went through. Full itemized ratification: §G, §K, §P.
+
 **Method.** Grounded in a four-way sweep of the real estate on 2026-07-17 (not memory): the live
 registry (`src/web/lens_registry.py` L65–338 — 73 Lens records: 71 routed + 2 overlay-only), the
 route gate (`tests/test_dash_route_registry.py`), the Pat gate (`tests/test_pat_coverage.py` — 24
@@ -624,21 +634,32 @@ delivered through structure + contextual help, not a tour.
    contextual pull-help + teaching empty states + the persistent "How to read this page".
 7. **Mobile contract:** bottom tabs mirroring desktop destinations, accordion stock page, frozen
    symbol columns.
-8. **New EXAMINE queue from the teardowns** (each needs an owner nod before any module adopts it):
-   sector-baseline-beside-every-metric (Tickertape) · per-stock private notes (StockEdge) ·
-   auto-FAQ block per stock (TradingView) · edit-columns-in-place (Screener.in) · palette chaining
-   (Koyfin).
+8. **EXAMINE queue from the teardowns — RATIFIED, resolved per-item (Ramana, 2026-07-20):**
+   sector-baseline-beside-every-metric (Tickertape) → **ADOPT** — pure additive context (no new
+   verdict), extends the citation-per-claim doctrine; fold into M4/M8 column display. ·
+   per-stock private notes (StockEdge) → **ADOPT, deprioritized** — a personal-workspace feature
+   (Tracker-destination character), not core evidence; schedule after M0–M8, not blocking. ·
+   auto-FAQ block per stock (TradingView) → **REJECT as a standalone feature** — Pat already owns
+   this job with closed-vocab, SEBI-safe guardrails a templated auto-FAQ generator would weaken;
+   extend Pat's existing symbol-aware explain surface instead if more Q&A coverage is wanted. ·
+   edit-columns-in-place (Screener.in) → **ADOPT** — already implied by Part III §J's saved-view
+   system; confirms inline column toggling over a modal, no separate feature. · palette chaining
+   (Koyfin) → **ADOPT** — already named as the palette's future direction at §C.7; rides the ⌘K
+   build, no separate decision needed.
 
-## G. WHERE THIS LEAVES THE PROGRAM
+## G. WHERE THIS LEAVES THE PROGRAM — PARTS II–IV RATIFIED (Ramana, 2026-07-20)
 
 Built and parked (all opt-in, invisible from the default site, one-line revert each): M0 preview
 gate · M1 theme layer · M2 term chips (deployed, walked) · M3 dock (on the box, final walk
-interrupted — say the word to finish the walk or revert via `.bak-s189c`). **Nothing further is
-designed or built until you review PART II.** When you do, the decisions that unlock work, in
-order: (1) ratify or amend §C's navigation contract and §D's connectivity rules — they shape
-every subsequent module; (2) ratify the §A stock-page archetype (it redefines M4); (3) the §F.8
-EXAMINE queue; (4) then M4 (stock hub) gets re-planned against the ratified contract before any
-code.
+interrupted — say the word to finish the walk or revert via `.bak-s189c`). **The four unlocking
+decisions, resolved:** (1) §C's navigation contract (as amended by Part V §T — user-toggleable
+rail collapse, not default-hidden) and §D's connectivity rules — **RATIFIED** as the binding spec
+for every subsequent module. (2) §A's stock-page archetype (single evidence-scroll + sticky
+section index + digest top, no 12-tab wall) — **RATIFIED**, redefines M4. (3) §F.8's EXAMINE
+queue — **resolved above, per item.** (4) M4 (stock hub) re-planning against the ratified
+contracts is now unblocked — **still subject to the standing review-then-build gate**
+(`docs/redesign-coordination.md` §1.4: Codex + Gemini review of the re-planned module before any
+code, the same process M0–M3 went through).
 
 ---
 ---
@@ -792,22 +813,32 @@ N500 same-window % · ADV ₹cr` — the MarketsMojo row + the liquidity floor):
   **We do not:** every column is free; evidence is never gated. If we ever monetize, it is on
   convenience (alerts, exports at scale, API), never on the evidence layer.
 
-## K. WHAT TO APPROVE IN PART III
+## K. PART III — RATIFIED (Ramana, 2026-07-20)
 
 1. §I.1–I.8 structural improvements (portfolio-spine, provenance chips, row honesty format,
-   rebalance ledger, quarter-matrix, failure-ledger cards, methodology links, 5-tier risk ladder).
-2. §J's book→risk-profile mapping and the per-book default column sets (edit freely — they are
-   proposals grounded in what each profile's reader checks across the nine platforms).
+   rebalance ledger, quarter-matrix, failure-ledger cards, methodology links, 5-tier risk
+   ladder) — **RATIFIED** as specified.
+2. §J's book→risk-profile mapping and the per-book default column sets — **RATIFIED as the
+   working default** (the plan's own framing stands: edit freely as real usage data accumulates).
 3. The configurability policy: 10–12 defaults · ~70-column pool · ~20 soft cap · saved views +
-   URL state · columns never paywalled.
-4. §H's borrow queue joins Part II §F.8's EXAMINE list — now including, from the tools cohort:
-   per-book CA-adjusted XIRR (Console) · scan-page-as-shareable-artifact for rule-lab verdict
-   pages (Chartink) · "mutual funds invested" institutional-holding block on the stock hub
-   (Groww, from our shareholding data) · lakh-crore digit grouping site-wide (India-native
-   convention) · a Varsity-style numbered ladder for the Learn destination (long-term).
+   URL state · columns never paywalled — **RATIFIED**.
+4. §H's borrow queue — **resolved per-item (Ramana, 2026-07-20):** per-book CA-adjusted XIRR
+   (Console) → **ADOPT as a goal, engineering-EXAMINE first** — needs a check that dated
+   cash-flow data (deposits/rebalances) exists at the fidelity a real XIRR requires before any
+   module promises it; schedule under Tracker. · scan-page-as-shareable-artifact for rule-lab
+   verdict pages (Chartink) → **ADOPT** — a natural extension of the existing
+   canonical-URL/citation-per-claim doctrine; fold into Proof/rule-lab. · "mutual funds
+   invested" institutional-holding block (Groww) → **ADOPT** — pure rendering of shareholding
+   data already held; fold into the stock hub's Context rail or Ownership tab. · lakh-crore
+   digit grouping site-wide → **ADOPT as a baseline v3 token-layer requirement** — not really
+   EXAMINE-level uncertain; treat as confirmed for `ui_tokens_v3`. · Varsity-style numbered
+   ladder for the Learn destination → **ADOPT AS DIRECTION, long-term** — revisit once the
+   Proof→Learn baseline (glossary + reading-guide + Pat) is live in v3, not scheduled against
+   M0–M8.
 
-All three research streams have landed; Part III is complete. All of it is plan-only; nothing
-is built.
+All three research streams have landed; Part III is complete AND ratified. Nothing is built yet —
+ratification unblocks module re-planning, which still goes through the standing
+review-then-build gate (`docs/redesign-coordination.md` §1.4).
 
 ---
 ---
@@ -912,15 +943,19 @@ The plan now covers every layer with named artifacts:
 | Competitive archetypes · style charter · nav contract · cross-links · journeys | Part II | complete |
 | Portfolio presentation · risk profiles · column architecture | Part III | complete (all 3 research streams landed) |
 | Component treatment contracts + parity targets | **Part IV** | complete (this section) |
-| Owner ratifications | §7.3 + II-§G + III-§K + IV-§P | **awaiting you** |
-| Module re-planning (M4+) against ratified contracts → builds under gates | after ratification | not started, by design |
+| Owner ratifications | §7.3 + II-§G + III-§K + IV-§P | **RATIFIED (Ramana, 2026-07-20)** |
+| Module re-planning (M4+) against ratified contracts → builds under gates | after ratification | **unblocked — starts with M4 per §G, still subject to the standing review-then-build gate** |
 
-**Part IV approvals:** (1) the nine type-contracts (§L); (2) the comparison contract (§M) —
-this one reshapes several surfaces; (3) the dense-rail spec (§N) as the drawings/indicators
-treatment; (4) the §O gap list as the component work-queue folded into the affected modules
-(M4 stock hub · M7 clusters), each gap a named checklist item in its module's landing gate.
+**Part IV approvals — RATIFIED (Ramana, 2026-07-20):** (1) the nine type-contracts (§L); (2) the
+comparison contract (§M) — this one reshapes several surfaces; (3) the dense-rail spec (§N) as
+the drawings/indicators treatment; (4) the §O gap list as the component work-queue folded into
+the affected modules (M4 stock hub · M7 clusters), each gap a named checklist item in its
+module's landing gate. No sub-item required individual litigation — these are single-sourcing
+hygiene fixes (collapsing duplicate implementations to one canonical component per type), and the
+census surfaced no competing tradeoff on any of them.
 
-Nothing in Part IV is built; every contract above is a specification awaiting your review.
+Nothing in Part IV is built yet; ratification folds the §O gaps into M4 and M7's landing gates,
+same as every other module, under the standing review-then-build process.
 
 ## Q. BRAND COMPLETION — Patearn everywhere a human reads (2026-07-18, owner: "yes")
 
