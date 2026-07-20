@@ -4,7 +4,14 @@
 > `docs/redesign-coordination.md` §5 + PROJECT_STATE; then `git rm`. Fold into:
 > `docs/redesign-coordination.md`.
 
-**Status: SPEC ONLY — no code. Built only on explicit owner go, after this spec's review.**
+**Status: SPEC ONLY — no code. Built only on explicit owner go.** Codex reviewed 2026-07-21:
+`VERDICT: APPROVE-WITH-CHANGES` — 1 BLOCKING (pt14 has no existing panel function to wrap;
+fixed below) + 6 ADVISORY (1 naming fix applied — `sector_peers`→the real `/dash/api/peers`
+read; 5 confirmations, no change needed). Full text: `docs/codex-review/M4-STOCK-HUB-CODEX.md`;
+dispositions: `docs/redesign-coordination.md` §3b. **Gemini review NOT run** — no working
+credential on this machine (cached OAuth is `IneligibleTierError`-dead per the known 2026-07-17
+channel limitation, and no `GEMINI_API_KEY` is configured anywhere); owner action needed before
+that leg can run.
 Inputs (all ratified 2026-07-20): Part II §A archetype · §C nav contract · §D connectivity ·
 §E journeys · Part III §J columns · Part IV §L–§O component contracts (§M comparison, §N
 dense-rail, §O gap list) · Part V convergences (narrative digest). Composes with the DEPLOYED
@@ -57,8 +64,10 @@ the M3 dock below, defaulted to the symbol's filter (`?sym=` carried).
      back-link contract ("‹ back to TCS") is that module's obligation, recorded in §O.
 5. **Context rail** (co-presentation — the core M4 promise): news timeline
    (`render_stock_timeline`) · next results date (`board_meetings`) + last-concall CCI chip ·
-   upcoming corp actions for the symbol · **peers card** (the existing `sector_peers` read,
-   promoted from the hidden "+" rail to a visible card with one-tap add-to-compare) · seasonal
+   upcoming corp actions for the symbol · **peers card** (the existing peers read — `/dash/api/peers`
+   backed by `_sector_symbols`, `src/web/symbol_search.py:177` / `src/web/dashboard.py:980`; corrected
+   from the earlier "`sector_peers`" naming per Codex ADVISORY, 2026-07-21 — promoted from the
+   hidden "+" rail to a visible card with one-tap add-to-compare) · seasonal
    cadence card. Every card ≤ its existing bounded read.
 6. **Related strip** (ONE, end of Focus column, ≤5, registry-driven — §D).
 7. **Footer fence** (shell_v3's existing line).
@@ -102,8 +111,9 @@ glossary entry, its `docs/strategies` page (origin-badged), and `/dash/testing`.
 
 Per-section reads = exactly today's tab reads (census 1a–1j): `stock_signals` ·
 `mep_signals` · `cpr_signals` · `pattern_scores`/`capital_allocation_scores` ·
-`concall_scores` + fingerprint card · seasonal panels · `fno_oi_signals` · `sector_peers` ·
-`board_meetings` · `corporate_actions` · news timeline. **Payload discipline:** the initial
+`concall_scores` + fingerprint card · seasonal panels · `fno_oi_signals` · the peers read
+(`/dash/api/peers` / `_sector_symbols`) · `board_meetings` · `corporate_actions` · news timeline.
+**Payload discipline:** the initial
 document renders the digest + chart + first section; heavy sections render server-side on
 `?section=` expansion (simple links, no SPA), targeting **< 1 MB initial** vs the 2.7 MB
 legacy dossier. All reads bounded; empty states teach (§E).
@@ -113,7 +123,7 @@ legacy dossier. All reads bounded; empty states teach (§E).
 | File | Contents |
 |---|---|
 | `src/web/stock_hub_v3.py` | route + page assembly + digest + narrative template + section index |
-| `src/web/hub_sections_v3.py` | section renderers — thin wrappers over the EXISTING panel functions (`_mep_stock_panel`, `credibility_fingerprint.card_html`, `seasonal_full_panel`, `momentum_pane` card, pt14/CPR panels) + the checks-as-UI blocks |
+| `src/web/hub_sections_v3.py` | section renderers — thin wrappers over the EXISTING panel functions (`_mep_stock_panel`, `credibility_fingerprint.card_html`, `seasonal_full_panel`, `momentum_pane` card, `_cpr_stock_panel`) + the checks-as-UI blocks. **Correction (Codex BLOCKING, 2026-07-21):** pt14 has NO existing panel function to wrap — its rendering is inline HTML inside the frozen `dash_stock` (`src/web/dashboard.py:6355-6394`), and `dashboard.py` is hard-frozen for ordinary feature work (`AGENTS.md`). pt14's v3 section is a NEW renderer in this file, reading the same underlying data (`fund`/`pscore`/`ca` — the cached fundamentals, pattern-score, and capital-allocation reads already used by `dash_stock`) without touching or extracting from the frozen file. |
 | `src/web/chart_rail_v3.py` | the §N dense-rail wrapper + §M `?cmp=` URL-state shim around the existing chart snippet |
 | `tests/test_v3_stock_hub.py` | contract tests: all sections present per data availability · checks blocks render with thresholds · one related strip ≤5 · `?sym=`/`?cmp=` discipline (`?symbol=` never emitted) · no v3 leak to legacy · 375px overflow-free · payload budget |
 

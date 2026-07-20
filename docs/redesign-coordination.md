@@ -56,6 +56,7 @@ Rules (binding for every redesign module):
 | 2026-07-20 | Ramana | **EXTENDS the ratification above to close out Parts II–IV** (`docs/redesign-plan-2026-07-17.md` §G/§K/§P — same instruction, same date; not re-deciding §C/§D/§A/§J, which the row above already ratified). Newly ratified here: **Part III §I** structural improvements (portfolio-spine, provenance chips, row honesty format, rebalance ledger, quarter-matrix, failure-ledger cards, methodology links, 5-tier risk ladder) — as specified. **Part IV in full** — the 9 type-contracts (§L), the comparison contract (§M), the dense-rail spec (§N), and the §O gap list — as specified (single-sourcing hygiene, no competing tradeoffs found in the census). **All 10 EXAMINE-queue items** across §F.8 + §H (left open by the row above) resolved per-item in place: 5 ADOPT outright (sector-baseline-beside-metric, edit-columns-in-place, palette chaining, shareable rule-lab pages, mutual-funds-invested block, lakh-crore grouping), 2 ADOPT-deprioritized/long-term (per-stock private notes, Varsity learn ladder), 1 ADOPT-pending-engineering-check (CA-adjusted XIRR — needs a cash-flow-data-fidelity check first), 1 REJECT (auto-FAQ block — Pat already owns that job with tighter SEBI-safe guardrails a templated generator would weaken). Parts II–IV are now ratified in full; nothing here skips the standing review-then-build gate (§1.4) for M4 onward. |
 | 2026-07-20 | Claude | **M4 STOCK-HUB MODULE SPEC landed:** `docs/redesign-m4-stock-hub-spec.md` (spec-only, no code) — the evidence-scroll page anatomy, the §N/§M component-contract application to the stock chart (closing all 5 named §O gaps), and the section-to-Context-rail remapping of the legacy 10 tabs, built against the ratified Parts I–IV inputs above. Left 4 small items open at §9 for owner review; independently verified (its cited pt14 quality-gate numbers — `QG_THRESHOLD` 151.2/252, the ×0.70 unverified multiplier — check out exactly against `src/automation/scoring.py`). |
 | 2026-07-21 | Ramana | **DECIDED** the M4 spec's 4 remaining §9 items — **the spec is now fully closed**, pending only its Codex+Gemini review per §8. (1) Digest tile order: **ADOPT AS SPECCED** (mirrors today's live strip — no reason to re-order without evidence it reads better). (2) Narrative sentence: **ADOPT**, with an explicit build requirement — the contract tests must cover representative tile-state combinations (not just the happy path) and the template must resolve through the site's shared fence vocabulary, guarding against a single sentence reading as a holistic judgment. (3) Mobile default: **ADOPT AS SPECCED** — Chart pre-expanded, matching §6's own payload contract (which already scopes the initial render as digest+chart+first-section) and the near-universal competitor convention. (4) News placement: **ADOPT AS SPECCED** — Context-rail + dock only, no separate section; this wasn't actually a fresh question, Part I §1f already ratified moving News out of the tab list. Next: Codex + Gemini review of the finalized spec, then owner go, before any code (§8, unchanged). |
+| 2026-07-21 | Codex | M4 stock-hub spec review: `VERDICT: APPROVE-WITH-CHANGES` — 1 BLOCKING + 6 ADVISORY (§3b). Full text: `docs/codex-review/M4-STOCK-HUB-CODEX.md`. BLOCKING accepted + spec corrected (pt14 gets a new v3 renderer, not a wrapper over a non-existent panel function); 1 naming ADVISORY corrected (`sector_peers`→the real `/dash/api/peers` read); 5 ADVISORY were confirmations, no change needed. **Gemini NOT run** — no working credential on this machine (§3b); the second review leg is blocked on an owner-side credential fix, not a session-side gap. |
 
 ## 3. Codex findings → dispositions (all 5 BLOCKING accepted)
 
@@ -67,6 +68,30 @@ Rules (binding for every redesign module):
 | B4 | Existing Pat gates don't cover chips; dedicated seed-chip test needed | ACCEPTED — `tests/test_v3_isolation.py` proves chip → glossary → Pat-explain round-trip per seed term. |
 | B5 | 6 of 14 seed labels don't resolve verbatim (`×Power` [encoding], `MEP`, `CCI`, `pt14`, `Wolfe §B`, `Launchpad`) | ACCEPTED — verified by probe: `MEP`→`mep_score`, `CCI`→`composite_score`, `pt14`→`ns_base` resolve via an explicit ALIAS map; `Wolfe §B` / `Launchpad` / `RRG` / `seasonal cert` / `attention` have NO md entry → deferred from the seed set until glossary entries exist (no md edit in M2). Seed set = 10 resolvable terms. |
 | A6–A8 | Inventory verified · enforce playbook per build · keep "improves the read" wording | NOTED — A7/A8 are standing requirements below. |
+
+## 3b. Codex findings → dispositions (M4 stock-hub spec review, 2026-07-21)
+
+`VERDICT: APPROVE-WITH-CHANGES`. Full text: `docs/codex-review/M4-STOCK-HUB-CODEX.md`. Review-only
+run (`codex exec --dangerously-bypass-approvals-and-sandbox -`, no files modified by Codex);
+BLOCKING finding independently re-verified against the cited source before acceptance.
+
+| # | Finding (short) | Disposition → build requirement |
+|---|---|---|
+| B1 | pt14 has NO existing panel function to wrap (unlike MEP/fingerprint/seasonal/momentum/CPR, which are real functions) — it's inline HTML inside the frozen `dash_stock` (`src/web/dashboard.py:6355-6394`) | ACCEPTED, independently re-verified (read the exact lines: confirmed inline f-string HTML, no separate callable). Spec §7 corrected: pt14's v3 section is a NEW renderer reading the same underlying `fund`/`pscore`/`ca` data, not a wrapper — `dashboard.py` stays untouched per the standing hard-freeze. |
+| A2 | `sector_peers` isn't a real table/function — it's a local variable in the legacy dossier; the real reusable source is `/dash/api/peers` backed by `_sector_symbols` | ACCEPTED — spec §2/§6 corrected to name the real source. |
+| A3 | Overlay seams (`window.__wfpc`/`__wfcandle`, `[data-ptf]`, `#stratBar`/`#cprBar`) are real and bound by 4 existing overlay modules — the dense rail must re-home, not rename/remove, them | NOTED as a build-time constraint; no spec text change needed, §3 already says the seams stay untouched. |
+| A4 | The chart's `?cmp=` URL-state + `history.replaceState` work is genuinely new, not a thin wrap (legacy chart has compare state + cap 4 but no URL persistence) | NOTED — confirms `chart_rail_v3.py`'s scope in §3 is correctly sized as real work, not trivial; no spec change needed. |
+| A5 | Remaining data reads/gates (`stock_signals`, `mep_signals`, `fno_oi_signals`, `pattern_scores`, `cpr_signals`, `concall_scores`, `corporate_actions`, `capital_allocation_scores`, `board_meetings`, `_ROUTER_SPECS`, route-gate, Pat-coverage scope) all check out | NOTED, no action. |
+| A6 | pt14 quality-gate numbers (`QG_MAX`=252, `QG_THRESHOLD`=151.2, `UNVERIFIED_MULTIPLIER`=0.70) independently re-verified by Codex, matching Claude's earlier spot-check | NOTED, no action — two independent verifications now on record. |
+| A7 | No additional descriptive-fence violation found beyond the already-recorded narrative-sentence risk (already covered by the 2026-07-20 build requirement in the approval log) | NOTED, no action. |
+
+**Gemini review: NOT RUN.** No working credential on this machine — the cached interactive OAuth
+is `IneligibleTierError`-dead (the known 2026-07-17 channel limitation, confirmed still live by a
+test call today) and no `GEMINI_API_KEY` is configured anywhere (checked `.env`, shell env,
+Windows user/machine env vars — none set). This is an owner-side gap (obtaining/setting the key),
+not something resolvable from within a session. M4 build should not proceed on Codex's review
+alone without an owner decision on how to handle the missing second reviewer (obtain the key,
+proceed Codex-only, or find an alternative independent reviewer).
 
 ## 4. Gemini findings → dispositions
 
@@ -87,7 +112,7 @@ Rules (binding for every redesign module):
 | M1 theme layer | **DEPLOYED (VPS)** | `/dash/_ui3` public 200; all 6 module selftests green ON the box; anchored insert into forked `v2_surfaces.py` (backup `.bak-s189`; box md5 was `c81715d9`, drift cosmetic) |
 | M2 term chips | **DEPLOYED (VPS)** | `term_chip` selftest on the box: 10 seed chips resolve against the box's real glossary + sidecar |
 | M3 news/flow dock | **DEPLOYED (VPS; walk completed 2026-07-20)** | `src/web/news_dock.py` — 6 channels over existing reads; URL state `?ch=&sym=`; walk: 6×200 with content · isolation 0-leak · POST-only toggle · public 200 (approval-log row 2026-07-20) |
-| M4 stock hub | **SPEC COMPLETE** (`docs/redesign-m4-stock-hub-spec.md`, all §9 items decided 2026-07-21) — awaiting Codex+Gemini review of the spec, then owner go, before any code | Part II §A archetype + §C/§D contracts, Part III §I/§J, and Part IV §L–§O (type-contracts + comparison contract + dense-rail spec + gap list) are its inputs |
+| M4 stock hub | **CODEX-REVIEWED, GEMINI PENDING** (`docs/redesign-m4-stock-hub-spec.md`) — `APPROVE-WITH-CHANGES` (§3b), 1 BLOCKING fixed + 1 naming ADVISORY fixed; Gemini leg blocked on a missing credential, not a session gap — owner go still required before any code | Part II §A archetype + §C/§D contracts, Part III §I/§J, and Part IV §L–§O (type-contracts + comparison contract + dense-rail spec + gap list) are its inputs |
 | M5–M8 | NOT APPROVED | await owner (M4 spec first) |
 
 Deploy record (S189-b): callees pushed BEFORE the caller patch (S158 rule), all 7 files md5-matched
