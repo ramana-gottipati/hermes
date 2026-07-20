@@ -47,6 +47,7 @@ _MODULES = [
     "shp_combos",
     "overnight_split",  # X-04 (S199): overnight/intraday split + overnight-pump flag
     "volume_shelves",   # X-07 (S200): volume-at-price shelves (POC / value area / shelves)
+    "base_breakout",    # X-09 (S203): base length x breakout velocity
 ]
 
 
