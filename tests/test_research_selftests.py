@@ -45,6 +45,7 @@ _MODULES = [
     "reclaim_selection",
     "rebrand_pump",
     "shp_combos",
+    "overnight_split",  # X-04 (S199): overnight/intraday split + overnight-pump flag
 ]
 
 
