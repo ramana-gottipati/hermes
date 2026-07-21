@@ -24,15 +24,16 @@ Three modes Ramana navigates:
     SELL (red, zones above); descending = BUY (green, zones below). DESCRIPTIVE only —
     draws the geometry + zones, never a buy/sell verdict.
 
-  AUTO-DRAW (Ramana 2026-07-11): an OPT-IN "auto-snap" (OFF by default — the analyst's clicks
-  land EXACTLY where he puts them, with only a gentle same-bar high/low snap) pulls points 1/3/5
-  onto the local LOWS and 2/4 onto the local HIGHS of a BULL wave (reversed on a BEAR) —
-  direction is read from points 1->2 — so a click near a pivot lands ON it. Two guards keep the
-  magnet honest: it NEVER moves two points onto the same bar (that silently dropped the later
-  point at draw — the "point 3 becomes point 1" bug), and it NEVER teleports a click that falls
-  outside the 800-bar snap payload to the window edge (the click is kept exact instead). The EPA
-  (1-4) target line is drawn AS SOON AS point 4 is in (before point 5) and extended to the right
-  edge; the 1-2 and 3-4 legs
+  AUTO-DRAW (Ramana 2026-07-11): "auto-snap" (ON by default; toggle in the DRAW bar) pulls
+  points 1/3/5 onto the local LOWS and 2/4 onto the local HIGHS of a BULL wave (reversed on a
+  BEAR) — direction is read from points 1->2 — so a click near a pivot lands ON it. Two guards
+  (S204) keep the magnet honest: it NEVER moves two points onto the same bar (that silently
+  dropped the later point at draw — the "point 3 becomes point 1" bug), and it NEVER teleports a
+  click that falls outside the snap payload to the payload edge (the exact click is kept). The
+  snap payload (wolfe.overlay_for -> `bars`) covers the FULL chart history so a pivot years back
+  (S204: BATAINDIA point 1 in 2021) still snaps and its bar index resolves. The EPA (1-4) target
+  line is drawn AS SOON AS point 4 is in (before point 5) and extended to the right edge; the
+  1-2 and 3-4 legs
   are extended too so their intersection is visible. A STRICT gate warns "The distance between
   points 1 and 2 is less than the distance between points 3 and 4." whenever leg 3-4 exceeds
   leg 1-2. Any point is editable: double-click it on the chart (or click its chip) then click
@@ -48,7 +49,7 @@ SNIPPET = """<script>
   var lbl=document.getElementById('wfLbl');
   var ser=[], fans=[], DATA=null, fansOn=false, mode='pred', di=0;
   var BARS=null, manual=[], manualZones=[], probe=null, clickWired=false;
-  var autosnap=false, editing=null, wfWarn='';                                // draw: EXACT hand-placement by default (magnet is opt-in), no point being edited
+  var autosnap=true, editing=null, wfWarn='';                                 // draw: magnet ON (Ramana) — but guarded: never collapses two points onto one bar, never teleports an out-of-coverage click
   var NS={autoscaleInfoProvider:function(){return null;}};
   function add(opts,data){ var s=window.__wfpc.addLineSeries(Object.assign({priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},opts,NS)); s.setData(data); ser.push(s); return s; }
   function clear(){ ser.forEach(function(s){try{window.__wfpc.removeSeries(s);}catch(e){}}); ser=[]; fans=[]; }
@@ -298,7 +299,7 @@ SNIPPET = """<script>
     manual.push({time:t,value:Math.round(price*100)/100}); resnap(); drawManual(); controls();
   }
   function enterDraw(){
-    mode='draw'; clear(); manual=[]; manualZones=[]; editing=null; wfWarn=''; ensureProbe();
+    mode='draw'; hideBadge(); clear(); manual=[]; manualZones=[]; editing=null; wfWarn=''; ensureProbe();   // hide the auto-wave badge — it describes the DETECTED wave, not the one being hand-drawn
     if(!clickWired){ try{ window.__wfpc.subscribeClick(onClick); }catch(e){}
       try{ var el=window.__wfpc.chartElement&&window.__wfpc.chartElement(); if(el) el.addEventListener('dblclick',onDbl); }catch(e){}
       clickWired=true; }

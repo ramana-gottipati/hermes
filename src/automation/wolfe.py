@@ -923,13 +923,16 @@ def overlay_for(conn, sym=None, idx=None):
             break
     if prediction is None and not completed:
         return None
-    # compact recent bars (date, high, low) so the manual "✎ draw your own" mode can snap
-    # each click to the nearer real swing extreme — the analyst sets the pivots, we compute
-    # the zones. Cap to the last 800 bars (plenty of history, keeps the payload light).
+    # compact bars (date, high, low) so the manual "✎ draw your own" mode can snap each click
+    # to the nearer real swing extreme AND resolve each pivot's bar index for the EPA / leg
+    # extensions. Must cover the SAME range the price chart plots — dashboard.py pulls the full
+    # history with NO limit — else a click on a pivot older than the payload cannot snap and the
+    # EPA silently won't draw (S204: BATAINDIA's point 1 sat in 2021, older than the former
+    # last-800-bar window, so barIx()->-1 killed the EPA gate). analyze() already CA-adjusts via
+    # the same adjuster as the chart, so the basis matches; the payload is on-demand + gzipped.
     highs, lows = d["highs"], d["lows"]
-    b0 = max(0, n - 800)
     bars = [{"t": dates[i], "h": round(highs[i], 2), "l": round(lows[i], 2)}
-            for i in range(b0, n)]
+            for i in range(n)]
     return {"prediction": prediction, "completed": completed,
             "label": d["label"], "kind": d["kind"], "bars": bars}
 # * zone_s uses symmetry as a confluence-tightness proxy until Ramana's exact
