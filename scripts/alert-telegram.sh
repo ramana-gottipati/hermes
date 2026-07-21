@@ -32,10 +32,20 @@ host: $(hostname)  time: $(date -u +%FT%TZ)
 inspect: journalctl -u ${UNIT} -n 50"
   LABEL="${UNIT}"
 fi
-if curl -sS -m 10 "https://api.telegram.org/bot${TOKEN}/sendMessage" \
-     --data-urlencode "chat_id=${CHAT}" --data-urlencode "text=${TEXT}" >/dev/null; then
-  echo "hermes-alert: paged ${CHAT} for ${LABEL}"
+RESP=$(curl -sS -m 10 "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+     --data-urlencode "chat_id=${CHAT}" --data-urlencode "text=${TEXT}" 2>/dev/null)
+RC=$?
+# Self-verify delivery: curl exit 0 is NOT proof — Telegram returns {"ok":false,...} (HTTP 200) on a
+# bad token / blocked chat / rate-limit, and curl (no -f) still exits 0. Parse the ok flag so a SILENT
+# non-delivery is logged loudly (journald) with the API reason, not falsely reported as "paged".
+# Still ALWAYS exit 0 (a failing pager must never cascade into more unit failures — AUD-26).
+if [ "${RC}" -ne 0 ]; then
+  echo "hermes-alert: telegram TRANSPORT FAILED (curl rc=${RC}) for ${LABEL}" >&2
+elif printf '%s' "${RESP}" | grep -q '"ok":true'; then
+  MID=$(printf '%s' "${RESP}" | grep -oE '"message_id":[0-9]+' | head -1 | cut -d: -f2)
+  echo "hermes-alert: paged ${CHAT} for ${LABEL} (message_id ${MID:-?})"
 else
-  echo "hermes-alert: telegram send FAILED for ${LABEL}" >&2
+  DESC=$(printf '%s' "${RESP}" | grep -oE '"description":"[^"]*"' | head -1)
+  echo "hermes-alert: telegram REJECTED for ${LABEL}: ${DESC:-${RESP}}" >&2
 fi
 exit 0
