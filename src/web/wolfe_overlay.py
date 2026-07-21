@@ -24,10 +24,15 @@ Three modes Ramana navigates:
     SELL (red, zones above); descending = BUY (green, zones below). DESCRIPTIVE only —
     draws the geometry + zones, never a buy/sell verdict.
 
-  AUTO-DRAW (Ramana 2026-07-11): an opt-in "auto-snap" pulls points 1/3/5 onto the local LOWS
-  and 2/4 onto the local HIGHS of a BULL wave (reversed on a BEAR) — direction is read from
-  points 1->2 — so a click near a pivot lands ON it. The EPA (1-4) target line is drawn AS
-  SOON AS point 4 is in (before point 5) and extended to the right edge; the 1-2 and 3-4 legs
+  AUTO-DRAW (Ramana 2026-07-11): an OPT-IN "auto-snap" (OFF by default — the analyst's clicks
+  land EXACTLY where he puts them, with only a gentle same-bar high/low snap) pulls points 1/3/5
+  onto the local LOWS and 2/4 onto the local HIGHS of a BULL wave (reversed on a BEAR) —
+  direction is read from points 1->2 — so a click near a pivot lands ON it. Two guards keep the
+  magnet honest: it NEVER moves two points onto the same bar (that silently dropped the later
+  point at draw — the "point 3 becomes point 1" bug), and it NEVER teleports a click that falls
+  outside the 800-bar snap payload to the window edge (the click is kept exact instead). The EPA
+  (1-4) target line is drawn AS SOON AS point 4 is in (before point 5) and extended to the right
+  edge; the 1-2 and 3-4 legs
   are extended too so their intersection is visible. A STRICT gate warns "The distance between
   points 1 and 2 is less than the distance between points 3 and 4." whenever leg 3-4 exceeds
   leg 1-2. Any point is editable: double-click it on the chart (or click its chip) then click
@@ -43,7 +48,7 @@ SNIPPET = """<script>
   var lbl=document.getElementById('wfLbl');
   var ser=[], fans=[], DATA=null, fansOn=false, mode='pred', di=0;
   var BARS=null, manual=[], manualZones=[], probe=null, clickWired=false;
-  var autosnap=true, editing=null, wfWarn='';                                 // auto-draw: magnet on, no point being edited
+  var autosnap=false, editing=null, wfWarn='';                                // draw: EXACT hand-placement by default (magnet is opt-in), no point being edited
   var NS={autoscaleInfoProvider:function(){return null;}};
   function add(opts,data){ var s=window.__wfpc.addLineSeries(Object.assign({priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},opts,NS)); s.setData(data); ser.push(s); return s; }
   function clear(){ ser.forEach(function(s){try{window.__wfpc.removeSeries(s);}catch(e){}}); ser=[]; fans=[]; }
@@ -206,9 +211,18 @@ SNIPPET = """<script>
       if(kind==='low'? v<bp : v>bp){ bp=v; best=j; } } return {t:BARS[best].t, v:bp}; }
   function dirBull(){ return manual.length>=2 ? (manual[1].value>manual[0].value) : null; }
   function roleKind(i,bull){ var low=(i%2===0); return bull? (low?'low':'high') : (low?'high':'low'); }
-  function resnap(){ if(!BARS) return; var bull=dirBull();                     // re-pin every placed point to its role extreme
-    for(var i=0;i<manual.length;i++){ var p=manual[i], bar=barIx(p.time); if(bar<0) bar=nearestBar(p.time); if(bar<0) continue;
-      if(autosnap && bull!==null){ var s=snapExtreme(bar,roleKind(i,bull)); p.time=s.t; p.value=s.v; }
+  function occupiedBy(idx,ts){ for(var k=0;k<manual.length;k++){ if(k===idx) continue;   // is bar `ts` already held by ANOTHER placed point?
+      var kb=barIx(manual[k].time); if(kb<0) kb=nearestBar(manual[k].time); if(kb>=0 && BARS[kb].t===ts) return true; } return false; }
+  function resnap(){ if(!BARS||!BARS.length) return; var bull=dirBull();        // re-pin every placed point to its role extreme
+    for(var i=0;i<manual.length;i++){ var p=manual[i], exact=barIx(p.time), bar=exact; if(bar<0) bar=nearestBar(p.time); if(bar<0) continue;
+      // out-of-window guard: a click older than the snap payload (barIx miss + nearest real bar >5d away)
+      // must NOT teleport to the window edge — keep the EXACT click (the 800-bar cap in wolfe.overlay_for).
+      if(exact<0){ var dd=Math.abs(Date.parse(BARS[bar].t)-Date.parse(p.time)); if(isNaN(dd)||dd>5*864e5){ p.value=Math.round(p.value*100)/100; continue; } }
+      if(autosnap && bull!==null){ var s=snapExtreme(bar,roleKind(i,bull));
+        // NEVER collapse two points onto one bar — that silently drops the later point at draw
+        // (the "point 3 becomes point 1" bug). On collision fall back to a gentle same-bar snap.
+        if(occupiedBy(i,s.t)){ var bb=BARS[bar]; s={t:BARS[bar].t, v:(Math.abs(p.value-bb.h)<=Math.abs(p.value-bb.l))? bb.h : bb.l}; }
+        p.time=s.t; p.value=s.v; }
       else { var b=BARS[bar]; p.value=(Math.abs(p.value-b.h)<=Math.abs(p.value-b.l))? b.h : b.l; }
       p.value=Math.round(p.value*100)/100; } }
   function nearestManual(ts){ var cb=barIx(ts); if(cb<0) cb=nearestBar(ts); if(cb<0) return null;
