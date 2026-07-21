@@ -184,6 +184,9 @@ _ROUTER_SPECS = [
     # rendered bytes provably unchanged); remove these two lines to revert the entire preview.
     ("v3-preview", "src.web.v3_preview", "/dash/preview"),
     ("ui-showcase-v3", "src.web.ui_showcase_v3", "/dash/_ui3"),
+    # Redesign M4 (docs/redesign-m4-stock-hub-spec.md, owner go 2026-07-21): the evidence-scroll
+    # stock hub. Preview-only, direct-URL; remove this line to revert the module.
+    ("stock-hub-v3", "src.web.stock_hub_v3", "/dash/preview/stock"),
 ]
 
 # ── the canonical site IA — GENERATED from the single lens registry ──────────

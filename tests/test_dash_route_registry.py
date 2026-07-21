@@ -99,6 +99,8 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                     "never linked from default chrome (byte-identity rule)"),
     "/dash/_ui3":    ("v3-preview", "v3 design-system + term-chip showcase — dev/preview-only, "
                                     "deliberately unlinked"),
+    "/dash/preview/stock": ("v3-preview", "M4 evidence-scroll stock hub — preview-only, reached "
+                                          "from /dash/preview + direct URL, never default chrome"),
 }
 
 # legacy-alias 307 redirects whose handler name is NOT compat_*-prefixed and whose flat
