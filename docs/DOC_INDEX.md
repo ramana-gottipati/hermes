@@ -94,6 +94,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/codex-review/REDESIGN-M0M2-CODEX.md` | Codex channel record: redesign plan review verdict (M0–M2 focus), verbatim. |
 | `docs/redesign-m4-stock-hub-spec.md` | M4 stock-hub module spec (evidence-scroll per the ratified contracts). TRANSIENT — build only on owner go; folds into the coordination record on landing. |
 | `docs/codex-review/M4-STOCK-HUB-CODEX.md` | Codex channel record: M4 stock-hub spec review verdict, verbatim (1 BLOCKING + 6 ADVISORY, dispositioned in redesign-coordination.md §3b). |
+| `docs/codex-review/REDESIGN-M4SPEC-CODEX.md` | Codex channel record: the parallel M4 spec pre-build verdict (OBJECT → v1.1 fixes), verbatim — the two passes are reconciled in the spec's status block. |
 
 ## C. DESIGN(stale) — keep, trim superseded sections later (6)
 

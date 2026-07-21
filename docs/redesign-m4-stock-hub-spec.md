@@ -4,14 +4,20 @@
 > `docs/redesign-coordination.md` §5 + PROJECT_STATE; then `git rm`. Fold into:
 > `docs/redesign-coordination.md`.
 
-**Status: SPEC ONLY — no code. Built only on explicit owner go.** Codex reviewed 2026-07-21:
-`VERDICT: APPROVE-WITH-CHANGES` — 1 BLOCKING (pt14 has no existing panel function to wrap;
-fixed below) + 6 ADVISORY (1 naming fix applied — `sector_peers`→the real `/dash/api/peers`
-read; 5 confirmations, no change needed). Full text: `docs/codex-review/M4-STOCK-HUB-CODEX.md`;
-dispositions: `docs/redesign-coordination.md` §3b. **Gemini review NOT run** — no working
-credential on this machine (cached OAuth is `IneligibleTierError`-dead per the known 2026-07-17
-channel limitation, and no `GEMINI_API_KEY` is configured anywhere); owner action needed before
-that leg can run.
+**Status: SPEC v1.1 — no code. Built only on explicit owner go, after review.**
+TWO independent Codex passes converged into this revision (parallel lanes, reconciled
+2026-07-21): (1) a pre-build pass returning `VERDICT: OBJECT` — 4 BLOCKING, all accepted
+(the chart plan is an ADDITIVE FORK, a wrapper is infeasible against the closed IIFE ·
+nav-contract implementation = requirement #0 · the §O stock-chart gaps carried in full with
+acceptance tests · pt14/CPR reclassified as new-implementation-over-existing-reads · payload
+budget = uncompressed initial HTML bytes < 1,000,000) — full text
+`docs/codex-review/REDESIGN-M4SPEC-CODEX.md`; (2) a parallel pass returning
+`VERDICT: APPROVE-WITH-CHANGES` — 1 BLOCKING (the same pt14 no-panel finding, independently) +
+6 ADVISORY (peers naming corrected to the real `/dash/api/peers` read; 5 confirmations) — full
+text `docs/codex-review/M4-STOCK-HUB-CODEX.md`. Dispositions: `docs/redesign-coordination.md`
+§2/§3b. **Gemini channel DOWN** (no valid `GEMINI_API_KEY` anywhere + deprecated OAuth tier —
+owner action needed); the two Codex passes stand as the spec-stage review. A final Codex
+re-read of THIS merged text closes the OBJECT→revise loop before the owner go.
 Inputs (all ratified 2026-07-20): Part II §A archetype · §C nav contract · §D connectivity ·
 §E journeys · Part III §J columns · Part IV §L–§O component contracts (§M comparison, §N
 dense-rail, §O gap list) · Part V convergences (narrative digest). Composes with the DEPLOYED
@@ -23,9 +29,14 @@ data and panels that exist today — **zero new tables, zero new timers**.
 - **Route:** `GET /dash/preview/stock?sym=` (INTERNAL_DEV in the route gate + nav-gate
   allowlist, like every preview surface). The legacy `/dash/stock` is UNTOUCHED and stays the
   default site's dossier until cut-over ratification.
-- **Non-goals:** no chart-engine rewrite (the proven `stock_chart.py` snippet + its overlay
-  seams are wrapped, not replaced) · no new metrics · no Pat changes (the hub is not a new
-  lens; Pat coverage is unaffected) · no cut-over.
+- **Requirement #0 — the shell implements the ratified nav contract (Codex B2):** M4 upgrades
+  `shell_v3` (a v3-program module — editable by design) to carry the §C contract: the
+  6-destination global bar with "you are here" marking · the per-destination left rail in fixed
+  order (Stocks rail for this page) · the **user-invoked collapse/expand control** (rail starts
+  visible; state persists in localStorage) · a breadcrumb slot (`Home › Stocks › <SYM>`). Same
+  commit as the hub route; contract assertions join the test file.
+- **Non-goals:** no legacy chart-engine edits (the v3 chart is an additive FORK — §3) · no new
+  metrics · no Pat changes (the hub is not a new lens; Pat coverage is unaffected) · no cut-over.
 
 ## 2. Page anatomy — the evidence-scroll (Part II §A, committed)
 
@@ -72,23 +83,32 @@ the M3 dock below, defaulted to the symbol's filter (`?sym=` carried).
 6. **Related strip** (ONE, end of Focus column, ≤5, registry-driven — §D).
 7. **Footer fence** (shell_v3's existing line).
 
-## 3. The chart section — §N and §M applied
+## 3. The chart section — §N and §M applied (v1.1: ADDITIVE FORK, per Codex B1)
 
-- **Reuse:** `stock_chart.py`'s snippet renders inside the Chart section with its overlay seams
-  (`window.__wfpc`, `[data-ptf]`, `#stratBar`/`#cprBar` anchors) untouched — CPR/MEP/Wolfe/
-  Harmonic/MA overlay modules keep binding with zero edits.
-- **The dense-rail treatment (§N, reference implementation):** a NEW v3 rail wrapper renders
-  ⭐ pinned tools (seed: Trend line · Horizontal line · Fib retracement) + the MRU slot +
-  `All tools ▾` grouped dropdown (Lines · Shapes · Fibonacci · Annotate · Measure); modifiers
-  (magnet · conflux · hide-all · manage) stay outside as modes. Pins + MRU in localStorage.
-  The indicator and strategy chip rows get the same treatment (both exceed six with injected
-  overlays counted). Implementation shapes the EXISTING rail via a wrapper module — the legacy
-  chart on `/dash/stock` is untouched.
-- **The comparison contract (§M):** the chart's compare set initializes from **`?cmp=`**
-  (comma-separated, cap 4 on-chart), writes back via `history.replaceState` (URL = the state),
-  and "Open in Compare →" hands the full set to `/dash/compare` (cap 12) with the same
-  rebase-to-100 semantics and window controls. The peers card quick-adds into the same `?cmp=`.
-  This closes the census finding "compare selection lost on reload" for the hub.
+- **The fork, honestly named:** `src/web/stock_chart_v3.py` — seeded from `stock_chart.py`'s
+  snippet at build time with the BASE MD5 pinned in its docstring (deliberate, documented
+  divergence; the legacy chart and `/dash/stock` are untouched). A pure wrapper is infeasible —
+  the snippet is a closed IIFE with local compare state and an internally-built drawings rail
+  (Codex B1, file:line-verified) — so the v3 chart owns its rail and state natively. At
+  cut-over ratification the fork becomes the canonical chart; until then a sync note in both
+  files' headers flags the pairing.
+- **Native in the fork:** (a) the §N dense rail — ⭐ pins (seed: Trend line · Horizontal line ·
+  Fib retracement) + MRU slot + `All tools ▾` grouped dropdown (Lines · Shapes · Fibonacci ·
+  Annotate · Measure); modifiers stay outside as modes; pins+MRU in localStorage; the indicator
+  and strategy chip rows get the same treatment. (b) the §M comparison contract — compare set
+  initializes from **`?cmp=`** (cap 4 on-chart), add/remove writes back via
+  `history.replaceState` (URL = the authority), a sessionStorage mirror provides the §M
+  **carryover** so RRG/Compare/momentum open pre-staged; "Open in Compare →" hands the set to
+  `/dash/compare` (cap 12), same rebase-to-100 semantics and window controls. (c) the type-2/3
+  benchmark selector shared with the RS surfaces. (d) **gloss chips on rail labels + the
+  education trio** on the chart section (§O). (e) **chart data CSV** — a "Download series CSV"
+  affordance hitting a small v3 endpoint that re-serves the SAME bounded series server-side
+  (playbook item 8; no client DOM blob).
+- **Overlay seam compatibility:** the fork preserves the seam names (`window.__wfpc`,
+  `[data-ptf]`, `#stratBar`/`#cprBar` anchors) so the committed overlay modules
+  (CPR/MEP/Wolfe/Harmonic/MA) bind unmodified — asserted by a dedicated seam test, not assumed.
+- **Drawings persistence** stays on the existing per-symbol local+server store (`chart_drawings`)
+  — shared with the legacy chart by design (same symbols, same drawings).
 
 ## 4. Connectivity (§D applied, checkable)
 
@@ -123,9 +143,10 @@ legacy dossier. All reads bounded; empty states teach (§E).
 | File | Contents |
 |---|---|
 | `src/web/stock_hub_v3.py` | route + page assembly + digest + narrative template + section index |
-| `src/web/hub_sections_v3.py` | section renderers — thin wrappers over the EXISTING panel functions (`_mep_stock_panel`, `credibility_fingerprint.card_html`, `seasonal_full_panel`, `momentum_pane` card, `_cpr_stock_panel`) + the checks-as-UI blocks. **Correction (Codex BLOCKING, 2026-07-21):** pt14 has NO existing panel function to wrap — its rendering is inline HTML inside the frozen `dash_stock` (`src/web/dashboard.py:6355-6394`), and `dashboard.py` is hard-frozen for ordinary feature work (`AGENTS.md`). pt14's v3 section is a NEW renderer in this file, reading the same underlying data (`fund`/`pscore`/`ca` — the cached fundamentals, pattern-score, and capital-allocation reads already used by `dash_stock`) without touching or extracting from the frozen file. |
-| `src/web/chart_rail_v3.py` | the §N dense-rail wrapper + §M `?cmp=` URL-state shim around the existing chart snippet |
-| `tests/test_v3_stock_hub.py` | contract tests: all sections present per data availability · checks blocks render with thresholds · one related strip ≤5 · `?sym=`/`?cmp=` discipline (`?symbol=` never emitted) · no v3 leak to legacy · 375px overflow-free · payload budget |
+| `src/web/hub_sections_v3.py` | section renderers, MERGED from both Codex passes. **Verified-importable reuse:** `_mep_stock_panel` · `credibility_fingerprint.card_html` · `seasonal_full_panel` · `momentum_pane.card_html` · `_cpr_stock_panel` (callable, but the CALLER assembles its `by_tf` input from `cpr_signals` — caller-owned data assembly, per the OBJECT pass). **NEW renderer:** pt14/Quality — no panel function exists; its legacy rendering is inline HTML inside the hard-frozen `dash_stock` (`src/web/dashboard.py:6355-6394`), so the v3 section re-renders from the same underlying reads (`pattern_scores` · `capital_allocation_scores` · cached fundamentals) without touching the frozen file. Plus the checks-as-UI blocks. |
+| `src/web/stock_chart_v3.py` | the additive chart fork (§3): dense rail · `?cmp=` authority + carryover · benchmark selector · gloss/education · series-CSV endpoint · seam-compatible anchors. (Supersedes the earlier `chart_rail_v3.py` wrapper idea — infeasible per the OBJECT pass's IIFE evidence.) |
+| `shell_v3.py` upgrade | requirement #0 (nav contract) — v3-owned module, same commit |
+| `tests/test_v3_stock_hub.py` | contract tests: all sections present per data availability · checks blocks render with REAL thresholds · one related strip ≤5 · `?sym=`/`?cmp=` discipline (`?symbol=` never emitted) · **overlay seam anchors present in the fork** · **chart CSV serves** · **`?cmp=` round-trips URL→chart→"Open in Compare"** · **nav bar/rail/collapse/breadcrumb assertions** · education trio + gloss on the chart section · no v3 leak to legacy · 375px overflow-free · **payload budget = UNCOMPRESSED initial-document HTML bytes < 1,000,000, asserted in-test; `?section=` URLs preserve `sym`+`cmp`+`ch` and anchor to the expanded section (Codex A5)** |
 
 Mounts: 1 `_ROUTER_SPECS` line + route-gate INTERNAL_DEV row + nav-gate allowlist row (same
 commit — the standing Codex B1 requirement).
