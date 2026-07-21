@@ -131,6 +131,44 @@ def test_hub_narrative_is_descriptive_only():
         assert re.search(r"\b" + verb + r"\b", n) is None, verb
 
 
+# ── Codex post-build B1/B2/B3 regressions ─────────────────────────────────────────────
+
+def test_digest_is_eight_chip_tiles_in_spec_order():
+    from src.web import hub_sections_v3 as H
+    core = {"sym": "T",
+            "sig": {"p_score": 5, "rs_rank": 91, "trigger_rank": "SS",
+                    "ratio_today_vs_power_1m": 1.6, "pct_from_52w_high": -4.2},
+            "mep": {"mep_state_smooth": "ACCUM"}, "pt": {"tier": "A", "ns_base": 46},
+            "cci": {"tier": "A+", "composite_score": 81},
+            "cpr_by_tf": {"D": {"pattern": "BULL_U"}}}
+    d = H.digest_tiles(core)
+    assert d.count("hub-tile") == 8                       # the full 8-tile digest
+    assert d.count("pv3chip") == 8                        # every tile carries its term chip
+    assert d.count("evidence →") == 8                     # every tile anchors to its section
+    # §9.1 order: composite leads, 52w closes
+    assert d.index("conviction") < d.index('data-tc="dvpt"') < d.index('data-tc="w52"')
+
+
+def test_section_links_preserve_dock_and_compare_state():
+    from src.web import hub_sections_v3 as H
+    core = {"sym": "T", "has_fno": False, "mep": None, "sig": None, "cci": None,
+            "pt": None, "cpr_by_tf": {}}
+    html = H.render_sections(core, set(), "&ch=alerts&cmp=TCS,INFY")
+    assert "&ch=alerts" in html and "&cmp=TCS,INFY" in html.replace("%2C", ",")
+
+
+def test_identity_strip_carries_cmp_sector_and_provenance():
+    from src.web.stock_hub_v3 import _identity
+    core = {"sym": "T", "name": "Test Ltd",
+            "bar": {"trade_date": "2026-07-21", "close": 1234.5, "deliv_per": 40.0},
+            "prev": {"trade_date": "2026-07-20", "close": 1200.0, "deliv_per": 41.0},
+            "sig": {"primary_sector": "IT"}, "themes": ["5G", "Largecap"]}
+    out = _identity(core)
+    assert "₹1,234.50" in out and "+2.88%" in out          # CMP + day change
+    assert ">IT<" in out and ">5G<" in out                 # sector + theme chips
+    assert "NSE bhav copy" in out                          # provenance line
+
+
 # ── isolation holds with the new module mounted ───────────────────────────────────────
 
 def test_legacy_pages_still_carry_no_hub_markers():

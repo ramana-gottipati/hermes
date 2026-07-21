@@ -29,15 +29,47 @@ def _e(s) -> str:
 
 
 def _identity(core: dict) -> str:
-    sym, bar = core["sym"], core.get("bar")
+    """Spec §2.1: symbol + name + sector/theme chips + CMP with day change (value-contract
+    colors) + the provenance line."""
+    sym, bar, prev, sig = core["sym"], core.get("bar"), core.get("prev"), core.get("sig")
     date = str(bar["trade_date"])[:10] if bar is not None else "no tape data"
+    cmp_html = ""
+    if bar is not None:
+        chg, tone = "", ""
+        try:
+            if prev is not None and prev["close"]:
+                pct = (bar["close"] - prev["close"]) / prev["close"] * 100
+                chg = " <i class=\"" + ("up" if pct >= 0 else "down") + "\">" \
+                    + ("+" if pct >= 0 else "") + format(pct, ".2f") + "%</i>"
+        except Exception:
+            pass
+        cmp_html = ('<span class="cmp pv3-num">₹' + format(bar["close"], ",.2f") + chg + "</span>")
+    chips = []
+    try:
+        if sig is not None and sig["primary_sector"]:
+            chips.append('<span class="hub-chip">' + _e(sig["primary_sector"]) + "</span>")
+    except Exception:
+        pass
+    for t in (core.get("themes") or [])[:4]:
+        chips.append('<span class="hub-chip thm">' + _e(t) + "</span>")
     return ('<div class="hub-id"><h1>' + _e(sym) + "</h1>"
             + ('<span class="nm">' + _e(core.get("name")) + "</span>" if core.get("name") else "")
+            + cmp_html
             + '<span class="prov">as of ' + _e(date) + " · NSE bhav copy</span></div>"
-            '<style>.hub-id{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}'
+            + ('<div class="hub-chips">' + "".join(chips) + "</div>" if chips else "")
+            + '<style>.hub-id{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px}'
             ".hub-id h1{margin:0;font-size:var(--t-2xl)}"
             ".hub-id .nm{color:var(--ink-2)}"
-            ".hub-id .prov{color:var(--ink-3);font-size:var(--t-xs);margin-left:auto}</style>")
+            ".hub-id .cmp{font-size:var(--t-lg);font-weight:600}"
+            ".hub-id .cmp i{font-style:normal;font-size:var(--t-sm)}"
+            ".hub-id .cmp i.up{color:var(--up)} .hub-id .cmp i.down{color:var(--down)}"
+            ".hub-id .prov{color:var(--ink-3);font-size:var(--t-xs);margin-left:auto}"
+            ".hub-chips{margin-bottom:8px}"
+            ".hub-chip{display:inline-block;background:var(--bg-3);border:1px solid var(--line-2);"
+            "border-radius:var(--r-pill);padding:2px 10px;font-size:var(--t-xs);"
+            "color:var(--ink-2);margin-right:6px}"
+            ".hub-chip.thm{background:var(--accent-dim);color:var(--accent);border-color:var(--accent)}"
+            "</style>")
 
 
 def _section_index(core: dict) -> str:
@@ -126,8 +158,13 @@ def _miss(sym: str) -> str:
 
 
 @router.get("/dash/preview/stock", response_class=HTMLResponse, include_in_schema=False)
-def stock_hub(sym: str = "", section: str = "") -> HTMLResponse:
+def stock_hub(sym: str = "", section: str = "", ch: str = "", cmp: str = "") -> HTMLResponse:
+    """URL state (spec §6): sym · section · ch (dock channel) · cmp (compare set — accepted
+    now, consumed by the increment-2 chart fork; carried so a shared URL never loses it)."""
     sym = str(sym or "").strip().upper()[:20]
+    ch = str(ch or "").strip().lower()[:12]
+    cmp = str(cmp or "").strip().upper()[:96]
+    qs_extra = ("&ch=" + _uq.quote(ch) if ch else "") + ("&cmp=" + _uq.quote(cmp) if cmp else "")
     head = C.css() + term_chip.assets() + news_dock.css() + H.css()
     crumbs = [("Home", "/dash/preview"), ("Stocks", "/dash/preview"), (sym or "…", "")]
     nav_items = [("Screener (classic)", "/dash/screen2", False),
@@ -158,11 +195,11 @@ def stock_hub(sym: str = "", section: str = "") -> HTMLResponse:
              + C.fence("not_advice")
              + _section_index(core)
              + '<p class="hub-note"><a href="/dash/preview/stock?sym=' + _uq.quote(sym)
-             + '&section=all">Open every section</a> · sections open one at a time to keep '
-               "this page fast.</p>"
-             + H.render_sections(core, open_secs)
+             + '&section=all' + qs_extra + '">Open every section</a> · sections open one at a '
+               "time to keep this page fast.</p>"
+             + H.render_sections(core, open_secs, qs_extra)
              + _related(sym))
-    dock = news_dock.dock_html(ch="wire", sym=sym, base="/dash/preview/stock")
+    dock = news_dock.dock_html(ch=ch or "wire", sym=sym, base="/dash/preview/stock")
     return HTMLResponse(shell_v3.shell(sym + " · stock hub", focus, _rail(core), head, dock,
                                        dest="stocks", crumbs=crumbs, nav_title="Stocks",
                                        nav_items=nav_items))

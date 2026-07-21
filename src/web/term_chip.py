@@ -39,6 +39,8 @@ SEEDS: dict[str, tuple[str, str, str, str]] = {
     "pt14":       ("Quality score (14 patterns)","PT14",       "ns_base",         "patearn"),
     "cpr":        ("Pivot structure",            "CPR",        "CPR",             "cpr"),
     "retvol":     ("Return ÷ volatility",        "RETURN/VOL", "return/vol",      ""),
+    "rsrank":     ("Strength rank",              "RS RANK",    "rs_rank",         "relative-strength"),
+    "w52":        ("Distance from 52-week high", "52W",        "pct_from_52w_high", ""),
 }
 
 _VERDICTS: dict[str, dict] = {}

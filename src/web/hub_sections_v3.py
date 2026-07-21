@@ -101,6 +101,12 @@ def load_core(sym: str) -> dict:
             r = _row(conn, "SELECT COALESCE(company_name,'') FROM security_master "
                            "WHERE symbol=?", (sym,))
             core["name"] = r[0] if r else ""
+        core["themes"] = []
+        try:
+            from src.automation import theme_tags as TT
+            core["themes"] = (TT.approved_tags_for(conn, [sym]).get(sym) or [])[:5]
+        except Exception:
+            pass
     return core
 
 
@@ -114,45 +120,52 @@ def _g(rowlike, key, default=None):
 
 # ── the digest (spec §2.2) ───────────────────────────────────────────────────────────
 
-def _tile(value: str, label: str, anchor: str, tone: str = "") -> str:
-    cls = "v " + tone if tone in ("up", "down") else "v"
-    return ('<a class="pv3-tile hub-tile" href="#' + anchor + '">'
-            '<span class="' + cls + '">' + _e(value) + '</span>'
-            '<span class="s">' + _e(label) + ' · evidence →</span></a>')
+def _chip_tile(chip_key: str, sym: str, value: str, anchor: str) -> str:
+    """Spec §2.2: each digest tile = an M2 term chip + the number + the evidence anchor."""
+    from src.web import term_chip
+    return ('<div class="pv3-tile hub-tile">'
+            '<span class="v">' + _e(value) + "</span>"
+            '<span class="s">' + term_chip.chip(chip_key, sym=sym)
+            + ' · <a href="#' + anchor + '">evidence →</a></span></div>')
 
 
+# the §9.1 proposed order, shipping as the default (owner-editable at build review)
 def digest_tiles(core: dict) -> str:
-    sig, bar, prev = core.get("sig"), core.get("bar"), core.get("prev")
-    mep, pt, cci = core.get("mep"), core.get("pt"), core.get("cci")
+    sym = core["sym"]
+    sig, mep, pt, cci = core.get("sig"), core.get("mep"), core.get("pt"), core.get("cci")
     tiles = []
-    if bar:
-        chg = ""
-        tone = ""
-        if prev and _g(prev, "close"):
-            pct = (_g(bar, "close", 0.0) - _g(prev, "close")) / _g(prev, "close") * 100
-            chg = " (" + ("+" if pct >= 0 else "") + format(pct, ".1f") + "%)"
-            tone = "up" if pct >= 0 else "down"
-        tiles.append(_tile("₹" + format(_g(bar, "close", 0.0), ",.1f") + chg, "last close", "chart", tone))
     if sig is not None:
-        tiles.append(_tile(str(_g(sig, "trigger_rank", "—")) + " · p" + str(_g(sig, "p_score", "—")),
-                           "delivery positioning", "pos"))
+        try:
+            from src.web.dashboard import _conv_of
+            conv = format(_conv_of(_g(sig, "p_score"), _g(sig, "rs_rank")), ".0f")
+        except Exception:
+            conv = "—"
+        tiles.append(_chip_tile("conviction", sym, conv, "pos"))
+        xp = _g(sig, "ratio_today_vs_power_1m")
+        tiles.append(_chip_tile("dvpt", sym,
+                                str(_g(sig, "trigger_rank", "—")) + " · "
+                                + ((format(xp, ".2f") + "×") if xp is not None else "—"), "pos"))
         rs = _g(sig, "rs_rank")
-        tiles.append(_tile(("#" + str(rs)) if rs is not None else "—", "strength rank (1–99)", "rs"))
-        w52 = _g(sig, "pct_from_52w_high")
-        tiles.append(_tile((format(w52, ".1f") + "%") if w52 is not None else "—",
-                           "from 52-week high", "chart"))
+        tiles.append(_chip_tile("rsrank", sym, ("#" + str(rs)) if rs is not None else "—", "rs"))
     if mep is not None:
-        tiles.append(_tile(str(_g(mep, "mep_state_smooth", "—")).replace("_", " ").lower(),
-                           "accumulation state", "mep"))
+        tiles.append(_chip_tile("mep", sym,
+                                str(_g(mep, "mep_state_smooth", "—")).replace("_", " ").lower(),
+                                "mep"))
     if pt is not None:
-        tiles.append(_tile(str(_g(pt, "tier", "—")) + " · " + str(_g(pt, "ns_base", "—")),
-                           "quality (pt14)", "qual"))
+        tiles.append(_chip_tile("pt14", sym,
+                                str(_g(pt, "tier", "—")) + " · " + str(_g(pt, "ns_base", "—")),
+                                "qual"))
     if cci is not None:
-        tiles.append(_tile(str(_g(cci, "tier", "—")) + " · " + str(_g(cci, "composite_score", "—")),
-                           "management credibility", "cci"))
+        tiles.append(_chip_tile("cci", sym,
+                                str(_g(cci, "tier", "—")) + " · " + str(_g(cci, "composite_score", "—")),
+                                "cci"))
     if core.get("cpr_by_tf"):
         d = _g(core["cpr_by_tf"].get("D", {}), "pattern")
-        tiles.append(_tile(str(d or "—").replace("_", " "), "daily structure", "cpr"))
+        tiles.append(_chip_tile("cpr", sym, str(d or "—").replace("_", " "), "cpr"))
+    if sig is not None:
+        w52 = _g(sig, "pct_from_52w_high")
+        tiles.append(_chip_tile("w52", sym,
+                                (format(w52, ".1f") + "%") if w52 is not None else "—", "chart"))
     if not tiles:
         return '<div class="pv3-dock-empty">No signal data for this symbol yet.</div>'
     return '<div class="pv3-tiles">' + "".join(tiles) + "</div>"
@@ -285,15 +298,17 @@ def _section_shell(key: str, title: str, sym: str, inner: str, open_: bool) -> s
             + "</section>")
 
 
-def _collapsed(key: str, title: str, sym: str, summary: str) -> str:
-    href = "/dash/preview/stock?sym=" + _uq.quote(sym) + "&section=" + key + "#" + key
+def _collapsed(key: str, title: str, sym: str, summary: str, qs_extra: str = "") -> str:
+    # qs_extra carries dock/compare state (&ch=…&cmp=…) so expansion never drops it (spec §6)
+    href = ("/dash/preview/stock?sym=" + _uq.quote(sym) + "&section=" + key
+            + qs_extra + "#" + key)
     return ('<section class="hub-sec collapsed" data-sec="' + key + '"><div class="hub-sec-hd">'
             '<h2 id="' + key + '">' + _e(title) + "</h2>"
             '<a class="pv3-btn" href="' + href + '">Open section</a></div>'
             '<p class="hub-sum">' + _e(summary) + "</p></section>")
 
 
-def render_sections(core: dict, open_secs: set) -> str:
+def render_sections(core: dict, open_secs: set, qs_extra: str = "") -> str:
     """Every section renders its shell; heavy inners render only when opened (spec §6)."""
     sym = core["sym"]
     out = []
@@ -301,7 +316,7 @@ def render_sections(core: dict, open_secs: set) -> str:
         if key == "fno" and not core.get("has_fno"):
             continue
         if key not in open_secs:
-            out.append(_collapsed(key, title, sym, _summary_line(core, key)))
+            out.append(_collapsed(key, title, sym, _summary_line(core, key), qs_extra))
             continue
         out.append(_section_shell(key, title, sym, _inner(core, key), True))
     return "".join(out)
