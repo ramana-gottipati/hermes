@@ -281,10 +281,10 @@ SNIPPET = """<script>
         var eL=add({color:'#e3a008',lineWidth:2,lineStyle:0},[{time:manual[0].time,value:manual[0].value},{time:rt2,value:epaR}]);
         try{ eL.setMarkers([{time:rt2,position:'inBar',color:'#e3a008',shape:'square',text:'EPA '+epaR}]); }catch(e){}
       }
-      var extLeg=function(a,bb,ba,bx){ if(ba<0||bx<0||ba===bx||rb<0) return;   // extend legs 1-2 & 3-4 so their intersection is visible
+      var extLeg=function(a,bb,ba,bx){ if(ba<0||bx<0||ba===bx||rb<0) return;   // extend the Wolfe RAILS 1-3 & 2-4 (the wedge; convergence must cross forward of pt4 — fbc6b29), NOT the 1-2/3-4 thrust legs
         var s=(manual[bb].value-manual[a].value)/(bx-ba);
         add({color:'rgba(88,166,255,0.55)',lineWidth:1,lineStyle:2},[{time:manual[a].time,value:manual[a].value},{time:rt2,value:Math.round((manual[a].value+s*(rb-ba))*100)/100}]); };
-      extLeg(0,1,b0,b1); extLeg(2,3,b2,b3);
+      extLeg(0,2,b0,b2); extLeg(1,3,b1,b3);                                     // rail 1-3 (pt5 forms on its extension) + rail 2-4
       if(legLenPx(2,3) > legLenPx(0,1))                                        // STRICT symmetry gate: leg 1-2 must be >= leg 3-4
         wfWarn='The distance between points 1 and 2 is less than the distance between points 3 and 4.';
     }
