@@ -566,17 +566,46 @@ SNIPPET = """<script>
     // ResizeObserver above refits the chart to the full viewport and back.
     (function(){
       if(!document.getElementById('cfs-style')){ var st=E('style'); st.id='cfs-style';
-        st.textContent='.cfs{position:fixed!important;inset:0!important;z-index:9999!important;height:100vh!important;max-width:none!important;margin:0!important;border-radius:0!important;background:'+C.bg+'}';
+        // .cfs: the chart overlays the viewport (top set by JS so the fixed rail can sit above it).
+        // .cfs-rail: the drawing rail becomes a FIXED top bar ABOVE the chart, so its tools stay
+        // visible + move with the chart in fullscreen. .rail-collapsed hides the rail body (drawer).
+        st.textContent='.cfs{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;z-index:9999!important;max-width:none!important;margin:0!important;border-radius:0!important;background:'+C.bg+'}'
+          +'.cfs-rail{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:10000!important;margin:0!important;max-height:48vh!important;overflow:auto!important;border-radius:0!important}'
+          +'.rail-collapsed>*:not(.cbar){display:none!important}';
         document.head.appendChild(st); }
+      function refit(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); }
+      function layoutFs(){ var on=host.classList.contains('cfs'); rail.classList.toggle('cfs-rail',on);
+        if(on){ host.style.setProperty('top',(rail.offsetHeight||0)+'px','important'); }   // chart starts below the fixed rail
+        else { host.style.removeProperty('top'); }
+        requestAnimationFrame(refit); }
+      // collapsible drawing drawer (▾/▸) — works in BOTH normal and fullscreen
+      var cbar=E('div','display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:'+C.txt+';user-select:none;padding:1px 2px','\\u25be Drawings');
+      cbar.className='cbar'; cbar.title='Collapse / expand the drawing tools';
+      function setDrawer(open){ rail.classList.toggle('rail-collapsed',!open);
+        cbar.innerHTML=(open?'\\u25be':'\\u25b8')+' Drawings'; layoutFs(); }
+      cbar.onclick=function(){ setDrawer(rail.classList.contains('rail-collapsed')); };
+      rail.insertBefore(cbar, rail.firstChild);
+      // fullscreen toggle
       var fb=E('div','position:absolute;top:8px;right:8px;z-index:12;cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid '+C.border+';border-radius:6px;background:rgba(13,17,23,.72);color:'+C.txt+';font-size:13px','\\u2922');
       fb.title='Fullscreen (Shift+F)';
-      function tog(){ host.classList.toggle('cfs'); fb.innerHTML=host.classList.contains('cfs')?'\\u2715':'\\u2922';
-        // force an explicit refit next frame — the ResizeObserver can miss the
-        // position:fixed transition, leaving the chart short of the fullscreen host.
-        requestAnimationFrame(function(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); }); }
+      function tog(){ host.classList.toggle('cfs'); fb.innerHTML=host.classList.contains('cfs')?'\\u2715':'\\u2922'; layoutFs(); }
       fb.onclick=tog;
+      // one-click screenshot of the price chart — branded 'patearn' (watermark + filename)
+      var sb=E('div','position:absolute;top:8px;right:40px;z-index:12;cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid '+C.border+';border-radius:6px;background:rgba(13,17,23,.72);color:'+C.txt+';font-size:14px','\\u2913');
+      sb.title='Save screenshot (branded patearn)';
+      function takeShot(){ var cv; try{ cv=pc.takeScreenshot(); }catch(e){ cv=null; } if(!cv) return;
+        try{ var g=cv.getContext('2d'), W=cv.width, H=cv.height, fs=Math.max(15,Math.round(H*0.034));
+          g.font='700 '+fs+'px -apple-system,Segoe UI,Roboto,sans-serif';
+          var txt='patearn', tw=g.measureText(txt).width, pX=fs*0.7, pY=fs*0.4, m=fs*0.6, bw=tw+pX*2, bh=fs+pY*2, bx=W-bw-m, by=H-bh-m;
+          g.fillStyle='rgba(13,17,23,0.55)'; if(g.roundRect){ g.beginPath(); g.roundRect(bx,by,bw,bh,fs*0.35); g.fill(); } else { g.fillRect(bx,by,bw,bh); }
+          g.fillStyle='#e6edf3'; g.textBaseline='middle'; g.fillText(txt,bx+pX,by+bh/2+1);
+        }catch(e){}
+        var url; try{ url=cv.toDataURL('image/png'); }catch(e){ return; }
+        var nm=(new URLSearchParams(location.search).get('sym')||'chart');
+        var a=document.createElement('a'); a.href=url; a.download=nm+'-patearn.png'; document.body.appendChild(a); a.click(); setTimeout(function(){ try{a.remove();}catch(e){} },0); }
+      sb.onclick=takeShot;
       document.addEventListener('keydown',function(e){ if((e.key==='F'||e.key==='f')&&e.shiftKey){ e.preventDefault(); tog(); } else if(e.key==='Escape'&&host.classList.contains('cfs')) tog(); });
-      host.appendChild(fb);
+      host.appendChild(fb); host.appendChild(sb);
     })();
 
     // -------- RS docked lane (Strategies) — fetch /dash/rs/overlay on toggle --
