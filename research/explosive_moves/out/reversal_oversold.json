@@ -1,0 +1,225 @@
+{
+ "registered_gate": "see module docstring (prereg: reversal_oversold)",
+ "run_at": "2026-07-22 11:49Z",
+ "prediction": "FAIL expected (07-13/14c priors); genuinely-new definition",
+ "GATE1_selection": {
+  "cell": {
+   "n": 12496,
+   "mean22": -0.276,
+   "med22": -0.979,
+   "pos%": 45.8
+  },
+  "horizons": {
+   "5d": {
+    "n": 12542,
+    "mean%": 0.058,
+    "med%": -0.293,
+    "pos%": 47.5
+   },
+   "10d": {
+    "n": 12526,
+    "mean%": 0.022,
+    "med%": -0.546,
+    "pos%": 46.5
+   },
+   "22d": {
+    "n": 12496,
+    "mean%": -0.276,
+    "med%": -0.979,
+    "pos%": 45.8
+   },
+   "66d": {
+    "n": 12336,
+    "mean%": -0.579,
+    "med%": -3.107,
+    "pos%": 42.5
+   }
+  },
+  "placebo_sym": {
+   "n": 37647,
+   "mean22": 0.055,
+   "med22": -1.425,
+   "pos%": 44.0
+  },
+  "placebo_shift": {
+   "n": 10681,
+   "mean22": 0.28,
+   "med22": -1.093,
+   "pos%": 45.4
+  },
+  "cliffs_vs_sym": 0.0067,
+  "cliffs_vs_shift": -0.0121,
+  "half1_med22%": -1.351,
+  "half2_med22%": -0.817,
+  "gates": {
+   "G1_n300": true,
+   "G2_mean_med_pos": false,
+   "G3_cliffs_.05_both": false,
+   "G4_both_halves": false
+  },
+  "conditioner_buckets(reversal-native)": {
+   "drawdown_lo": {
+    "n": 4160,
+    "mean22": -0.065,
+    "med22": -1.036,
+    "pos%": 46.1
+   },
+   "drawdown_mid": {
+    "n": 4167,
+    "mean22": -0.391,
+    "med22": -1.01,
+    "pos%": 45.7
+   },
+   "drawdown_hi": {
+    "n": 4169,
+    "mean22": -0.371,
+    "med22": -0.889,
+    "pos%": 45.5
+   },
+   "vol66_lo": {
+    "n": 4165,
+    "mean22": -0.341,
+    "med22": -0.792,
+    "pos%": 45.9
+   },
+   "vol66_mid": {
+    "n": 4169,
+    "mean22": 0.013,
+    "med22": -0.803,
+    "pos%": 47.1
+   },
+   "vol66_hi": {
+    "n": 4162,
+    "mean22": -0.5,
+    "med22": -1.53,
+    "pos%": 44.3
+   },
+   "dist200_lo": {
+    "n": 4154,
+    "mean22": 0.158,
+    "med22": -0.661,
+    "pos%": 47.5
+   },
+   "dist200_mid": {
+    "n": 4172,
+    "mean22": -0.376,
+    "med22": -0.841,
+    "pos%": 46.2
+   },
+   "dist200_hi": {
+    "n": 4170,
+    "mean22": -0.607,
+    "med22": -1.394,
+    "pos%": 43.6
+   },
+   "ret126_lo": {
+    "n": 4156,
+    "mean22": 0.146,
+    "med22": -0.752,
+    "pos%": 47.4
+   },
+   "ret126_mid": {
+    "n": 4173,
+    "mean22": -0.391,
+    "med22": -0.792,
+    "pos%": 46.2
+   },
+   "ret126_hi": {
+    "n": 4167,
+    "mean22": -0.581,
+    "med22": -1.393,
+    "pos%": 43.8
+   }
+  },
+  "VERDICT": "FAIL-null"
+ },
+ "GATE2_trades": {
+  "n": 12548,
+  "success%(net>0)": 38.7,
+  "mean_gross%": 0.58,
+  "mean_net%": -0.01,
+  "med_net%": -2.0,
+  "avg_hold": 10.1,
+  "exit_mix": {
+   "target": 2980,
+   "frac_stop": 9546,
+   "time": 22
+  }
+ },
+ "BOOK_net": {
+  "full": {
+   "retvol": -0.13,
+   "cagr%": -9.0,
+   "maxdd%": -86.2,
+   "months": 170
+  },
+  "h1_2012_18": {
+   "retvol": -0.55,
+   "cagr%": -18.3,
+   "maxdd%": -77.1,
+   "months": 79
+  },
+  "h2_2019_26": {
+   "retvol": 0.16,
+   "cagr%": -0.1,
+   "maxdd%": -52.3,
+   "months": 91
+  },
+  "avg_pos": 40.5
+ },
+ "BOOK_gross(raw)": {
+  "full": {
+   "retvol": 0.32,
+   "cagr%": 5.3,
+   "maxdd%": -69.6,
+   "months": 170
+  },
+  "h1_2012_18": {
+   "retvol": 0.04,
+   "cagr%": -3.2,
+   "maxdd%": -50.4,
+   "months": 79
+  },
+  "h2_2019_26": {
+   "retvol": 0.51,
+   "cagr%": 13.2,
+   "maxdd%": -51.8,
+   "months": 91
+  },
+  "avg_pos": 36.9
+ },
+ "BOOK_random_control_net": {
+  "full": {
+   "retvol": -0.24,
+   "cagr%": -8.5,
+   "maxdd%": -82.9,
+   "months": 170
+  },
+  "h1_2012_18": {
+   "retvol": -0.6,
+   "cagr%": -15.2,
+   "maxdd%": -69.9,
+   "months": 79
+  },
+  "h2_2019_26": {
+   "retvol": 0.04,
+   "cagr%": -2.1,
+   "maxdd%": -53.8,
+   "months": 91
+  },
+  "avg_pos": 24.7
+ },
+ "CAGR_raw_vs_net": {
+  "raw_cagr%": 5.3,
+  "net_cagr%": -9.0,
+  "cost_impact_cagr_pp": 14.3
+ },
+ "BOOK_gates": {
+  "G_BOOK_0.89_both_halves": false,
+  "G_BETTER_vs_random_+0.15": false,
+  "net_retvol_full": -0.13,
+  "random_net_retvol_full": -0.24,
+  "VERDICT": "FAIL"
+ },
+ "OVERALL_VERDICT": "REJECTED (descriptive-only)"
+}

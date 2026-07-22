@@ -1929,6 +1929,37 @@ price-index Nifty 500 = Sharpe 0.64, halves 0.58/0.78, ₹1 Cr → ₹12.60 Cr, 
   formally remains V8 per his standing instruction).** Next rigor if ratified: TR-benchmark re-cut · V17 alpha
   t-stat · the V2 ≤40-stock constituent expression.
 
+## Study 2026-07-22b — REVERSAL, CLEAN oversold-bounce (deep drawdown + RSI-30 turn; NON-band, NON-momentum) (DONE — pre-registered FAIL at BOTH gates; reversal falsified at the CONCEPT level, not just the band mechanics)
+
+The REVERSAL line as a distinct, fresh approach per Ramana's 2026-07-22 directive (momentum and
+reversal kept SEPARATE — no hybrids). Reversal-native features ONLY (deep drawdown + RSI-oversold
+turn; NO RS, NO momentum conditioning) and a DIFFERENT definition from the falsified band-reclaim.
+EVENT = adj_close ≥25% below its trailing 252-day high AND price RSI(14) crosses UP through 30.
+Pre-registered + hash-frozen BEFORE run (prereg `reversal_oversold` `4d932089`, `--verify` clean);
+module `research/explosive_moves/reversal_oversold.py`; JSON `out/reversal_oversold.json`. Universe
+3,499 EQ/CM syms 2012-06→2026-07, CA-adjusted; n=12,496 events (de-overlap 22 bars), 12,548 trades.
+Two-gate frame; **PREDICTION before run: FAIL. Confirmed at BOTH gates.**
+
+- **GATE-1 (selection) FAIL-null.** 22d excess mean −0.28% / **median −0.98%** / 45.8% pos; Cliff's δ
+  vs placebo **+0.007 / −0.012 (≈0)**; halves med −1.35% / −0.82% (negative both); WORSENS with horizon
+  (66d med **−3.11%**, 42.5% pos) = falling-knife anatomy. NO reversal-native conditioner rescues it —
+  drawdown-depth, vol66, dist-200SMA, prior-126d all NEGATIVE median in every tercile. The event IS
+  median-less-bad than its own same-symbol placebo (−0.98 vs −1.43) → the oversold turn STOPS bleeding
+  but never creates edge — the EXACT 07-14c conclusion, reproduced under a fresh non-band definition.
+- **GATE-2 (book) NEGATIVE — worse than a fail.** Long at entry close; exit on RSI≥60 / ratcheting
+  2°-fractal stop / 66-bar time. Net **return/vol −0.13, CAGR −9.0%, MaxDD −86.2%** (h1 −0.55/−18.3% ·
+  h2 0.16/−0.1%); even GROSS only 0.32 / **+5.3%** (below the index AND the 0.89 bar BEFORE cost); cost
+  drag 14.3pp. Trades: 38.7% net-positive, mean net −0.01%, median net **−2.0%**, avg hold 10 bars,
+  **76% exit on the fractal stop** (they keep falling), RSI-60 target reached only 24%. G_BETTER FAIL
+  (−0.13 vs random control −0.24 = +0.11 < +0.15).
+- **Disposition: REJECTED — descriptive-only. Reversal is now falsified at the CONCEPT level, not just
+  the band mechanics.** A textbook deep-oversold RSI-turn — zero momentum/RS contamination — still
+  bleeds and loses money net. The reversal family survives only as a risk-geometry / context overlay
+  (band-state, stretch percentile, floor+invalidation), never a book. Any future reversal proposal must
+  cite 07-13/14/14b/14c + THIS entry. The momentum line (RS/union) is unaffected and stays the live axis.
+
+---
+
 ## Study 2026-07-22 — MOMENTUM BAND + RSI: the UPPER-band breakout entry (BUY STRENGTH) + RSI/fractal managed exit (DONE — pre-registered FAIL; the strength edge is an anti-signal too, RSI stops don't rescue it)
 
 Ramana's momentum reframing of the STREAM BAND spec, and the ONE untested sliver of the reversal-pair
