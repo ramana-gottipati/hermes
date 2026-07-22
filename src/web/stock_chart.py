@@ -626,7 +626,8 @@ SNIPPET = """<script>
       try{ var _cl=document.querySelector('.chartlbl'); if(_cl){ var _t=(_cl.textContent||'').split(/\\s[\\u2013\\u2014-]\\s/)[0].trim(); if(_t) nm=_t; } }catch(e){}
       var nameEl=E('div','position:absolute;top:8px;left:12px;z-index:6;pointer-events:none;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;color:rgba(230,237,243,.92);text-shadow:0 1px 4px rgba(0,0,0,.7)',nm);
       host.appendChild(nameEl);
-      var wm=E('div','position:absolute;right:14px;bottom:30px;z-index:5;pointer-events:none;font:700 14px -apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.6px;color:rgba(230,237,243,.26)','patearn');
+      var wm=E('div','position:absolute;right:76px;bottom:30px;z-index:5;pointer-events:none;display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:15px;background:rgba(13,17,23,.85);border:1px solid rgba(88,166,255,.5);box-shadow:0 2px 8px rgba(0,0,0,.5);font:700 13px -apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.3px;color:#e6edf3');
+      wm.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:#58a6ff;display:inline-block;box-shadow:0 0 6px rgba(88,166,255,.8)"></span>patearn';   // proper brand BADGE (accent dot + wordmark), not a faint watermark
       host.appendChild(wm);
       host.appendChild(fb); host.appendChild(sb);
     })();
