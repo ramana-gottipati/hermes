@@ -570,12 +570,15 @@ SNIPPET = """<script>
         // .cfs-rail: the drawing rail becomes a FIXED top bar ABOVE the chart, so its tools stay
         // visible + move with the chart in fullscreen. .rail-collapsed hides the rail body (drawer).
         st.textContent='.cfs{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;height:auto!important;z-index:9999!important;max-width:none!important;margin:0!important;border-radius:0!important;background:'+C.bg+'}'
-          +'.cfs-rail{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:10000!important;margin:0!important;max-height:48vh!important;overflow:auto!important;border-radius:0!important}'
+          +'.cfs-rail{position:fixed!important;top:0!important;left:0!important;right:76px!important;z-index:10000!important;margin:0!important;max-height:52vh!important;overflow:auto!important;border-radius:0 0 8px 0!important;box-shadow:0 6px 18px rgba(0,0,0,.55)!important}'
           +'.rail-collapsed>*:not(.cbar){display:none!important}';
         document.head.appendChild(st); }
       function refit(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); }
+      var railCollapsedH=34;   // height of the thin collapsed strip; the chart is offset by THIS only
       function layoutFs(){ var on=host.classList.contains('cfs'); rail.classList.toggle('cfs-rail',on);
-        if(on){ host.style.setProperty('top',(rail.offsetHeight||0)+'px','important'); } else { host.style.removeProperty('top'); }   // chart sits BELOW the rail (never under it); a COLLAPSED rail = a thin strip ⇒ ~full-window chart, controls + buttons all clear
+        if(on){ if(rail.classList.contains('rail-collapsed')) railCollapsedH=rail.offsetHeight||railCollapsedH;
+          host.style.setProperty('top',railCollapsedH+'px','important'); }   // chart offset by the COLLAPSED strip ONLY — an EXPANDED rail OVERLAYS the chart top (never shrinks it), and the ✕/⤓ buttons stay clear (rail right:76)
+        else { host.style.removeProperty('top'); }
         requestAnimationFrame(refit); }
       // collapsible drawing drawer (▾/▸) — works in BOTH normal and fullscreen
       var cbar=E('div','display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:'+C.txt+';user-select:none;padding:1px 2px','\\u25be Drawings');
