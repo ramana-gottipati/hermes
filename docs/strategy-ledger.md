@@ -2006,6 +2006,17 @@ managed trades. Same harness/controls as STREAM BAND. **PREDICTION ON RECORD bef
   07-13/14/14b/14c/14d/14e. Surviving descriptive residual unchanged (band-state + own-history stretch
   percentile as context columns).
 
+- **Segmentation refinement (which slice carries it — the TREND filter is the one real lever).**
+  Cell-B net books by segment: baseline netCAGR 8.4% / DD −58% / R/V 0.53 → **entry-above-own-200SMA
+  (with-trend) netCAGR 11.8% / DD −53% / R/V 0.69, h2 2019-26 = 1.02 (clears 0.89) but h1 = 0.32
+  (fails)** — lifts return AND cuts drawdown together. Toxic additives: MARKET-REGIME timing
+  (Nifty-500 > 200SMA at entry) BACKFIRES — netCAGR 3.1%, DD **−72%** (enters late, rides the top down);
+  LARGE-CAP-only (≥₹25cr) kills the return (5.6%). Tightest DD = trend+liq25+regime "clean" **−48.6%**
+  but only ~46 names and no return gain. Trade-level: trend-up mean net +1.59% vs down −0.02%;
+  RSI≥70-at-entry best (40.5% win / +1.84% mean), RSI<50 worst — skip. Verdict UNCHANGED (better,
+  8.4→11.8% net, still sub-hurdle full-period); the with-trend filter is the keeper. Segment books in
+  `mbr_book` (keys CELL_B_TREND/LIQ25/REGIME/CLEAN).
+
 - **Equity curves (₹100 start; net of cost unless noted; monthly-compounded, year-end marks):** A2 net
   (looser pure-2-fractal trail) rides a hair above B net (RSI-45 exit) the WHOLE way — the EXIT-LAB
   "loosest wins" law — but both finish far below Nifty-500 buy-hold. Gross (B) = 12.3× is BETA not

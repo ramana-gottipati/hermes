@@ -110,7 +110,8 @@ RSI_HOT = 80.0        # partial-profit trigger
 RSI_COLD = 45.0       # full-exit level after the hot print
 PARTIAL = 0.5         # fraction sold at the first RSI_HOT touch
 FLAT_SIDE = 0.003     # cross-check flat cost per side
-BOOK_KEYS = ("CELL_B", "CELL_A", "CELL_A2", "RANDOM_CTL")
+BOOK_KEYS = ("CELL_B", "CELL_A", "CELL_A2", "RANDOM_CTL",
+             "CELL_B_TREND", "CELL_B_LIQ25", "CELL_B_REGIME", "CELL_B_CLEAN")
 
 
 # --------------------------------------------------------------------------- #
@@ -191,6 +192,17 @@ class _Idx:
             raise SystemExit(f"index_rows Nifty 500 starts {d[0] if d else 'EMPTY'} > {START}")
         self.pos = {x: i for i, x in enumerate(d)}
         self.dates, self.close = d, np.asarray(c, float)
+        self.sma = roll_mean(self.close, 200)
+
+    def up(self, d: str) -> bool:
+        """Is the Nifty-500 above its own 200-day SMA as of date d? (market-regime filter)."""
+        import bisect
+        i = self.pos.get(d)
+        if i is None:
+            i = bisect.bisect_right(self.dates, d) - 1
+        if i < 0 or i >= len(self.close) or np.isnan(self.sma[i]):
+            return False
+        return bool(self.close[i] > self.sma[i])
 
     def ret(self, d0: str, d1: str) -> float:
         import bisect
@@ -412,6 +424,21 @@ def build():
                 bkey = {"B": "CELL_B", "A": "CELL_A", "A2": "CELL_A2"}[cell]
                 _accum_book(book, bkey, "gross", e, sim["exit_j"], S, crt)
                 _accum_book(book, bkey, "net", e, sim["exit_j"], S, crt)
+                if cell == "B":
+                    segs = []
+                    liq25 = S.med_turn[i] >= 25e7
+                    reg = idx.up(S.date[e])
+                    if trend:
+                        segs.append("CELL_B_TREND")
+                    if liq25:
+                        segs.append("CELL_B_LIQ25")
+                    if reg:
+                        segs.append("CELL_B_REGIME")
+                    if trend and liq25 and reg:
+                        segs.append("CELL_B_CLEAN")
+                    for sk in segs:
+                        _accum_book(book, sk, "gross", e, sim["exit_j"], S, crt)
+                        _accum_book(book, sk, "net", e, sim["exit_j"], S, crt)
 
             # --- random-entry control (same-symbol eligible bar, Cell-B exit) ---
             if len(plc_pool) >= 1:
@@ -579,6 +606,9 @@ def run():
     out["BOOK_cellA2_gross(raw)"] = _book_stats(bk, "CELL_A2", "gross")
     out["BOOK_cellA_net"] = _book_stats(bk, "CELL_A", "net")
     out["BOOK_random_control_net"] = ctl_net
+    out["BOOK_segments_net"] = {k: _book_stats(bk, k, "net")["full"]
+                                for k in ("CELL_B_TREND", "CELL_B_LIQ25", "CELL_B_REGIME", "CELL_B_CLEAN")
+                                if _book_stats(bk, k, "net")["full"]}
     out["CAGR_raw_vs_net"] = {
         "raw_cagr%": cb_gross["full"]["cagr%"] if cb_gross["full"] else None,
         "net_cagr%": cb_net["full"]["cagr%"] if cb_net["full"] else None,

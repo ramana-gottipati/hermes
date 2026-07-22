@@ -1,6 +1,6 @@
 {
  "registered_gate": "see module docstring (prereg registry: momentum_band_rsi)",
- "run_at": "2026-07-22 09:44Z",
+ "run_at": "2026-07-22 12:04Z",
  "prediction": "FAIL expected (see docstring priors)",
  "EVENT_primary": {
   "cell": {
@@ -245,6 +245,32 @@
    "months": 91
   },
   "avg_pos": 176.8
+ },
+ "BOOK_segments_net": {
+  "CELL_B_TREND": {
+   "retvol": 0.69,
+   "cagr%": 11.8,
+   "maxdd%": -52.8,
+   "months": 170
+  },
+  "CELL_B_LIQ25": {
+   "retvol": 0.4,
+   "cagr%": 5.6,
+   "maxdd%": -53.5,
+   "months": 170
+  },
+  "CELL_B_REGIME": {
+   "retvol": 0.25,
+   "cagr%": 3.1,
+   "maxdd%": -72.0,
+   "months": 164
+  },
+  "CELL_B_CLEAN": {
+   "retvol": 0.55,
+   "cagr%": 8.8,
+   "maxdd%": -48.6,
+   "months": 161
+  }
  },
  "CAGR_raw_vs_net": {
   "raw_cagr%": 19.4,
