@@ -735,9 +735,12 @@ SNIPPET = """<script>
           +'.cfs-rail{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:10000!important;margin:0!important;max-height:48vh!important;overflow:auto!important;border-radius:0!important}'
           +'.rail-collapsed>*:not(.cbar){display:none!important}';
         document.head.appendChild(st); }
+      var _baseHostH = host.style.height || 'clamp(420px,62vh,760px)';   // the normal-view height clamp — restored verbatim on fullscreen exit
       function refit(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); }
       function layoutFs(){ var on=host.classList.contains('cfs'); rail.classList.toggle('cfs-rail',on);
-        if(on){ host.style.setProperty('top',(rail.offsetHeight||0)+'px','important'); } else { host.style.removeProperty('top'); }   // chart sits BELOW the rail (never under it); a COLLAPSED rail = a thin strip ⇒ ~full-window chart, controls + buttons all clear
+        if(on){ host.style.setProperty('top',(rail.offsetHeight||0)+'px','important');
+                host.style.setProperty('height','auto','important'); }   // LIFT the 62vh clamp: with top=rail height + bottom:0, height:auto stretches the chart to the FULL window (below the rail)
+        else { host.style.removeProperty('top'); host.style.removeProperty('height'); host.style.height=_baseHostH; }   // restore the normal-view clamp on exit
         requestAnimationFrame(refit); }
       // collapsible control drawer (▾/▸) — the fork's rail carries EVERY control (chart type, strategies,
       // indicators, lower pane, compare, drawings + interval/range/legend), so this collapses the whole
