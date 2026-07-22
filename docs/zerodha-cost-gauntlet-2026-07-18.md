@@ -207,3 +207,17 @@ qualifies on EITHER. Two forks tested:
 
 Runners (additive, sealed engine untouched): `research/explosive_moves/gauntlet/rsirs_denom_test.py` (selector) +
 `build_reversal_gauntlet.py` (full book). All IN-SAMPLE.
+
+## 12. The stacked variant — SEALED as K30-DEEP-HOLD (2026-07-22, ledger 16BF)
+
+The two levers from §10 (hold-longer) and §11 (deeper-turn) are orthogonal — one changes the exit/hold rule, the
+other the entry/turn quality — so we stacked them on the K30 book and ran the gauntlet:
+- baseline K30 **17.8% / −38%** · hold-band only **19.0% / −38%** · deeper-turn<20 only **18.6% / −29%** ·
+  **STACKED (turn<20 + hold60): 19.2% / −29%** (₹1cr → 34.8cr); turn<25+hold60 (19.1% / −33%) confirms it.
+- The stack is the **best net AND the lowest drawdown** of all variants — it keeps the hold-band's return boost
+  and the deeper-turn's drawdown cut: **+1.4pp net AND −9pp drawdown** vs the sealed K30.
+- **SEALED** as the 7th union sibling, `docs/prereg/union-k30-deephold-prereg.md` (sha256 `b705f770…`),
+  forward-judged 2026-10-03+. ⚠ **Highest overfit risk of the siblings** (two stacked in-sample levers) —
+  disclosed in the prereg; deflate hard.
+
+Runner (additive, sealed engine untouched): `research/explosive_moves/gauntlet/build_stacked_gauntlet.py`.
