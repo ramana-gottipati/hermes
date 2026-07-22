@@ -351,7 +351,18 @@ SNIPPET = """<script>
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
   function refreshLCount(){ if(!lSym()) return;
     fetch('/dash/wolfe/learnings?sym='+encodeURIComponent(lSym())).then(function(r){return r.json();}).then(function(d){
-      learnCount=(d&&d.items)?d.items.length:0; if(mode==='draw') controls(); }).catch(function(){}); }
+      learnItems=(d&&d.items)||[]; learnCount=learnItems.length; if(overlayOn) paintOverlay(); if(mode==='draw') controls(); }).catch(function(){}); }
+  function newWave(){                                                          // bank the current wave (preserved + shown dim on the overlay) and start a fresh one — lets him draw wave after wave, none lost
+    if(manual.length>=4){
+      var dir=(manual[3].value>manual[1].value)?'BEAR':'BULL'; overlayOn=true;
+      fetch('/dash/wolfe/learnings?sym='+encodeURIComponent(lSym()),{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({direction:dir,points:manual.slice(),zones:manualZones.slice(),note:''})})
+        .then(function(r){return r.json();}).then(function(){ refreshLCount(); if(learnOpen) renderLearn(); }).catch(function(){});
+    } else if(manual.length>0){
+      if(!confirm('The current wave has only '+manual.length+' point(s) and will NOT be saved. Start a new wave anyway?')) return;
+    }
+    manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0; wDirty=true; drawManual(); saveDraw(); controls();
+  }
   function saveLearning(){
     if(manual.length<4){ alert('Place at least points 1\\u20134 first, then save.'); return; }
     if(!confirm('Do you want me to take this as my learning for Wolfe wave?')) return;
@@ -457,6 +468,7 @@ SNIPPET = """<script>
       ' &nbsp;&middot; <span id="wfSnap" title="auto-snap 1/3/5 to lows, 2/4 to highs (reversed on a bear)" style="cursor:pointer;text-decoration:underline;color:'+(autosnap?'#3fd486':'var(--ink-2)')+'">'+(autosnap?'auto-snap: on':'auto-snap: off')+'</span>'+
       ' &middot; <span id="wfUndo" title="undo (Ctrl+Z)" style="cursor:pointer;text-decoration:underline">undo</span>'+
       ' &middot; <span id="wfRedo" title="redo (Ctrl+Y)" style="cursor:pointer;text-decoration:underline">redo</span>'+
+      ' &middot; <span id="wfNew" title="Save this wave and start a fresh one — it stays visible on the chart" style="cursor:pointer;text-decoration:underline;color:#3fd486;font-weight:600">+ new wave</span>'+
       ' &middot; <span id="wfReset" style="cursor:pointer;text-decoration:underline">reset</span>'+
       ' &middot; <span id="wfAuto" style="cursor:pointer;text-decoration:underline;color:var(--ink-2)">use auto</span>'+
       ' &nbsp;&middot; <span id="wfLearn" style="cursor:pointer;text-decoration:underline;color:#d29922">\\u2605 save as learning</span>'+
@@ -467,6 +479,7 @@ SNIPPET = """<script>
     if(e=document.getElementById('wfUndo')) e.onclick=function(){ doUndo(); };
     if(e=document.getElementById('wfRedo')) e.onclick=function(){ doRedo(); };
     if(e=document.getElementById('wfReset')) e.onclick=function(){ if(manual.length && !confirm('Clear the current wave? This erases the '+manual.length+' point(s) placed. (Tip: “★ save as learning” first to keep it.)')) return; manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0; wDirty=true; drawManual(); controls(); saveDraw(); };   // guarded reset; saveDraw([]) deletes the stored working wave
+    if(e=document.getElementById('wfNew')) e.onclick=function(){ newWave(); };
     if(e=document.getElementById('wfAuto')) e.onclick=function(){ exitDraw(); };
     if(e=document.getElementById('wfLearn')) e.onclick=function(){ saveLearning(); };
     if(e=document.getElementById('wfLearnList')) e.onclick=function(){ learnOpen=!learnOpen; renderLearn(); };
