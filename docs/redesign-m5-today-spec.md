@@ -3,7 +3,11 @@
 > **Lifecycle: TRANSIENT** — retire when: M5 ships and its landing record folds into
 > `docs/redesign-coordination.md` §5; then `git rm`. Fold into: `docs/redesign-coordination.md`.
 
-**Status: SPEC v1.0 — no code. Built only on explicit owner go, after the Codex review loop.**
+**Status: SPEC v1.1 — no code. Built only on explicit owner go.** Codex pre-build review:
+`VERDICT: APPROVE-WITH-CHANGES` — 2 BLOCKING accepted and fixed in this revision (the mood
+call-chain specified exactly; the news-count tile given its bounded read contract) + 4
+ADVISORY folded (signatures pinned into §3; route/Pat/toggle/payload claims confirmed).
+Dispositions: `docs/redesign-coordination.md` §2.
 Inputs (all ratified/decided): Part I M5 scope · Part II §C nav + §E journey step 1 · Part V §S
 **count-tile pattern: ADOPT (owner, 2026-07-20)** · the S-A front-door lessons (the classic home
 already carries them; Today v3 is their v3-native twin, not a port of the tile wall). Composes
@@ -21,9 +25,11 @@ with the DEPLOYED M0–M4 modules. **Zero new tables, zero new timers.**
 ## 2. Page anatomy (top → bottom; Focus column + Context rail + dock)
 
 1. **Identity line + the mood strip.** One sentence ("Patearn describes what Indian-market data
-   is doing, in plain English, and shows you the proof — never what to buy.") + the EXISTING
-   `market_mood.mood_banner` (the ONE regime vocabulary; single-owner module, reused not
-   re-rendered). The falsification-framing sentence renders under it (`ifx.demo_framing()`).
+   is doing, in plain English, and shows you the proof — never what to buy.") + the mood strip
+   via the EXACT existing call chain (Codex B1): read latest breadth + Nifty-vs-200DMA from
+   `index_signals` (the `cockpit.py:1077` idiom), call `market_mood.market_mood(breadth,
+   nifty_above_200dma)` → render `market_mood.mood_banner(mood)` — the ONE regime vocabulary,
+   single-owner module. The falsification framing renders under it (`ifx.demo_framing()`, zero-arg).
 2. **THE COUNT-TILE BAND (the adopted Stitch pattern).** 4–6 tiles, each = a live COUNT the
    estate already computes + a VISIBLE plain subtitle + a deep link (the "every count is a live
    lens" affordance; no hover-only meaning — the S-A lesson):
@@ -50,10 +56,18 @@ with the DEPLOYED M0–M4 modules. **Zero new tables, zero new timers.**
 
 ## 3. Data contract
 
-Every read exists and is bounded: `market_mood.mood_banner` · `signal_alerts.active_count` /
-`active_alerts(limit=8)` · `market_internals_daily` latest row · `upcoming_results(7)` ·
-`corp_actions.flagged_symbols` · the dock's own reads. Payload budget: **< 300,000 uncompressed
-bytes** (test-asserted). Every count degrades to an honest empty state.
+Every read exists and is bounded — signatures pinned (Codex B2/A3):
+- mood: `index_signals` latest row → `market_mood(breadth, nifty_above_200dma)` → `mood_banner(mood)`.
+- alerts: `signal_alerts.active_count(conn, within_days=7)` → `{total, by_severity, by_valence}`;
+  board: `active_alerts(conn, within_days=7, limit=8)`.
+- breadth: `market_internals_daily` — `SELECT * ... ORDER BY trade_date DESC LIMIT 1` (% advancing).
+- results: `results_calendar.upcoming_results(days=7)` → list of Rows; tile shows `len()`.
+- corp actions: `corp_actions.flagged_symbols(conn)` → `(rows, as_of)`; tile shows `len(rows)`.
+- headlines: NEW bounded count, contract stated here (no helper exists): table-guarded
+  `SELECT COUNT(DISTINCT t.news_url) FROM news_symbol_tags t JOIN sent_news n ON n.url=t.news_url
+  WHERE n.sent_at >= datetime('now','-1 day')` → 0 on absent tables (honest-empty tile).
+Payload budget: **< 300,000 uncompressed bytes** (test-asserted). Every count degrades to an
+honest empty state.
 
 ## 4. Files
 
