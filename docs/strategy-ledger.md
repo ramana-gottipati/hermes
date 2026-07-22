@@ -1959,6 +1959,20 @@ reversal hybrid — low-vol is a third, defensive factor (Ramana's separate-line
   numbers look excellent but must clear the same gauntlet the momentum book got before any capital.
   PROMOTION PATH: fence the low-vol sleeve (participation cost, capacity, fit→freeze→OOS).
 
+- **FENCE DONE (capacity/cost gauntlet, `lowvol_sleeve --fence`, reusing `cost_participation.side_costs`
+  Almgren √-impact): low-vol SURVIVES to MODEST capacity ~₹50cr; the BLEND does NOT scale.** Sleeve
+  net recut by AUM (R/V / CAGR / MaxDD): frictionless 1.18/16.6%/−21% · ₹25cr 1.04/14.2%/−22% · ₹50cr
+  0.98/13.4%/−23% · ₹100cr **0.89**/12.0%/−24% · ₹250cr 0.74/9.6% · ₹500cr 0.57/7.2%. **Clears the
+  0.89 hurdle to ~₹100cr, BEATS the index (13.4%) only to ~₹40-50cr**; the DD edge (−21→−24%) holds
+  across AUM — a genuine modest-capacity corner, consistent with LOWVOL_MOM (~₹100cr), FAR better than
+  C-BLEND (−0.30@₹100cr). Median held ADV ₹51cr (liquid). ⚠ Cost driver = **199%/yr one-way turnover**
+  (bottom-quintile churns monthly) → a hysteresis hold-band / quarterly rebalance would cut it and
+  lift capacity (NEXT LEVER). ⚠ **BLEND capacity is BOUND by the momentum sleeve** — its trade median
+  ADV is ₹4.6cr (10× less liquid than low-vol), so the 40/60 R/V 1.32 is a SMALL-AUM phenomenon; at
+  scale lean more low-vol / less momentum. Residual un-closed: delisting-return bias (structural,
+  estate-wide). VERDICT: **low-vol = a real ~₹50cr-capacity fundable factor whose DD edge survives
+  cost**; the momentum-band book fails capacity too (junior partner on liquidity as well as drawdown).
+
 ---
 
 ## Study 2026-07-22b — REVERSAL, CLEAN oversold-bounce (deep drawdown + RSI-30 turn; NON-band, NON-momentum) (DONE — pre-registered FAIL at BOTH gates; reversal falsified at the CONCEPT level, not just the band mechanics)

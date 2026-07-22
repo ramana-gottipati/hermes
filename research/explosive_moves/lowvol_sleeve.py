@@ -88,11 +88,13 @@ def build():
             j = me_idx[ms[mi + 1]]
             if ac[i] <= 0 or ac[j] <= 0:
                 continue
-            per_month.setdefault(mo, []).append((sym, float(r.std() * np.sqrt(252)), float(ac[j] / ac[i] - 1.0)))
+            per_month.setdefault(mo, []).append((sym, float(r.std() * np.sqrt(252)),
+                                                 float(ac[j] / ac[i] - 1.0), float(S.med_turn[i]), float(r.std())))
         if n_sym % 800 == 0:
             print(f"  …{n_sym}/{len(syms)} symbols", flush=True)
 
     rows = []
+    hold_rows = []
     prev = set()
     for mo in sorted(per_month):
         lst = per_month[mo]
@@ -106,8 +108,13 @@ def build():
         turn = len(selset - prev) / len(selset) if prev else 1.0
         net = gross - turn * 2 * COST_SIDE
         rows.append((mo, gross, net, int(len(sel))))
+        for s in sel:
+            hold_rows.append((mo, s[0], float(s[2]), float(s[3]), float(s[4])))
         prev = selset
+    rc.executescript("DROP TABLE IF EXISTS lowvol_holdings; "
+                     "CREATE TABLE lowvol_holdings(month TEXT, symbol TEXT, ret_next REAL, med_turn REAL, sigma_daily REAL);")
     rc.executemany("INSERT INTO lowvol_book VALUES (?,?,?,?)", rows)
+    rc.executemany("INSERT INTO lowvol_holdings VALUES (?,?,?,?,?)", hold_rows)
     rc.commit(); rc.close(); mc.close()
     dt = (datetime.now(timezone.utc) - t0).total_seconds()
     print(f"LOWVOL build: {len(rows)} months, avg {int(np.mean([r[3] for r in rows]))} names in {dt:.0f}s")
@@ -161,6 +168,61 @@ def run():
     return out
 
 
+def fence():
+    """Capacity/cost gauntlet: recut the sleeve's net book at rising AUM using the project's
+    Almgren participation model (cost_participation.side_costs), + turnover, ADV profile, and the
+    blend caveat (the momentum sleeve's liquidity binds the blend). Held-name rebalance drift is not
+    separately charged (low-turnover book; slightly optimistic — stated)."""
+    from .cost_participation import side_costs
+    rc = research_conn()
+    H = {}
+    for mo, sym, rn, mt, sig in rc.execute("SELECT month,symbol,ret_next,med_turn,sigma_daily FROM lowvol_holdings ORDER BY month"):
+        H.setdefault(mo, []).append((sym, rn, mt, sig))
+    momliq = [r[0] for r in rc.execute("SELECT med_turn FROM mbr_trades WHERE cell='B' AND trend=1 AND rsi_entry>=70")]
+    rc.close()
+    months = sorted(H)
+
+    def stt(x):
+        x = np.asarray(x, float); eq = np.cumprod(1 + x); pk = np.maximum.accumulate(eq); dd = (eq / pk - 1)
+        return round(x.mean() / x.std() * 12 ** .5, 2), round((eq[-1] ** (12 / len(x)) - 1) * 100, 1), round(dd.min() * 100, 1)
+
+    def book(aum):
+        prev = {}; rets = []; turnsum = 0.0
+        for mo in months:
+            mem = H[mo]; N = len(mem); w = 1.0 / N
+            cur = {s[0]: (w, s[2], s[3]) for s in mem}
+            gross = float(np.mean([s[1] for s in mem]))
+            cost = 0.0; moves = 0
+            for sym, (ww, mt, sig) in cur.items():
+                if sym not in prev:
+                    moves += 1
+                    if aum > 0:
+                        fx, im, _ = side_costs(mt, sig, ww * aum); cost += ww * (fx + im)
+            for sym, (pw, mt, sig) in prev.items():
+                if sym not in cur:
+                    moves += 1
+                    if aum > 0:
+                        fx, im, _ = side_costs(mt, sig, pw * aum); cost += pw * (fx + im)
+            turnsum += moves / (2 * N)
+            rets.append(gross - cost); prev = cur
+        return np.array(rets), turnsum / len(months) * 12
+
+    all_liq = np.array([s[2] for mo in months for s in H[mo]], float)
+    n_avg = float(np.mean([len(H[mo]) for mo in months]))
+    med_adv = float(np.median(all_liq))
+    print("=== LOW-VOL SLEEVE — CAPACITY/COST FENCE ===")
+    print(f"avg {n_avg:.0f} names | median held ADV ₹{med_adv/1e7:.1f}cr | 10th-pct ADV ₹{np.percentile(all_liq,10)/1e7:.1f}cr")
+    _, turn = book(0)
+    print(f"annualised one-way turnover {turn*100:.0f}%  (hurdle: net R/V > 0.89, beat index 13.4%/0.86)")
+    print(f"{'AUM':<13}{'R/V':>6}{'CAGR%':>7}{'MaxDD%':>8}   soft-capacity(10%ADV x N)")
+    for label, aum in [("frictionless", 0), ("Rs25cr", 25e7), ("Rs50cr", 50e7), ("Rs100cr", 100e7), ("Rs250cr", 250e7), ("Rs500cr", 500e7)]:
+        r, _ = book(aum); rv, cg, dd = stt(r)
+        print(f"{label:<13}{rv:>6.2f}{cg:>7.1f}{dd:>8.1f}   ₹{0.10*med_adv*n_avg/1e7:.0f}cr")
+    if momliq:
+        print(f"[blend caveat] momentum-stack (trend+RSI≥70) trade median ADV ₹{np.median(momliq)/1e7:.1f}cr "
+              f"— the momentum sleeve, not low-vol, binds the 40/60 blend's capacity.")
+
+
 def selftest():
     # low-vol selection picks the calmer synthetic name
     rng = np.random.default_rng(0)
@@ -181,5 +243,7 @@ if __name__ == "__main__":
         build()
     elif "--run" in sys.argv:
         run()
+    elif "--fence" in sys.argv:
+        fence()
     else:
         print(__doc__)
