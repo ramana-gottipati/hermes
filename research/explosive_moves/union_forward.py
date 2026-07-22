@@ -46,8 +46,8 @@ WHAT IT PRINTS, in order:
      passers the highest forward ALPHA graduates, the rest retire; none pass -> all
      DESCRIPTIVE-ONLY. Seals: union a9a14058 / b14 08b46199 / c40ra 0715a0d9 /
      composite30 07ef2ef9 (docs/prereg/*.md).
-  4. THE PORTFOLIO DIAL on the forward window (16AN fold): K30 and A2 mixed with the
-     long G-sec leg at 100/0 / 90/10 / 80/20 / 70/30, quarterly-rebalanced fixed weights
+  4. THE PORTFOLIO DIAL on the forward window (16AN fold): K30, A2, and K30-DEEP-HOLD (16BF)
+     mixed with the long G-sec leg at 100/0 / 90/10 / 80/20 / 70/30, quarterly-rebalanced fixed weights
      — the measured CAGR<->survivability dial rides into every checkpoint until Ramana
      picks the policy point (docs/portfolio-layer-design.md).
 
@@ -485,6 +485,7 @@ if fwd_pre:
     for _sn, _sc, _stl, _shb, _ssl, _sisf in SIBS:
         _r = leg_rets(SIB_RUNS[_sn]["navs"], fwd_pre)
         _cc = cum(_r); _apr, _bpr = ab(_r, n500); _dd = dd_of(_r)
+        SUMM[_sn] = dict(rets=_r, cum=_cc, alpha=_apr, beta=_bpr, dd=_dd)   # expose sibling rets to the §4 dial
         _exc = [_r[i] - n50[i] for i in range(len(_r))]; _tot = sum(_exc)
         _c1 = _cc > cum(n50); _c2 = _apr is not None and _apr > 0; _c3 = _dd >= dd_of(n50)
         _c4 = not (_tot > 0 and max(_exc) / _tot > 0.60)
@@ -515,7 +516,7 @@ if fwd_pre:
     print("")
     print("### 4. PORTFOLIO DIAL (forward window; fixed mix, quarterly rebalance; G-sec leg = gsec_q)")
     gs = [gsec_q(rb[i], rb[i + 1]) for i in fwd_pre]
-    for k in ("K30", "A2"):
+    for k in ("K30", "A2", "K30-DEEP-HOLD"):   # K30-DEEP-HOLD (16BF) added to the dial: best in-sample net + lowest drawdown
         for w in (1.0, 0.9, 0.8, 0.7):
             mix = [w * SUMM[k]["rets"][i] + (1 - w) * gs[i] for i in range(len(gs))]
             line = "  %s %3.0f/%2.0f  cum %+7.2f%%  MaxDD %5.1f%%" % (k, w * 100, (1 - w) * 100, cum(mix) * 100, dd_of(mix) * 100)
