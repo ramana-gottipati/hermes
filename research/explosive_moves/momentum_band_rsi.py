@@ -110,7 +110,7 @@ RSI_HOT = 80.0        # partial-profit trigger
 RSI_COLD = 45.0       # full-exit level after the hot print
 PARTIAL = 0.5         # fraction sold at the first RSI_HOT touch
 FLAT_SIDE = 0.003     # cross-check flat cost per side
-BOOK_KEYS = ("CELL_B", "RANDOM_CTL")
+BOOK_KEYS = ("CELL_B", "CELL_A", "CELL_A2", "RANDOM_CTL")
 
 
 # --------------------------------------------------------------------------- #
@@ -409,9 +409,9 @@ def build():
                 tr_rows.append((cell, sym, S.date[e], S.date[sim["exit_j"]], int(sim["exit_j"] - e),
                                 float(S.med_turn[i]), float(R[e]), trend, int(sim["scaled"]),
                                 sim["kind"], gross, net_full, net_partial, crt))
-                if cell == "B":
-                    _accum_book(book, "CELL_B", "gross", e, sim["exit_j"], S, crt)
-                    _accum_book(book, "CELL_B", "net", e, sim["exit_j"], S, crt)
+                bkey = {"B": "CELL_B", "A": "CELL_A", "A2": "CELL_A2"}[cell]
+                _accum_book(book, bkey, "gross", e, sim["exit_j"], S, crt)
+                _accum_book(book, bkey, "net", e, sim["exit_j"], S, crt)
 
             # --- random-entry control (same-symbol eligible bar, Cell-B exit) ---
             if len(plc_pool) >= 1:
@@ -575,6 +575,9 @@ def run():
     ctl_net = _book_stats(bk, "RANDOM_CTL", "net")
     out["BOOK_cellB_net"] = cb_net
     out["BOOK_cellB_gross(raw)"] = cb_gross
+    out["BOOK_cellA2_net"] = _book_stats(bk, "CELL_A2", "net")
+    out["BOOK_cellA2_gross(raw)"] = _book_stats(bk, "CELL_A2", "gross")
+    out["BOOK_cellA_net"] = _book_stats(bk, "CELL_A", "net")
     out["BOOK_random_control_net"] = ctl_net
     out["CAGR_raw_vs_net"] = {
         "raw_cagr%": cb_gross["full"]["cagr%"] if cb_gross["full"] else None,

@@ -1,6 +1,6 @@
 {
  "registered_gate": "see module docstring (prereg registry: momentum_band_rsi)",
- "run_at": "2026-07-22 08:52Z",
+ "run_at": "2026-07-22 09:44Z",
  "prediction": "FAIL expected (see docstring priors)",
  "EVENT_primary": {
   "cell": {
@@ -161,6 +161,69 @@
    "months": 91
   },
   "avg_pos": 233.9
+ },
+ "BOOK_cellA2_net": {
+  "full": {
+   "retvol": 0.6,
+   "cagr%": 9.7,
+   "maxdd%": -55.8,
+   "months": 170
+  },
+  "h1_2012_18": {
+   "retvol": 0.28,
+   "cagr%": 3.5,
+   "maxdd%": -43.7,
+   "months": 79
+  },
+  "h2_2019_26": {
+   "retvol": 0.91,
+   "cagr%": 15.4,
+   "maxdd%": -21.6,
+   "months": 91
+  },
+  "avg_pos": 265.3
+ },
+ "BOOK_cellA2_gross(raw)": {
+  "full": {
+   "retvol": 1.02,
+   "cagr%": 19.6,
+   "maxdd%": -49.7,
+   "months": 170
+  },
+  "h1_2012_18": {
+   "retvol": 0.71,
+   "cagr%": 12.9,
+   "maxdd%": -39.7,
+   "months": 79
+  },
+  "h2_2019_26": {
+   "retvol": 1.31,
+   "cagr%": 25.8,
+   "maxdd%": -18.8,
+   "months": 91
+  },
+  "avg_pos": 253.9
+ },
+ "BOOK_cellA_net": {
+  "full": {
+   "retvol": -0.57,
+   "cagr%": -11.2,
+   "maxdd%": -85.0,
+   "months": 170
+  },
+  "h1_2012_18": {
+   "retvol": -0.75,
+   "cagr%": -14.4,
+   "maxdd%": -68.6,
+   "months": 79
+  },
+  "h2_2019_26": {
+   "retvol": -0.4,
+   "cagr%": -8.2,
+   "maxdd%": -51.4,
+   "months": 91
+  },
+  "avg_pos": 81.7
  },
  "BOOK_random_control_net": {
   "full": {

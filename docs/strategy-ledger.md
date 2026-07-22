@@ -1960,8 +1960,10 @@ managed trades. Same harness/controls as STREAM BAND. **PREDICTION ON RECORD bef
 - **RSI-as-stop (NEW): the phase-1 "exit if RSI < entry-RSI" rule is a hair-trigger** — Cell A
   (Ramana-literal) exited **94%** of trades via that stop, avg hold **5.3 bars**, net mean −0.08% /
   median −1.26%: the two-candle-exit disease (07-14d) in RSI clothing. The "hold till RSI 80" reading
-  (Cell A2, fractal-only until 80) is the least-bad RSI variant (mean net +1.3%) but book-equivalent to
-  Cell B and still median −2.57%.
+  (Cell A2, fractal-only until 80 = effectively a pure 2-fractal trail) is the least-bad variant: as a
+  BOOK it edges Cell B (net return/vol **0.60 vs 0.53**, CAGR 9.7% vs 8.4%; its 2019-26 half 0.91
+  momentarily clears 0.89 but 2012-18 is 0.28) — the EXIT-LAB "loosest wins" law, still sub-hurdle and
+  still median −2.57% net per trade.
 - **RSI-80 PARTIAL profit-take (NEW): confirms the EXIT LAB profit-taker law.** On Cell A2, taking
   half off at the first RSI≥80 moved mean net **−0.25pp** (median +0.13pp): it shaves the right-tail
   (the only paying part) while barely helping the median — exactly "any rule that trims winners
