@@ -94,7 +94,46 @@ sys.argv = _argv
 # ---- exec-load the sealed-validation engine (everything above its print battery) ----
 _src = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "union_ladder_val.py")
 _c = open(_src, encoding="utf-8").read()
-exec(compile(_c[:_c.index('\nprint("=" * 118)')], _src, "exec"), globals())
+_head = _c[:_c.index('\nprint("=" * 118)')]
+# --- additive toggles for the 3 sealed HOLD/DEEP siblings (16BD/16BE/16BF). With HOLD_BAND=0 and
+#     TURN_LO=30 (the defaults) the SIX ladder rows run BYTE-IDENTICAL, so the reproduction gate is
+#     unchanged. The sealed engine file union_ladder_val.py is NOT edited — only this runner's exec. ---
+_head = _head.replace("def rsi_of_rs_recovery(s, sec, i):", "TURN_LO = 30\ndef rsi_of_rs_recovery(s, sec, i):", 1)
+_head = _head.replace("r = prev < 30 and now >= 30", "r = prev < TURN_LO and now >= 30", 1)
+_head = _head.replace("sel = (hook or sel_a2c)(QUAL[fmode][d], d, i, topn)[:topn]",
+                      "sel = _sib_sel(hook, QUAL[fmode][d], d, i, topn, held)", 1)
+HOLD_BAND = 0
+def _sib_sel(hook, q, d, i, topn, held):
+    ranked = (hook or sel_a2c)(q, d, i, topn)
+    if not HOLD_BAND:
+        return ranked[:topn]                       # HOLD_BAND=0 -> identical to the sealed selection
+    band = set(ranked[:HOLD_BAND]); pos = {s: p for p, s in enumerate(ranked)}
+    keep = sorted([s for s in held if s in band], key=lambda s: pos[s])
+    out = keep[:topn]
+    for s in ranked:
+        if len(out) >= topn: break
+        if s not in out: out.append(s)
+    return out[:topn]
+exec(compile(_head, _src, "exec"), globals())
+# --- run the 3 sealed HOLD/DEEP siblings once (K30-HOLD 16BD e6994c19 · A2-HOLD 16BD 17e0dd1a ·
+#     K30-DEEP-HOLD 16BF b705f770). QUAL["pf1"] is rebuilt+cached per TURN_LO and restored to 30 after. ---
+_qcache = {30: QUAL["pf1"]}
+def _set_turn(tl):
+    global TURN_LO
+    if tl not in _qcache:
+        TURN_LO = tl; globals()["_turn_memo"] = {}
+        _qcache[tl] = {d: qualify(d, "pf1") for d in rebal_all}
+    QUAL["pf1"] = _qcache[tl]
+SIBS = [  # (name, base cfg, TURN_LO, HOLD_BAND top-2N, seal8, recorded in-sample flat CAGR)
+    ("K30-HOLD",      dict(fmode="pf1", topn=30, rf_cash=True, weights="drift"), 30, 60, "e6994c19", 27.2),
+    ("A2-HOLD",       dict(fmode="pf1", topn=40, rf_cash=True),                  30, 80, "17e0dd1a", 26.6),
+    ("K30-DEEP-HOLD", dict(fmode="pf1", topn=30, rf_cash=True, weights="drift"), 20, 60, "b705f770", 27.5),
+]
+SIB_RUNS = {}
+for _sn, _sc, _stl, _shb, _ssl, _sisf in SIBS:
+    _set_turn(_stl); HOLD_BAND = _shb
+    SIB_RUNS[_sn] = run5(**_sc)
+_set_turn(30); HOLD_BAND = 0                        # restore defaults for the 6-row gate + all downstream code
 # in scope now: run5/stat/stat_vs/bench_cagr_series/hook_union/hook_b14/sel_a2c/QUAL/adv/
 # pym/ci/cal/N/rebal_all/iclose/BENCH/SLEEVE/TRI500/TRIN50/GSEC/gsec_q/BOOKS/GATE
 
@@ -206,6 +245,15 @@ print("  any-ETF 34/82(K30)/38/82(A2) rebals (NIFTYBEES x13-15 biggest, gold 9/1
 print("  (task_7a70ad77): RATIFY seals + document (option b) — the frozen rule runs AS SEALED here, so a")
 print("  forward selection MAY be an ETF; any ETF pick is flagged below. Exclusion effect <0.5pp (design")
 print("  §7d(repro)); a clean-universe book, if ever wanted, is a NEW pre-registered sibling, not a seal edit.")
+
+# ---- 1b. sibling reproduction (the 3 sealed HOLD/DEEP variants; forward-judged, no mult-anchor) ----
+print("")
+print("### 1b. SIBLING REPRODUCTION (16BD/16BF HOLD/DEEP variants; soft check vs recorded in-sample flat CAGR — forward-judged, not mult-anchored)")
+for _sn, _sc, _stl, _shb, _ssl, _sisf in SIBS:
+    _o = SIB_RUNS[_sn]
+    _fc, _fm = slice_cm(_o["navs"], len(_o["navs"]) - 1)
+    print("  %-14s seal %s  full-period flat CAGR %5.1f%% (recorded %.1f%%, %s)  [turn<%d, hold-band top-%d]"
+          % (_sn, _ssl, _fc, _sisf, "OK" if abs(_fc - _sisf) < 1.2 else "drift-check", _stl, _shb))
 
 if DERIVE:
     print("")
@@ -420,6 +468,27 @@ if fwd_pre:
               % (k, c1, ("n/a" if SUMM[k]["alpha"] is None else bool(c2)), c3, c4ok, verdict, beta_note))
         if len(fwd_pre) >= MIN_Q and verdict == "PASS":
             passers.append((SUMM[k]["alpha"] or -9, k))
+    # the 3 sealed HOLD/DEEP siblings under the SAME four criteria (self-contained; they join adjudication)
+    print("  --- HOLD/DEEP siblings (16BD/16BF; same 4 criteria; near-identical to K30/A2, shared levers disclosed) ---")
+    for _sn, _sc, _stl, _shb, _ssl, _sisf in SIBS:
+        _r = leg_rets(SIB_RUNS[_sn]["navs"], fwd_pre)
+        _cc = cum(_r); _apr, _bpr = ab(_r, n500); _dd = dd_of(_r)
+        _exc = [_r[i] - n50[i] for i in range(len(_r))]; _tot = sum(_exc)
+        _c1 = _cc > cum(n50); _c2 = _apr is not None and _apr > 0; _c3 = _dd >= dd_of(n50)
+        _c4 = not (_tot > 0 and max(_exc) / _tot > 0.60)
+        if len(fwd_pre) >= MIN_Q:
+            _v = "PASS" if (_c1 and _c2 and _c3 and _c4) else ("INCONCLUSIVE (C4)" if (_c1 and _c2 and _c3) else "FAIL")
+        else:
+            _v = "on track" if (_c1 and _c3 and (_c2 or _apr is None)) else "behind"
+        _ln = "  %-14s cum %+7.2f%%" % (_sn, _cc * 100)
+        if len(_r) >= 4: _ln += "  ann %5.1f%%" % (annualize(_r) * 100)
+        if _apr is not None and len(_r) >= 6: _ln += "  aPR %+5.1f/bPR %4.2f" % (_apr * 100, _bpr)
+        _ln += "  MaxDD %5.1f%%  C1%s C2%s C3%s C4%s -> %s  [seal %s; turn<%d/hold%d]" % (
+            _dd * 100, "+" if _c1 else "-", ("?" if _apr is None else ("+" if _c2 else "-")),
+            "+" if _c3 else "-", "+" if _c4 else "-", _v, _ssl, _stl, _shb)
+        print(_ln, flush=True)
+        if len(fwd_pre) >= MIN_Q and _v == "PASS":
+            passers.append((_apr or -9, _sn))
     if len(fwd_pre) >= MIN_Q:
         if passers:
             passers.sort(reverse=True)
