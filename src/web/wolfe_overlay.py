@@ -294,8 +294,8 @@ SNIPPET = """<script>
     var out=[], L=manual.length; if(L<3) return out;
     var bull=dirBull(), p1=manual[0].value, p2=manual[1].value, p3=manual[2].value;   // direction = leg 1->2 (same basis the magnet/roles use)
     if(bull ? (p3>=p1) : (p3<=p1)) out.push('The placement of point 3 is incorrect.');   // bull: 3 below 1 · bear: 3 above 1
-    if(L>=4){ var p4=manual[3].value;                                          // bull: 4 above 3, below pt1 (∴ below pt2) · bear: 4 below 3, above pt2 (pt1 irrelevant)
-      if(bull ? !(p3<p4 && p4<p1) : !(p3>p4 && p4>p2)) out.push('The placement of point 4 is incorrect.'); }
+    if(L>=4){ var p4=manual[3].value;                                          // pt4 BETWEEN pt2 & pt3 in BOTH patterns — pt1 IRRELEVANT (Ramana): bull 3<4<2 · bear 2<4<3
+      if(bull ? !(p3<p4 && p4<p2) : !(p3>p4 && p4>p2)) out.push('The placement of point 4 is incorrect.'); }
     return out;
   }
   function doUndo(){ if(!manual.length) return; redoStack.push(manual.pop());  // Ctrl+Z / undo link — step back one point, remember it for redo
