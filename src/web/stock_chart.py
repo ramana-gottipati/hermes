@@ -575,8 +575,7 @@ SNIPPET = """<script>
         document.head.appendChild(st); }
       function refit(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); }
       function layoutFs(){ var on=host.classList.contains('cfs'); rail.classList.toggle('cfs-rail',on);
-        host.style.removeProperty('top');                                    // chart fills the ENTIRE window; the rail FLOATS over the top (collapsible) so no charting area is lost
-        try{ fb.style.top=sb.style.top=(on?'auto':'8px'); fb.style.bottom=sb.style.bottom=(on?'10px':'auto'); }catch(e){}   // fullscreen: the rail owns the top → move the buttons to bottom-right, clear of it
+        if(on){ host.style.setProperty('top',(rail.offsetHeight||0)+'px','important'); } else { host.style.removeProperty('top'); }   // chart sits BELOW the rail (never under it); a COLLAPSED rail = a thin strip ⇒ ~full-window chart, controls + buttons all clear
         requestAnimationFrame(refit); }
       // collapsible drawing drawer (▾/▸) — works in BOTH normal and fullscreen
       var cbar=E('div','display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:'+C.txt+';user-select:none;padding:1px 2px','\\u25be Drawings');
@@ -588,7 +587,8 @@ SNIPPET = """<script>
       // fullscreen toggle
       var fb=E('div','position:absolute;top:8px;right:8px;z-index:12;cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid '+C.border+';border-radius:6px;background:rgba(13,17,23,.72);color:'+C.txt+';font-size:13px','\\u2922');
       fb.title='Fullscreen (Shift+F)';
-      function tog(){ host.classList.toggle('cfs'); fb.innerHTML=host.classList.contains('cfs')?'\\u2715':'\\u2922'; layoutFs(); }
+      function tog(){ var was=host.classList.contains('cfs'); host.classList.toggle('cfs'); fb.innerHTML=host.classList.contains('cfs')?'\\u2715':'\\u2922';
+        if(!was) setDrawer(false); else layoutFs(); }   // ENTER fullscreen with the drawer COLLAPSED → ~full-window chart; click ▸ Drawings to expand the tools when needed
       fb.onclick=tog;
       // one-click screenshot of the price chart — branded 'patearn' (watermark + filename)
       var sb=E('div','position:absolute;top:8px;right:40px;z-index:12;cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid '+C.border+';border-radius:6px;background:rgba(13,17,23,.72);color:'+C.txt+';font-size:14px','\\u2913');
