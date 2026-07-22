@@ -145,6 +145,7 @@ def _subnav(active: str) -> str:
         ("screen", "🔍 Scan this month", "/dash/seasonal-screen"),
         ("tape", "📅 Seasonal tape", "/dash/seasonal-tape"),
         ("divergence", "⚖ Index divergence", "/dash/seasonal-divergence"),
+        ("calendar", "🗓 Expiry & holidays", "/dash/seasonal-calendar"),
     )
     chips = "".join(
         f'<a class="{"on" if key == active else ""}" href="{href}">{lbl}</a>'
