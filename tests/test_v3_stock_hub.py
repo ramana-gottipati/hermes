@@ -169,6 +169,48 @@ def test_identity_strip_carries_cmp_sector_and_provenance():
     assert "NSE bhav copy" in out                          # provenance line
 
 
+# ── increment 2: the chart fork (spec §3) ─────────────────────────────────────────────
+
+def test_chart_fork_preserves_overlay_seams():
+    from src.web.stock_chart_v3 import SNIPPET, BASE_MD5
+    for seam in ("window.__wfpc", "__wfcandle", "[data-ptf]", "stratBar", "cprBar",
+                 "maBar", "__cmpAdd", "__cmpRemove"):
+        assert seam in SNIPPET, seam
+    assert len(BASE_MD5) == 32                             # the pinned base fingerprint
+
+
+def test_chart_fork_carries_m_and_n_contracts():
+    from src.web.stock_chart_v3 import SNIPPET
+    for feat in ("initCmpFromUrl", "syncCmpUrl", "pv3cmp",      # §M URL authority + carryover
+                 "Open in Compare",                              # §M.2 hand-off
+                 "pv3pins", "pv3mru", "All tools",               # §N pins + MRU + dropdown
+                 "vs Nifty 500",                                 # §M.1 shared benchmark set
+                 "/dash/preview/stock/export"):                  # server-side CSV
+        assert feat in SNIPPET, feat
+
+
+def test_series_csv_route():
+    client = TestClient(_app())
+    assert client.get("/dash/preview/stock/export").status_code == 400   # symbol required
+    sym = _any_symbol_with_bar()
+    if not sym:
+        return
+    r = client.get("/dash/preview/stock/export", params={"sym": sym})
+    assert r.status_code == 200 and r.text.startswith("trade_date,open,high,low,close")
+    assert len(r.text.splitlines()) >= 2
+
+
+def test_chart_section_embeds_the_fork_on_real_symbol():
+    sym = _any_symbol_with_bar()
+    if not sym:
+        return
+    client = TestClient(_app())
+    r = client.get("/dash/preview/stock", params={"sym": sym})
+    assert 'id="priceChart"' in r.text and "window.__wfdata" in r.text
+    assert "lightweight-charts" in r.text
+    assert len(r.content) < 1_000_000, len(r.content)      # budget holds WITH the island
+
+
 # ── isolation holds with the new module mounted ───────────────────────────────────────
 
 def test_legacy_pages_still_carry_no_hub_markers():

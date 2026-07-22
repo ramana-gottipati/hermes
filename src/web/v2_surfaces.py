@@ -187,6 +187,9 @@ _ROUTER_SPECS = [
     # Redesign M4 (docs/redesign-m4-stock-hub-spec.md, owner go 2026-07-21): the evidence-scroll
     # stock hub. Preview-only, direct-URL; remove this line to revert the module.
     ("stock-hub-v3", "src.web.stock_hub_v3", "/dash/preview/stock"),
+    # M4 increment 2: the additive chart fork's server side (series-CSV export route);
+    # the snippet itself is embedded by the hub's chart section.
+    ("stock-chart-v3", "src.web.stock_chart_v3", "/dash/preview/stock/export"),
 ]
 
 # ── the canonical site IA — GENERATED from the single lens registry ──────────

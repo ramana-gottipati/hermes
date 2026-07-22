@@ -158,9 +158,10 @@ def _miss(sym: str) -> str:
 
 
 @router.get("/dash/preview/stock", response_class=HTMLResponse, include_in_schema=False)
-def stock_hub(sym: str = "", section: str = "", ch: str = "", cmp: str = "") -> HTMLResponse:
-    """URL state (spec §6): sym · section · ch (dock channel) · cmp (compare set — accepted
-    now, consumed by the increment-2 chart fork; carried so a shared URL never loses it)."""
+def stock_hub(sym: str = "", section: str = "", ch: str = "", cmp: str = "",
+              range: str = "") -> HTMLResponse:
+    """URL state (spec §6): sym · section · ch (dock channel) · cmp (the chart fork reads it
+    client-side from the URL) · range ('' = the 3y bounded island, 'max' = full history)."""
     sym = str(sym or "").strip().upper()[:20]
     ch = str(ch or "").strip().lower()[:12]
     cmp = str(cmp or "").strip().upper()[:96]
@@ -179,6 +180,7 @@ def stock_hub(sym: str = "", section: str = "", ch: str = "", cmp: str = "") -> 
                                            dest="stocks", crumbs=crumbs[:2],
                                            nav_title="Stocks", nav_items=nav_items[:2]))
     core = H.load_core(sym)
+    core["rng"] = "max" if range == "max" else ""
     if core.get("bar") is None and core.get("sig") is None:
         return HTMLResponse(shell_v3.shell(sym, _miss(sym), "", head, "", dest="stocks",
                                            crumbs=crumbs, nav_title="Stocks",

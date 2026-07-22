@@ -345,11 +345,12 @@ def _inner(core: dict, key: str) -> str:
     sym = core["sym"]
     try:
         if key == "chart":
-            return ('<div class="pv3-card"><p>The v3 chart (dense tool rail · URL-carried '
-                    'compare · series CSV) lands in the next build increment — the spec\'s '
-                    '§3 fork. Until then the full classic chart is one click away, and every '
-                    'other section below is live.</p>'
-                    + checks_confluence(core) + "</div>")
+            from src.web import stock_chart_v3
+            from src.web import infographics as _ifx
+            return (stock_chart_v3.chart_html(sym, core.get("rng", ""))
+                    + '<p class="hub-note">' + _e(_ifx.fence("not_buy_sell", cap=True))
+                    + ' · <a href="/dash/reading-guide">How to read these charts →</a></p>'
+                    + checks_confluence(core))
         if key == "pos":
             return _pos_panel(core)
         if key == "mep":
@@ -468,8 +469,9 @@ def _selftest() -> int:
     assert 'data-sec="fno"' not in html                       # conditional held
     assert html.count("Open section") >= 5                    # collapsed sections offer expansion
     assert "?symbol=" not in html and "sym=TESTX" in html
-    # fence discipline in the module's own copy
-    low = (d + ch + html).lower()
+    # fence discipline in the module's own copy — the sanctioned boundary phrase itself
+    # ("not a buy/sell signal") is excluded before scanning for verdict verbs
+    low = (d + ch + html).lower().replace("buy/sell", "")
     for verb in ("buy", "sell", " avoid ", " ride ", " fade "):
         assert verb not in low, verb
     print("hub_sections_v3 selftest OK — digest/checks/sections, sym= discipline, fence held")
