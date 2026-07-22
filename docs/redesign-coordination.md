@@ -126,3 +126,9 @@ Deploy record (S189-b): callees pushed BEFORE the caller patch (S158 rule), all 
 both sides, writer-check empty, restart at ~04:12 UTC (far from the 14:01 bhavcopy window),
 health 200, public walk via Caddy (`srv1704897.hstgr.cloud`). Revert = restore
 `v2_surfaces.py.bak-s189` + restart (the 6 new modules are inert without the mounts).
+
+## 6. Cross-lane notes (facts the redesign lane must know)
+
+| Date | Note |
+|---|---|
+| 2026-07-22 (S209) | **The M4 fork base `stock_chart.py` DRIFTED — md5 `f4608185` → `63148a7f`** — a NON-redesign lane (the Wolfe draw-tool lane, merge `3fd0acb`) landed two additive features on the LEGACY chart: the fullscreen drawing DRAWER + a one-click branded PNG screenshot (`e6439cc`, +41 lines to `stock_chart.py`). **Nothing broke:** `stock_chart_v3.py`'s `BASE_MD5 = f46081851085755acca95df559f0b06a` is a *documented* frozen-snapshot constant, NOT a live test assertion (full suite 763 passed post-merge; `test_v3_isolation`/`test_v3_stock_hub` green). The fork is frozen by design and does not track legacy `stock_chart.py`. **Consequence (owner call, NOT pre-empted here):** the M4 hub chart (`/dash/preview/stock`) therefore lacks the legacy chart's new drawer + screenshot. If the owner wants those in the hub chart, the redesign lane should REGENERATE the fork from the current `stock_chart.py` (`63148a7f`) — updating `BASE_MD5` and re-applying the 6 patches (the scratch generator will correctly flag the base-md5 change until `BASE_MD5` is updated). If not, the fork stays frozen and no action is needed. This lane did NOT touch `stock_chart_v3.py` (redesign-owned, additive-never-replace). |
