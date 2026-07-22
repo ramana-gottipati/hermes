@@ -1,9 +1,17 @@
 """stock_chart_v3.py — the M4 increment-2 ADDITIVE FORK of stock_chart.py (spec §3).
 
-BASE: stock_chart.py @ md5 f46081851085755acca95df559f0b06a — deliberate, documented divergence (Codex M4-spec B1:
+BASE: stock_chart.py @ md5 20b28161a782db8068c2cc4c6cdc0dde — deliberate, documented divergence (Codex M4-spec B1:
 a pure wrapper is infeasible against the closed IIFE). The legacy chart and /dash/stock are
 UNTOUCHED; at cut-over ratification this fork becomes the canonical chart. Sync note: any
 fix to stock_chart.py should be evaluated for porting here (and vice versa).
+
+Base re-pin (S210, 2026-07-22): re-generated from base f46081851085755acca95df559f0b06a → 20b28161 to
+carry the Wolfe-lane additions the legacy chart grew — the fullscreen drawing DRAWER (the control rail
+stays visible as a fixed top bar in fullscreen, collapsible ▾/▸) + a one-click branded 'patearn' PNG
+screenshot (candles + overlays + header strip). Two fork-context adaptations vs the base block: the
+drawer label is "Controls" not "Drawings" (the fork's rail holds EVERY control, so collapse hides the
+whole rail); the screenshot name reads the hub identity strip (.hub-id → "SYM · Company"), the fork
+having no legacy .chartlbl (falls back to the URL symbol).
 
 Native in the fork (each patch applied by scratch generator, asserted exactly-once):
   P1 §M — the compare set lives in ?cmp= (init from URL, replaceState on change,
@@ -35,7 +43,7 @@ from src.core.db import get_conn
 
 router = APIRouter()
 
-BASE_MD5 = "f46081851085755acca95df559f0b06a"
+BASE_MD5 = "20b28161a782db8068c2cc4c6cdc0dde"
 _LWC_CDN = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"
 DEFAULT_SESSIONS = 756          # ~3y daily — the payload-budget default; range=max lifts it
 
@@ -720,17 +728,65 @@ SNIPPET = """<script>
     // ResizeObserver above refits the chart to the full viewport and back.
     (function(){
       if(!document.getElementById('cfs-style')){ var st=E('style'); st.id='cfs-style';
-        st.textContent='.cfs{position:fixed!important;inset:0!important;z-index:9999!important;height:100vh!important;max-width:none!important;margin:0!important;border-radius:0!important;background:'+C.bg+'}';
+        // .cfs: the chart overlays the viewport (top set by JS so the fixed rail can sit above it).
+        // .cfs-rail: the WHOLE control rail becomes a FIXED top bar ABOVE the chart, so its tools stay
+        // visible + move with the chart in fullscreen. .rail-collapsed hides the rail body (drawer).
+        st.textContent='.cfs{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;z-index:9999!important;max-width:none!important;margin:0!important;border-radius:0!important;background:'+C.bg+'}'
+          +'.cfs-rail{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:10000!important;margin:0!important;max-height:48vh!important;overflow:auto!important;border-radius:0!important}'
+          +'.rail-collapsed>*:not(.cbar){display:none!important}';
         document.head.appendChild(st); }
+      function refit(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); }
+      function layoutFs(){ var on=host.classList.contains('cfs'); rail.classList.toggle('cfs-rail',on);
+        if(on){ host.style.setProperty('top',(rail.offsetHeight||0)+'px','important'); } else { host.style.removeProperty('top'); }   // chart sits BELOW the rail (never under it); a COLLAPSED rail = a thin strip ⇒ ~full-window chart, controls + buttons all clear
+        requestAnimationFrame(refit); }
+      // collapsible control drawer (▾/▸) — the fork's rail carries EVERY control (chart type, strategies,
+      // indicators, lower pane, compare, drawings + interval/range/legend), so this collapses the whole
+      // rail (not just drawings). Works in BOTH normal and fullscreen.
+      var cbar=E('div','display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:'+C.txt+';user-select:none;padding:1px 2px','\\u25be Controls');
+      cbar.className='cbar'; cbar.title='Collapse / expand the chart controls';
+      function setDrawer(open){ rail.classList.toggle('rail-collapsed',!open);
+        cbar.innerHTML=(open?'\\u25be':'\\u25b8')+' Controls'; layoutFs(); }
+      cbar.onclick=function(){ setDrawer(rail.classList.contains('rail-collapsed')); };
+      rail.insertBefore(cbar, rail.firstChild);
+      // fullscreen toggle
       var fb=E('div','position:absolute;top:8px;right:8px;z-index:12;cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid '+C.border+';border-radius:6px;background:rgba(13,17,23,.72);color:'+C.txt+';font-size:13px','\\u2922');
       fb.title='Fullscreen (Shift+F)';
-      function tog(){ host.classList.toggle('cfs'); fb.innerHTML=host.classList.contains('cfs')?'\\u2715':'\\u2922';
-        // force an explicit refit next frame — the ResizeObserver can miss the
-        // position:fixed transition, leaving the chart short of the fullscreen host.
-        requestAnimationFrame(function(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); }); }
+      function tog(){ var was=host.classList.contains('cfs'); host.classList.toggle('cfs'); fb.innerHTML=host.classList.contains('cfs')?'\\u2715':'\\u2922';
+        if(!was) setDrawer(false); else layoutFs(); }   // ENTER fullscreen with the drawer COLLAPSED → ~full-window chart; click ▸ Controls to expand the tools when needed
       fb.onclick=tog;
+      // one-click screenshot of the price chart — branded 'patearn' (watermark + filename)
+      var sb=E('div','position:absolute;top:8px;right:40px;z-index:12;cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid '+C.border+';border-radius:6px;background:rgba(13,17,23,.72);color:'+C.txt+';font-size:14px','\\u2913');
+      sb.title='Save screenshot (branded patearn)';
+      function takeShot(){ var cv; try{ cv=pc.takeScreenshot(); }catch(e){ cv=null; } if(!cv) return;
+        try{
+          var W=cv.width, H=cv.height;
+          var rdtEl=document.getElementById('priceRdt');
+          // the fork has no .chartlbl — read the hub identity strip (#SYM h1 + .nm company) → "SYM · Company"
+          var hid=document.querySelector('.hub-id'), h1El=hid&&hid.querySelector('h1'), nmEl=hid&&hid.querySelector('.nm');
+          var name=(((h1El&&h1El.textContent)||'').trim())+((nmEl&&nmEl.textContent&&nmEl.textContent.trim())?' \\u00b7 '+nmEl.textContent.trim():'');
+          if(!name.trim()) name=(new URLSearchParams(location.search).get('sym')||'');                 // section-swap load (no .hub-id) → the URL symbol
+          var detail=(((rdtEl&&rdtEl.textContent)||'').replace(/\\s+/g,' ').trim());                    // date · O H L C · DVPT · Deliv · Traded…
+          var tf=Math.max(15,Math.round(H*0.030)), df=Math.max(11,Math.round(H*0.020)), gap=Math.round(tf*0.35), padL=Math.round(tf*0.9);
+          var hh=Math.round(tf*0.5 + tf + (detail?gap+df:0) + tf*0.5);        // header strip carrying the name + price the canvas omits
+          var out=document.createElement('canvas'); out.width=W; out.height=H+hh; var g=out.getContext('2d');
+          g.fillStyle=C.bg; g.fillRect(0,0,W,H+hh); g.drawImage(cv,0,hh);      // chart painted below the header strip
+          g.textBaseline='top'; g.fillStyle='#e6edf3'; g.font='700 '+tf+'px -apple-system,Segoe UI,Roboto,sans-serif';
+          g.fillText(name, padL, Math.round(tf*0.5));
+          if(detail){ g.fillStyle='#8b949e'; g.font='600 '+df+'px -apple-system,Segoe UI,Roboto,sans-serif'; g.fillText(detail, padL, Math.round(tf*0.5)+tf+gap); }
+          var bf=Math.max(12,Math.round(H*0.024)); g.font='700 '+bf+'px -apple-system,Segoe UI,Roboto,sans-serif';   // subtle 'patearn' brand badge, bottom-right, light
+          var bt='patearn', btw=g.measureText(bt).width, bpx=Math.round(bf*0.55), bpy=Math.round(bf*0.32), bm=Math.round(bf*0.8);
+          var bw2=btw+2*bpx, bh2=bf+2*bpy, bbx=W-bw2-bm, bby=H+hh-bh2-bm;
+          g.globalAlpha=0.5; g.fillStyle='rgba(88,166,255,0.16)';
+          if(g.roundRect){ g.beginPath(); g.roundRect(bbx,bby,bw2,bh2,bh2/2); g.fill(); } else { g.fillRect(bbx,bby,bw2,bh2); }
+          g.fillStyle='#e6edf3'; g.textBaseline='middle'; g.fillText(bt, bbx+bpx, bby+bh2/2);
+          g.globalAlpha=1; cv=out;                                            // download the composited image (chart + header + badge)
+        }catch(e){}
+        var url; try{ url=cv.toDataURL('image/png'); }catch(e){ return; }
+        var nm=(new URLSearchParams(location.search).get('sym')||'chart');
+        var a=document.createElement('a'); a.href=url; a.download=nm+'-patearn.png'; document.body.appendChild(a); a.click(); setTimeout(function(){ try{a.remove();}catch(e){} },0); }
+      sb.onclick=takeShot;
       document.addEventListener('keydown',function(e){ if((e.key==='F'||e.key==='f')&&e.shiftKey){ e.preventDefault(); tog(); } else if(e.key==='Escape'&&host.classList.contains('cfs')) tog(); });
-      host.appendChild(fb);
+      host.appendChild(fb); host.appendChild(sb);
     })();
 
     // -------- RS docked lane (Strategies) — fetch /dash/rs/overlay on toggle --
