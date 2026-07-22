@@ -48,19 +48,27 @@ def ensure_table(conn) -> None:
 
 
 def compute_all(conn, asof=None, liq_floor=None) -> dict:
-    """Run all four X-scans over the prod bhavcopy (box; needs a populated DB). Read-only.
-    Returns {module: [rows]}; a single scan failing must not lose the others."""
+    """Run all four X-scans over the prod bhavcopy AS OF the latest trading date and keep only
+    names actually trading then. The research scans are survivorship-INCLUSIVE (deliberately, for
+    the union/backtest lane): with no as-of they evaluate every symbol at its OWN last bar, so a
+    name delisted in 2007 returns a "current" row dated 2007. For a LIVE snapshot we pin the as-of
+    to MAX(trade_date) and drop rows whose as-of isn't that date (i.e. not trading on the day).
+    Box; needs a populated DB. Read-only; a single scan failing must not lose the others."""
     import importlib
+    if asof is None:
+        r = conn.execute("SELECT MAX(trade_date) d FROM bhavcopy_rows WHERE series='EQ'").fetchone()
+        asof = r[0] if r else None
     out = {}
     for name in _MODULES:
         try:
             mod = importlib.import_module(f"research.explosive_moves.{name}")
-            kw = {}
-            if asof is not None:
-                kw["asof"] = asof
+            kw = {"asof": asof} if asof else {}
             if liq_floor is not None:
                 kw["liq_floor"] = liq_floor
-            out[name] = mod.scan(conn, **kw)
+            rows = mod.scan(conn, **kw)
+            if asof:                                    # live snapshot = names trading on the as-of day only
+                rows = [x for x in rows if x.get("asof") == asof]
+            out[name] = rows
         except Exception as e:  # noqa: BLE001
             log.warning("x_setups scan %s failed: %s", name, e)
             out[name] = []
