@@ -49,7 +49,7 @@ SNIPPET = """<script>
   var lbl=document.getElementById('wfLbl');
   var ser=[], fans=[], DATA=null, fansOn=false, mode='pred', di=0;
   var BARS=null, manual=[], manualZones=[], probe=null, clickWired=false, keyWired=false;
-  var autosnap=true, editing=null, wfWarn='', redoStack=[];                    // draw: magnet ON (Ramana) — guarded; redoStack powers Ctrl+Y redo
+  var autosnap=true, editing=null, wfWarn='', redoStack=[], wDirty=false;      // draw: magnet ON (Ramana) — guarded; redoStack powers Ctrl+Y redo; wDirty = user drew since enter (persistence race guard)
   var NS={autoscaleInfoProvider:function(){return null;}};
   function add(opts,data){ var s=window.__wfpc.addLineSeries(Object.assign({priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},opts,NS)); s.setData(data); ser.push(s); return s; }
   function clear(){ ser.forEach(function(s){try{window.__wfpc.removeSeries(s);}catch(e){}}); ser=[]; fans=[]; }
@@ -298,9 +298,34 @@ SNIPPET = """<script>
       if(bull ? !(p3<p4 && p4<p2) : !(p3>p4 && p4>p2)) out.push('The placement of point 4 is incorrect.'); }
     return out;
   }
+  // ---- persistence (Ramana): the hand-drawn wave survives reload/device via the SAME
+  //      /dash/drawings store the general drawings use, under a namespaced key `<SYM>#wolfe`
+  //      (its own row — never collides with the general list) + localStorage for instant restore. ----
+  function wRawSym(){ return (new URLSearchParams(location.search).get('sym')||'').trim(); }
+  function wKey(){ return 'wolfedraw:'+wRawSym(); }
+  function wStoreSym(){ return wRawSym()+'#wolfe'; }
+  var wSaveT=null;
+  function saveDraw(){                                                          // localStorage now + debounced server POST (empty array clears the row)
+    try{ localStorage.setItem(wKey(), JSON.stringify(manual)); }catch(e){}
+    if(!wRawSym()) return;
+    if(wSaveT) clearTimeout(wSaveT);
+    wSaveT=setTimeout(function(){ try{ fetch('/dash/drawings?sym='+encodeURIComponent(wStoreSym()),
+      {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(manual),keepalive:true}).catch(function(){}); }catch(e){} }, 600);
+  }
+  function loadDraw(){                                                          // restore on entering draw mode: localStorage instant, then server (source of truth)
+    var got=null; try{ got=JSON.parse(localStorage.getItem(wKey())||'null'); }catch(e){ got=null; }
+    if(Array.isArray(got)&&got.length){ manual=got.slice(0,5); }
+    if(!wRawSym()) return;
+    try{ fetch('/dash/drawings?sym='+encodeURIComponent(wStoreSym())).then(function(r){return r.json();}).then(function(d){
+      if(mode!=='draw'||wDirty) return;                                        // he left draw mode / already started drawing — don't clobber
+      var srv=(d&&Array.isArray(d.items))?d.items:[];
+      if(srv.length){ manual=srv.slice(0,5); try{ localStorage.setItem(wKey(), JSON.stringify(manual)); }catch(e){} drawManual(); controls(); }
+      else if(manual.length){ saveDraw(); }                                    // first-time migrate local -> server
+    }).catch(function(){}); }catch(e){}
+  }
   function doUndo(){ if(!manual.length) return; redoStack.push(manual.pop());  // Ctrl+Z / undo link — step back one point, remember it for redo
-    if(editing!=null&&editing>=manual.length) editing=null; resnap(); drawManual(); controls(); }
-  function doRedo(){ if(!redoStack.length||manual.length>=5) return; manual.push(redoStack.pop()); resnap(); drawManual(); controls(); }  // Ctrl+Y / redo link
+    if(editing!=null&&editing>=manual.length) editing=null; resnap(); drawManual(); controls(); saveDraw(); }
+  function doRedo(){ if(!redoStack.length||manual.length>=5) return; manual.push(redoStack.pop()); resnap(); drawManual(); controls(); saveDraw(); }  // Ctrl+Y / redo link
   function onKey(e){                                                           // undo/redo keys — ONLY while drawing, and never while typing in a field
     if(mode!=='draw') return;
     var tg=(e.target&&e.target.tagName)||''; if(/INPUT|TEXTAREA|SELECT/.test(tg)||(e.target&&e.target.isContentEditable)) return;
@@ -312,17 +337,17 @@ SNIPPET = """<script>
     var price=ensureProbe().coordinateToPrice(param.point.y);
     if(price==null) return;
     var t=normTime(param.time);
-    if(editing!=null){ manual[editing]={time:t,value:Math.round(price*100)/100}; editing=null; redoStack.length=0; resnap(); drawManual(); controls(); return; }  // drop the edited point (a new action invalidates redo)
+    if(editing!=null){ manual[editing]={time:t,value:Math.round(price*100)/100}; editing=null; redoStack.length=0; wDirty=true; resnap(); drawManual(); controls(); saveDraw(); return; }  // drop the edited point (a new action invalidates redo)
     if(manual.length>=5) return;
-    manual.push({time:t,value:Math.round(price*100)/100}); redoStack.length=0; resnap(); drawManual(); controls();   // a fresh point invalidates the redo stack
+    manual.push({time:t,value:Math.round(price*100)/100}); redoStack.length=0; wDirty=true; resnap(); drawManual(); controls(); saveDraw();   // a fresh point invalidates the redo stack
   }
   function enterDraw(){
-    mode='draw'; hideBadge(); clear(); manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0; ensureProbe();   // hide the auto-wave badge — it describes the DETECTED wave, not the one being hand-drawn
+    mode='draw'; hideBadge(); clear(); manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0; wDirty=false; ensureProbe();   // hide the auto-wave badge — it describes the DETECTED wave, not the one being hand-drawn
     if(!clickWired){ try{ window.__wfpc.subscribeClick(onClick); }catch(e){}
       try{ var el=window.__wfpc.chartElement&&window.__wfpc.chartElement(); if(el) el.addEventListener('dblclick',onDbl); }catch(e){}
       clickWired=true; }
     if(!keyWired){ document.addEventListener('keydown',onKey); keyWired=true; }   // Ctrl+Z / Ctrl+Y active while drawing (guarded to draw-mode)
-    controls();
+    loadDraw(); drawManual(); controls();                                        // restore the saved wave for this symbol (if any)
   }
   function exitDraw(){
     clear(); manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0;
@@ -352,10 +377,10 @@ SNIPPET = """<script>
       ' &middot; <span id="wfAuto" style="cursor:pointer;text-decoration:underline;color:var(--ink-2)">use auto</span>'+
       chips+zs+warnHtml;
     var e;
-    if(e=document.getElementById('wfSnap')) e.onclick=function(){ autosnap=!autosnap; resnap(); drawManual(); controls(); };
+    if(e=document.getElementById('wfSnap')) e.onclick=function(){ autosnap=!autosnap; resnap(); drawManual(); controls(); saveDraw(); };
     if(e=document.getElementById('wfUndo')) e.onclick=function(){ doUndo(); };
     if(e=document.getElementById('wfRedo')) e.onclick=function(){ doRedo(); };
-    if(e=document.getElementById('wfReset')) e.onclick=function(){ manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0; drawManual(); controls(); };
+    if(e=document.getElementById('wfReset')) e.onclick=function(){ manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0; wDirty=true; drawManual(); controls(); saveDraw(); };   // saveDraw([]) deletes the stored wave
     if(e=document.getElementById('wfAuto')) e.onclick=function(){ exitDraw(); };
     var pts=document.querySelectorAll('.wfPt');
     for(var k=0;k<pts.length;k++){ pts[k].onclick=function(){ editing=parseInt(this.getAttribute('data-i'),10); drawManual(); controls(); }; }
