@@ -2041,6 +2041,19 @@ managed trades. Same harness/controls as STREAM BAND. **PREDICTION ON RECORD bef
   parameter (grid shown so the direction is transparent, not cherry-picked). Reproduce: trailing-12m
   vol overlay on `mbr_book` CELL_B_TREND_STRONG net.
 
+- **Adding NAMES does NOT close the drawdown gap vs the index — it's a FACTOR problem, not a
+  name-count problem.** RSI-strength ladder inside the trend filter (loosening ≥70 adds names; raw
+  net): R70 **48 names DD −63% R/V 0.71 CAGR 13.2%** → R65 96/−56.5/0.63 → R60 **145/−53.4/0.64** →
+  R55 173/−53.2/0.66 → trend-only **181/−52.8/0.69/11.8%** (vs INDEX ~500 names −30% / 0.86). More
+  names shaves raw DD modestly (−63→−53%) but SACRIFICES return/R/V (0.71→0.64, CAGR 13.2→~11%) —
+  the RSI≥70 names carry the edge and the diluters are correlated momentum/high-beta names; **you
+  can't diversify a factor with more of the same factor** (the DD is systematic, not idiosyncratic —
+  they all crash together 2018/2020). Even broadest + vol-sized bottoms ~−37% (12% target), still
+  short of −30%. **The effective DD lever stays VOL-SIZING (cuts factor exposure), not name count;**
+  best combo = concentrated R70 stack + vol-target (R/V 0.83-0.90, DD −40%). Reaching −30% needs less
+  exposure (less return) or an UNCORRELATED sleeve = portfolio construction. Books: `mbr_book`
+  CELL_B_TREND_R55/R60/R65.
+
 - **Equity curves (₹100 start; net of cost unless noted; monthly-compounded, year-end marks):** A2 net
   (looser pure-2-fractal trail) rides a hair above B net (RSI-45 exit) the WHOLE way — the EXIT-LAB
   "loosest wins" law — but both finish far below Nifty-500 buy-hold. Gross (B) = 12.3× is BETA not
