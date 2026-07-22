@@ -1,6 +1,6 @@
 {
  "registered_gate": "see module docstring (prereg registry: momentum_band_rsi)",
- "run_at": "2026-07-22 12:04Z",
+ "run_at": "2026-07-22 12:14Z",
  "prediction": "FAIL expected (see docstring priors)",
  "EVENT_primary": {
   "cell": {
@@ -251,6 +251,12 @@
    "retvol": 0.69,
    "cagr%": 11.8,
    "maxdd%": -52.8,
+   "months": 170
+  },
+  "CELL_B_TREND_STRONG": {
+   "retvol": 0.71,
+   "cagr%": 13.2,
+   "maxdd%": -63.2,
    "months": 170
   },
   "CELL_B_LIQ25": {

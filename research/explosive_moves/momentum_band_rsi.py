@@ -111,7 +111,8 @@ RSI_COLD = 45.0       # full-exit level after the hot print
 PARTIAL = 0.5         # fraction sold at the first RSI_HOT touch
 FLAT_SIDE = 0.003     # cross-check flat cost per side
 BOOK_KEYS = ("CELL_B", "CELL_A", "CELL_A2", "RANDOM_CTL",
-             "CELL_B_TREND", "CELL_B_LIQ25", "CELL_B_REGIME", "CELL_B_CLEAN")
+             "CELL_B_TREND", "CELL_B_LIQ25", "CELL_B_REGIME", "CELL_B_CLEAN",
+             "CELL_B_TREND_STRONG")
 
 
 # --------------------------------------------------------------------------- #
@@ -428,8 +429,11 @@ def build():
                     segs = []
                     liq25 = S.med_turn[i] >= 25e7
                     reg = idx.up(S.date[e])
+                    strong = not np.isnan(R[e]) and R[e] >= 70.0
                     if trend:
                         segs.append("CELL_B_TREND")
+                    if trend and strong:
+                        segs.append("CELL_B_TREND_STRONG")
                     if liq25:
                         segs.append("CELL_B_LIQ25")
                     if reg:
@@ -607,7 +611,7 @@ def run():
     out["BOOK_cellA_net"] = _book_stats(bk, "CELL_A", "net")
     out["BOOK_random_control_net"] = ctl_net
     out["BOOK_segments_net"] = {k: _book_stats(bk, k, "net")["full"]
-                                for k in ("CELL_B_TREND", "CELL_B_LIQ25", "CELL_B_REGIME", "CELL_B_CLEAN")
+                                for k in ("CELL_B_TREND", "CELL_B_TREND_STRONG", "CELL_B_LIQ25", "CELL_B_REGIME", "CELL_B_CLEAN")
                                 if _book_stats(bk, k, "net")["full"]}
     out["CAGR_raw_vs_net"] = {
         "raw_cagr%": cb_gross["full"]["cagr%"] if cb_gross["full"] else None,

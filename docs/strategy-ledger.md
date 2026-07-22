@@ -2017,6 +2017,17 @@ managed trades. Same harness/controls as STREAM BAND. **PREDICTION ON RECORD bef
   8.4→11.8% net, still sub-hurdle full-period); the with-trend filter is the keeper. Segment books in
   `mbr_book` (keys CELL_B_TREND/LIQ25/REGIME/CLEAN).
 
+- **Two-vitamin stack (with-trend AND RSI≥70-at-entry, ~48 names) — the best CLEAN version, but NOT
+  all-weather, and 2012-18 CANNOT be honestly fixed.** Net full CAGR **13.2%** / R/V 0.71 / DD
+  **−63.2%** (DEEPER than trend-alone −52.8% — concentration cost of ~48 names); h1 2012-18 net R/V
+  0.19→**0.41** (still <0.89), h2 **1.05**. **DIAGNOSIS via gross/net decomposition: 2012-18 is a
+  COST/REGIME problem, NOT selection** — gross h1 R/V is healthy 0.67→**0.87** (CAGR 12-20%) but net
+  collapses to 0.19-0.41 (fixed cost eats ~12pp), because the choppier 2012-18 regime carried less
+  momentum-beta for the tax to survive. Lifting h1 to the bar needs either zero cost (impossible;
+  already realistic) or a lever tuned to an in-sample half (OVERFITTING — refused). The gross edge is
+  regime-dependent beta: clears the bar in strong-trend regimes (h2), not choppy ones (h1). This is
+  the honest CEILING of the momentum-band family. Segment books: `mbr_book` key CELL_B_TREND_STRONG.
+
 - **Equity curves (₹100 start; net of cost unless noted; monthly-compounded, year-end marks):** A2 net
   (looser pure-2-fractal trail) rides a hair above B net (RSI-45 exit) the WHOLE way — the EXIT-LAB
   "loosest wins" law — but both finish far below Nifty-500 buy-hold. Gross (B) = 12.3× is BETA not
