@@ -575,8 +575,8 @@ SNIPPET = """<script>
         document.head.appendChild(st); }
       function refit(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); }
       function layoutFs(){ var on=host.classList.contains('cfs'); rail.classList.toggle('cfs-rail',on);
-        if(on){ host.style.setProperty('top',(rail.offsetHeight||0)+'px','important'); }   // chart starts below the fixed rail
-        else { host.style.removeProperty('top'); }
+        host.style.removeProperty('top');                                    // chart fills the ENTIRE window; the rail FLOATS over the top (collapsible) so no charting area is lost
+        try{ fb.style.top=sb.style.top=(on?'auto':'8px'); fb.style.bottom=sb.style.bottom=(on?'10px':'auto'); }catch(e){}   // fullscreen: the rail owns the top → move the buttons to bottom-right, clear of it
         requestAnimationFrame(refit); }
       // collapsible drawing drawer (▾/▸) — works in BOTH normal and fullscreen
       var cbar=E('div','display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:'+C.txt+';user-select:none;padding:1px 2px','\\u25be Drawings');
@@ -594,11 +594,25 @@ SNIPPET = """<script>
       var sb=E('div','position:absolute;top:8px;right:40px;z-index:12;cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid '+C.border+';border-radius:6px;background:rgba(13,17,23,.72);color:'+C.txt+';font-size:14px','\\u2913');
       sb.title='Save screenshot (branded patearn)';
       function takeShot(){ var cv; try{ cv=pc.takeScreenshot(); }catch(e){ cv=null; } if(!cv) return;
-        try{ var g=cv.getContext('2d'), W=cv.width, H=cv.height, fs=Math.max(15,Math.round(H*0.034));
-          g.font='700 '+fs+'px -apple-system,Segoe UI,Roboto,sans-serif';
-          var txt='patearn', tw=g.measureText(txt).width, pX=fs*0.7, pY=fs*0.4, m=fs*0.6, bw=tw+pX*2, bh=fs+pY*2, bx=W-bw-m, by=H-bh-m;
-          g.fillStyle='rgba(13,17,23,0.55)'; if(g.roundRect){ g.beginPath(); g.roundRect(bx,by,bw,bh,fs*0.35); g.fill(); } else { g.fillRect(bx,by,bw,bh); }
-          g.fillStyle='#e6edf3'; g.textBaseline='middle'; g.fillText(txt,bx+pX,by+bh/2+1);
+        try{
+          var W=cv.width, H=cv.height;
+          var lblEl=document.querySelector('.chartlbl'), rdtEl=document.getElementById('priceRdt');
+          var name=(((lblEl&&lblEl.textContent)||'').split(/\\s[\\u2013\\u2014-]\\s/)[0].trim())||(new URLSearchParams(location.search).get('sym')||'');   // "SYM · Company" (drop the "— price…" suffix)
+          var detail=(((rdtEl&&rdtEl.textContent)||'').replace(/\\s+/g,' ').trim());                    // date · O H L C · DVPT · Deliv · Traded…
+          var tf=Math.max(15,Math.round(H*0.030)), df=Math.max(11,Math.round(H*0.020)), gap=Math.round(tf*0.35), padL=Math.round(tf*0.9);
+          var hh=Math.round(tf*0.5 + tf + (detail?gap+df:0) + tf*0.5);        // header strip carrying the name + price the canvas omits
+          var out=document.createElement('canvas'); out.width=W; out.height=H+hh; var g=out.getContext('2d');
+          g.fillStyle=C.bg; g.fillRect(0,0,W,H+hh); g.drawImage(cv,0,hh);      // chart painted below the header strip
+          g.textBaseline='top'; g.fillStyle='#e6edf3'; g.font='700 '+tf+'px -apple-system,Segoe UI,Roboto,sans-serif';
+          g.fillText(name, padL, Math.round(tf*0.5));
+          if(detail){ g.fillStyle='#8b949e'; g.font='600 '+df+'px -apple-system,Segoe UI,Roboto,sans-serif'; g.fillText(detail, padL, Math.round(tf*0.5)+tf+gap); }
+          var bf=Math.max(12,Math.round(H*0.024)); g.font='700 '+bf+'px -apple-system,Segoe UI,Roboto,sans-serif';   // subtle 'patearn' brand badge, bottom-right, light
+          var bt='patearn', btw=g.measureText(bt).width, bpx=Math.round(bf*0.55), bpy=Math.round(bf*0.32), bm=Math.round(bf*0.8);
+          var bw2=btw+2*bpx, bh2=bf+2*bpy, bbx=W-bw2-bm, bby=H+hh-bh2-bm;
+          g.globalAlpha=0.5; g.fillStyle='rgba(88,166,255,0.16)';
+          if(g.roundRect){ g.beginPath(); g.roundRect(bbx,bby,bw2,bh2,bh2/2); g.fill(); } else { g.fillRect(bbx,bby,bw2,bh2); }
+          g.fillStyle='#e6edf3'; g.textBaseline='middle'; g.fillText(bt, bbx+bpx, bby+bh2/2);
+          g.globalAlpha=1; cv=out;                                            // download the composited image (chart + header + badge)
         }catch(e){}
         var url; try{ url=cv.toDataURL('image/png'); }catch(e){ return; }
         var nm=(new URLSearchParams(location.search).get('sym')||'chart');
