@@ -1975,6 +1975,34 @@ managed trades. Same harness/controls as STREAM BAND. **PREDICTION ON RECORD bef
   07-13/14/14b/14c/14d/14e. Surviving descriptive residual unchanged (band-state + own-history stretch
   percentile as context columns).
 
+- **Equity curves (₹100 start; net of cost unless noted; monthly-compounded, year-end marks):** A2 net
+  (looser pure-2-fractal trail) rides a hair above B net (RSI-45 exit) the WHOLE way — the EXIT-LAB
+  "loosest wins" law — but both finish far below Nifty-500 buy-hold. Gross (B) = 12.3× is BETA not
+  alpha (the entry event-study is placebo-negative, δ −0.012); cost converts it to 3.2× net, BELOW the
+  index's 6.0×. The 2018-19 trough (net ~93-125 while the index ran 234→252) is where the sub-hurdle
+  2012-18 half (retvol 0.19/0.28) is lost.
+
+  | Year-end | B gross | A2 net | B net | Nifty 500 |
+  |---|--:|--:|--:|--:|
+  | 2012 | 123 | 113 | 113 | 121 |
+  | 2013 | 126 | 106 | 107 | 126 |
+  | 2014 | 210 | 162 | 163 | 173 |
+  | 2015 | 229 | 163 | 159 | 172 |
+  | 2016 | 218 | 148 | 139 | 178 |
+  | 2017 | 363 | 223 | 209 | 243 |
+  | 2018 | 213 | 125 | 113 | 234 |
+  | 2019 | 192 | 104 | 93 | 252 |
+  | 2020 | 319 | 155 | 137 | 294 |
+  | 2021 | 567 | 247 | 222 | 383 |
+  | 2022 | 587 | 239 | 208 | 395 |
+  | 2023 | 865 | 325 | 281 | 497 |
+  | 2024 | 1142 | 388 | 336 | 572 |
+  | 2025 | 1133 | 364 | 307 | 610 |
+  | 2026-07 | **1232** | **373** | **315** | **597** |
+
+  Full-period return/vol: B gross 1.00 · A2 net **0.60** · B net **0.53** · (Nifty-500 hurdle 0.89).
+  A2's 2019-26 half touches 0.91 (over the bar) but its 2012-18 half is 0.28 → fails both-halves.
+
 ---
 
 ## Study 2026-07-13 — STREAM BAND (13-EMA HiLo band + 5-EMA HLC3 trigger) reversal cross (DONE — pre-registered FAIL-null; the BUY-cross *negatively* selects)
