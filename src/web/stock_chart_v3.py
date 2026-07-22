@@ -26,6 +26,7 @@ from __future__ import annotations
 import csv as _csvmod
 import io as _io
 import json as _json
+import urllib.parse as _uq
 
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
@@ -151,7 +152,8 @@ def chart_html(sym: str, rng: str = "") -> str:
         '<button data-r="63">3M</button><button data-r="126">6M</button>'
         '<button data-r="252" class="on">1Y</button><button data-r="504">2Y</button>'
         '<button data-r="0">Max</button></div>'
-        + ('<a class="pv3-ev" style="margin-left:10px" href="/dash/preview/stock?sym=' + sym
+        + ('<a class="pv3-ev" style="margin-left:10px" href="/dash/preview/stock?sym='
+           + _uq.quote(sym)
            + '&range=max&section=chart#chart">full history →</a>' if rng != "max" else "")
         + '<div class="chartwrap"><div id="priceChart" style="height:430px"></div></div>')
     return (scaffold
@@ -164,8 +166,8 @@ def _selftest() -> int:
     for seam in ("window.__wfpc", "__wfcandle", "[data-ptf]", "stratBar", "cprBar",
                  "__cmpAdd", "maBar"):
         assert seam in SNIPPET, "seam lost: " + seam
-    for feat in ("pv3pins", "pv3mru", "All tools", "initCmpFromUrl", "syncCmpUrl",
-                 "pv3cmp", "Open in Compare", "series CSV",
+    for feat in ("pv3pins", "pv3mru", "All tools", "initCmpFromUrl", "__cmpSync",
+                 "pv3cmp", "Open in Compare", "series CSV", "range=max",
                  "/dash/preview/stock/export"):
         assert feat in SNIPPET, "feature missing: " + feat
     routes = {getattr(r, "path", None) for r in router.routes}
@@ -639,10 +641,10 @@ SNIPPET = """<script>
     var wfRow=document.getElementById('wfChk'); wfRow=wfRow?wfRow.closest('.fbar'):null;
     if(ivBar){ row2.appendChild(family('Interval',ivBar)); }
     if(rangeBar){ row2.appendChild(family('Range',rangeBar)); }
-    (function(){ var cur=new URLSearchParams(location.search).get('sym')||''; if(!cur)return;
+    (function(){ var q=new URLSearchParams(location.search); var cur=q.get('sym')||''; if(!cur)return;
       var a=E('a','font-size:11px;color:var(--ink-2);border:1px solid var(--line-2);border-radius:6px;padding:3px 8px;text-decoration:none','\u2b07 series CSV');
       a.title='This chart\u2019s daily series (OHLC + DVPT + delivery), served server-side';
-      a.href='/dash/preview/stock/export?sym='+encodeURIComponent(cur);
+      a.href='/dash/preview/stock/export?sym='+encodeURIComponent(cur)+(q.get('range')==='max'?'&range=max':'');
       row2.appendChild(family('Data',a)); })();
     if(wfLbl){ var st=E('span','font-size:12px;color:'+C.txt); st.appendChild(wfLbl); row2.appendChild(st); }
     rail.appendChild(row2);
@@ -861,7 +863,7 @@ SNIPPET = """<script>
         var ln=pc.addLineSeries({priceScaleId:'cmp',color:col,lineWidth:1.5,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:d.sym});
         ln.setData(rebaseToWindow(d.series));
         cmpReg.items.push({sym:d.sym,line:ln,col:col});
-        renderCmpBar(); refreshLegend(); reflowCmp();
+        renderCmpBar(); refreshLegend(); reflowCmp(); if(window.__cmpSync)window.__cmpSync();
       }).catch(function(err){ try{console.error('compare add failed:',err&&err.message,err);}catch(e){} cmpMsg('Could not load "'+name+'"'); });
     }
     function removeCompare(i){ var it=cmpReg.items[i]; if(!it) return; try{ pc.removeSeries(it.line); }catch(e){}
@@ -920,17 +922,16 @@ SNIPPET = """<script>
     // expose a hook so the UI builder (below, after rail mount) can attach
     window.__cmpAdd=addCompare; window.__cmpRemove=removeCompare;
     // \u00a7M (M4 inc-2): the compare set lives in the URL (+ a session mirror for carryover)
-    function syncCmpUrl(){ try{ var u=new URL(location.href); var v=cmpReg.items.map(function(c){return c.sym;}).join(',');
+    window.__cmpSync=function(){ try{ var u=new URL(location.href); var v=cmpReg.items.map(function(c){return c.sym;}).join(',');
       if(v){u.searchParams.set('cmp',v);}else{u.searchParams.delete('cmp');}
       history.replaceState(null,'',u.toString()); sessionStorage.setItem('pv3cmp',v); }catch(e){} }
-    var _origAdd=addCompare, _origRem=removeCompare;
-    addCompare=function(n){ _origAdd(n); setTimeout(syncCmpUrl,900); };
-    removeCompare=function(i){ _origRem(i); syncCmpUrl(); };
-    window.__cmpAdd=addCompare; window.__cmpRemove=removeCompare;
+    var _origRem=removeCompare;
+    removeCompare=function(i){ _origRem(i); window.__cmpSync(); };
+    window.__cmpRemove=removeCompare;
     (function initCmpFromUrl(){ try{
       var q=new URLSearchParams(location.search); var v=q.get('cmp')||'';
       if(!v){ v=sessionStorage.getItem('pv3cmp')||''; }
-      v.split(',').filter(Boolean).slice(0,4).forEach(function(s){ _origAdd(s); });
+      v.split(',').filter(Boolean).slice(0,4).forEach(function(s){ addCompare(s); });
     }catch(e){} })();
   }
 

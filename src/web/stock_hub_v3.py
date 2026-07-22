@@ -165,7 +165,9 @@ def stock_hub(sym: str = "", section: str = "", ch: str = "", cmp: str = "",
     sym = str(sym or "").strip().upper()[:20]
     ch = str(ch or "").strip().lower()[:12]
     cmp = str(cmp or "").strip().upper()[:96]
-    qs_extra = ("&ch=" + _uq.quote(ch) if ch else "") + ("&cmp=" + _uq.quote(cmp) if cmp else "")
+    qs_extra = (("&ch=" + _uq.quote(ch) if ch else "")
+                + ("&cmp=" + _uq.quote(cmp) if cmp else "")
+                + ("&range=max" if range == "max" else ""))
     head = C.css() + term_chip.assets() + news_dock.css() + H.css()
     crumbs = [("Home", "/dash/preview"), ("Stocks", "/dash/preview"), (sym or "…", "")]
     nav_items = [("Screener (classic)", "/dash/screen2", False),

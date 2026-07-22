@@ -181,7 +181,7 @@ def test_chart_fork_preserves_overlay_seams():
 
 def test_chart_fork_carries_m_and_n_contracts():
     from src.web.stock_chart_v3 import SNIPPET
-    for feat in ("initCmpFromUrl", "syncCmpUrl", "pv3cmp",      # §M URL authority + carryover
+    for feat in ("initCmpFromUrl", "__cmpSync", "pv3cmp",      # §M URL authority + carryover
                  "Open in Compare",                              # §M.2 hand-off
                  "pv3pins", "pv3mru", "All tools",               # §N pins + MRU + dropdown
                  "vs Nifty 500",                                 # §M.1 shared benchmark set
