@@ -167,3 +167,20 @@ Analysis scripts committed under `research/explosive_moves/gauntlet/`. On the bo
 # K30 lag + AUM:     ... python union_k30_checks.py /opt/hermes/data/hermes.db
 ```
 The workbook is rebuilt by `build_workbook.py` from `bt_zerodha.json` + `union_gauntlet.json`.
+
+## 10. Follow-on — improving the R logic (2026-07-22, ledger 16BD)
+
+Ramana asked to lift CAGR / cut drawdown without repeating dead ideas. Three candidates, all tested on the
+gauntlet above:
+- **C — hold winners longer → KEPT + SEALED (K30-HOLD).** Retain a held name while it stays in the top-60
+  (2× the 30 held); refill from top-ranked non-held. K30 net **17.8→19.0%** (₹1cr 27.6→33.6cr), worst-drop
+  **−38% unchanged**. Robust: net gain positive at EVERY band 40–60 (+0.6 to +1.2pp), drawdown pinned
+  throughout — not a lucky threshold. Lifts gross too (better selection, not just cost). Sealed as the 5th
+  union sibling, `docs/prereg/union-k30-hold-prereg.md` (sha256 `e6994c19…`), forward-judged 2026-10-03+.
+- **B-proxy — price-crash filter → BURIED (inert).** Removed zero names/rebalance: momentum already avoids
+  just-crashed stocks. Zero effect on net or drawdown.
+- **B — governance blow-up filter → FORWARD-ONLY.** Pledge/promoter-sell/surveillance/insider feeds have no
+  point-in-time history before ~Nov-2025; can't be backtested, only run live from now. Intent sound, evidence missing.
+
+Runners (additive, sealed engine untouched): `research/explosive_moves/gauntlet/build_c_bproxy.py` (toggled-rule
+variant) + `build_band_sweep.py` (robustness sweep).
