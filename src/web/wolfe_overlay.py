@@ -323,6 +323,62 @@ SNIPPET = """<script>
       else if(manual.length){ saveDraw(); }                                    // first-time migrate local -> server
     }).catch(function(){}); }catch(e){}
   }
+  // ---- LEARNINGS (Ramana 2026-07-22): capture-and-preserve the hand-drawn wave as an isolated,
+  //      persistent example (server table wolfe_learnings). Never touches the detector/scoring. ----
+  var learnCount=0, learnPanel=null, learnOpen=false;
+  function lSym(){ return (new URLSearchParams(location.search).get('sym')||'').trim(); }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+  function refreshLCount(){ if(!lSym()) return;
+    fetch('/dash/wolfe/learnings?sym='+encodeURIComponent(lSym())).then(function(r){return r.json();}).then(function(d){
+      learnCount=(d&&d.items)?d.items.length:0; if(mode==='draw') controls(); }).catch(function(){}); }
+  function saveLearning(){
+    if(manual.length<4){ alert('Place at least points 1\\u20134 first, then save.'); return; }
+    if(!confirm('Do you want me to take this as my learning for Wolfe wave?')) return;
+    var dir=(manual[3].value>manual[1].value)?'BEAR':'BULL';                    // ascending wedge = SELL/BEAR (project convention)
+    fetch('/dash/wolfe/learnings?sym='+encodeURIComponent(lSym()),{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({direction:dir,points:manual.slice(),zones:manualZones.slice(),note:''})})
+      .then(function(r){return r.json();}).then(function(d){
+        if(d&&d.ok){ learnOpen=true; renderLearn(); refreshLCount(); }
+        else alert('Save failed'+(d&&d.error?': '+d.error:'')); }).catch(function(){ alert('Save failed (offline?)'); });
+  }
+  function ensureLPanel(){ if(learnPanel) return learnPanel;
+    learnPanel=document.createElement('div');
+    learnPanel.style.cssText='display:none;margin-top:6px;padding:8px 10px;border:1px solid var(--line-2);border-radius:8px;background:#0e1320;font-size:12px;max-height:280px;overflow:auto;line-height:1.5';
+    if(lbl&&lbl.parentNode) lbl.parentNode.appendChild(learnPanel); return learnPanel; }
+  function startDictation(inp,btn){                                            // voice note via the browser Web Speech API (Chrome); falls back to typing
+    var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ alert('Voice input is not supported in this browser \\u2014 please type the note.'); return; }
+    try{ var r=new SR(); r.lang='en-IN'; r.interimResults=false; r.maxAlternatives=1; btn.textContent='\\ud83d\\udd34';
+      r.onresult=function(ev){ var t=ev.results[0][0].transcript; inp.value=(inp.value?inp.value+' ':'')+t; };
+      r.onerror=function(){}; r.onend=function(){ btn.textContent='\\ud83c\\udfa4'; }; r.start();
+    }catch(e){ btn.textContent='\\ud83c\\udfa4'; } }
+  function renderLearn(){
+    var p=ensureLPanel();
+    if(!learnOpen){ p.style.display='none'; return; }
+    p.style.display='block'; p.innerHTML='loading\\u2026';
+    fetch('/dash/wolfe/learnings?sym='+encodeURIComponent(lSym())).then(function(r){return r.json();}).then(function(d){
+      var items=(d&&d.items)||[]; learnCount=items.length;
+      if(!items.length){ p.innerHTML='<i style="color:var(--ink-2)">No saved learnings yet for this symbol. Draw a wave, then \\u201c\\u2605 save as learning\\u201d.</i>'; return; }
+      p.innerHTML='<b style="color:#d29922">Wolfe learnings \\u2014 '+esc(lSym())+' ('+items.length+')</b>'+items.map(function(it){
+        var when=''; try{ when=new Date(it.created_at*1000).toISOString().slice(0,10); }catch(e){}
+        var col=(it.direction==='BULL')?'#3fd486':'#ff6a7a', pts=(it.points||[]).map(function(q,i){return (i+1)+':'+q.value;}).join(' ');
+        return '<div data-id="'+it.id+'" style="border-top:1px solid var(--bg-2);padding:6px 0">'
+          +'<b>#'+it.id+'</b> \\u00b7 <b style="color:'+col+'">'+esc(it.direction||'?')+'</b> \\u00b7 '+when+' \\u00b7 '+(it.points||[]).length+'pts'
+          +' &nbsp;<span class="lView" style="cursor:pointer;color:#58a6ff;text-decoration:underline">view</span>'
+          +' &nbsp;<span class="lDel" style="cursor:pointer;color:#ff6a7a;text-decoration:underline">delete</span>'
+          +'<div style="color:var(--ink-2);font-size:11px">'+esc(pts)+'</div>'
+          +'<div style="margin-top:3px;display:flex;gap:5px;align-items:center">'
+          +'<input class="lNote" value="'+esc(it.note)+'" placeholder="add a note (type or \\ud83c\\udfa4)\\u2026" style="flex:1;background:#0b0f16;border:1px solid var(--line-2);border-radius:5px;color:var(--ink);padding:3px 6px;font-size:11px">'
+          +'<span class="lMic" title="dictate" style="cursor:pointer">\\ud83c\\udfa4</span>'
+          +'<span class="lSave" style="cursor:pointer;color:#3fd486;text-decoration:underline;white-space:nowrap">save note</span></div></div>';
+      }).join('');
+      [].forEach.call(p.querySelectorAll('.lView'),function(el){ el.onclick=function(){ var id=+this.closest('[data-id]').getAttribute('data-id'); var it=items.filter(function(x){return x.id===id;})[0]; if(it){ manual=(it.points||[]).slice(0,5); wDirty=true; resnap(); drawManual(); controls(); } }; });
+      [].forEach.call(p.querySelectorAll('.lDel'),function(el){ el.onclick=function(){ var id=+this.closest('[data-id]').getAttribute('data-id'); if(!confirm('Delete learning #'+id+'?')) return; fetch('/dash/wolfe/learnings/delete?id='+id,{method:'POST'}).then(function(){ renderLearn(); refreshLCount(); }); }; });
+      [].forEach.call(p.querySelectorAll('.lSave'),function(el){ el.onclick=function(){ var row=this.closest('[data-id]'), id=+row.getAttribute('data-id'), note=row.querySelector('.lNote').value, b=this;
+        fetch('/dash/wolfe/learnings/note?id='+id,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({note:note})}).then(function(r){return r.json();}).then(function(){ b.textContent='saved \\u2713'; setTimeout(function(){ b.textContent='save note'; },1200); }); }; });
+      [].forEach.call(p.querySelectorAll('.lMic'),function(el){ el.onclick=function(){ startDictation(this.closest('[data-id]').querySelector('.lNote'),this); }; });
+    }).catch(function(){ p.innerHTML='<i style="color:#ff6a7a">could not load learnings</i>'; });
+  }
   function doUndo(){ if(!manual.length) return; redoStack.push(manual.pop());  // Ctrl+Z / undo link — step back one point, remember it for redo
     if(editing!=null&&editing>=manual.length) editing=null; resnap(); drawManual(); controls(); saveDraw(); }
   function doRedo(){ if(!redoStack.length||manual.length>=5) return; manual.push(redoStack.pop()); resnap(); drawManual(); controls(); saveDraw(); }  // Ctrl+Y / redo link
@@ -347,10 +403,11 @@ SNIPPET = """<script>
       try{ var el=window.__wfpc.chartElement&&window.__wfpc.chartElement(); if(el) el.addEventListener('dblclick',onDbl); }catch(e){}
       clickWired=true; }
     if(!keyWired){ document.addEventListener('keydown',onKey); keyWired=true; }   // Ctrl+Z / Ctrl+Y active while drawing (guarded to draw-mode)
-    loadDraw(); drawManual(); controls();                                        // restore the saved wave for this symbol (if any)
+    loadDraw(); drawManual(); refreshLCount(); controls();                       // restore the saved working wave + the learnings count for this symbol
   }
   function exitDraw(){
     clear(); manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0;
+    learnOpen=false; if(learnPanel) learnPanel.style.display='none';              // hide the learnings drawer when leaving draw mode
     mode=defaultMode(); di=0; redraw();
   }
   function drawLink(){ return ' &nbsp;&middot; <span id="wfDraw" style="cursor:pointer;text-decoration:underline;color:#58a6ff">✎ draw your own</span>'; }
@@ -375,13 +432,17 @@ SNIPPET = """<script>
       ' &middot; <span id="wfRedo" title="redo (Ctrl+Y)" style="cursor:pointer;text-decoration:underline">redo</span>'+
       ' &middot; <span id="wfReset" style="cursor:pointer;text-decoration:underline">reset</span>'+
       ' &middot; <span id="wfAuto" style="cursor:pointer;text-decoration:underline;color:var(--ink-2)">use auto</span>'+
+      ' &nbsp;&middot; <span id="wfLearn" style="cursor:pointer;text-decoration:underline;color:#d29922">\\u2605 save as learning</span>'+
+      ' &middot; <span id="wfLearnList" style="cursor:pointer;text-decoration:underline;color:var(--ink-2)">learnings'+(learnCount?' ('+learnCount+')':'')+'</span>'+
       chips+zs+warnHtml;
     var e;
     if(e=document.getElementById('wfSnap')) e.onclick=function(){ autosnap=!autosnap; resnap(); drawManual(); controls(); saveDraw(); };
     if(e=document.getElementById('wfUndo')) e.onclick=function(){ doUndo(); };
     if(e=document.getElementById('wfRedo')) e.onclick=function(){ doRedo(); };
-    if(e=document.getElementById('wfReset')) e.onclick=function(){ manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0; wDirty=true; drawManual(); controls(); saveDraw(); };   // saveDraw([]) deletes the stored wave
+    if(e=document.getElementById('wfReset')) e.onclick=function(){ if(manual.length && !confirm('Clear the current wave? This erases the '+manual.length+' point(s) placed. (Tip: “★ save as learning” first to keep it.)')) return; manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0; wDirty=true; drawManual(); controls(); saveDraw(); };   // guarded reset; saveDraw([]) deletes the stored working wave
     if(e=document.getElementById('wfAuto')) e.onclick=function(){ exitDraw(); };
+    if(e=document.getElementById('wfLearn')) e.onclick=function(){ saveLearning(); };
+    if(e=document.getElementById('wfLearnList')) e.onclick=function(){ learnOpen=!learnOpen; renderLearn(); };
     var pts=document.querySelectorAll('.wfPt');
     for(var k=0;k<pts.length;k++){ pts[k].onclick=function(){ editing=parseInt(this.getAttribute('data-i'),10); drawManual(); controls(); }; }
   }
@@ -460,7 +521,7 @@ SNIPPET = """<script>
   }
   cb.addEventListener('change', function(){
     if(this.checked){ if(DATA||BARS!==null) redraw(); else load(); }
-    else { clear(); manual=[]; manualZones=[]; mode='pred'; hideBadge(); if(lbl) lbl.textContent=''; }
+    else { clear(); manual=[]; manualZones=[]; mode='pred'; hideBadge(); learnOpen=false; if(learnPanel) learnPanel.style.display='none'; if(lbl) lbl.textContent=''; }
   });
   // ON OPEN (Ramana): if this symbol has a saved hand-drawn wave, auto-enable the overlay and
   // paint it the moment the chart opens — no need to tick "Wolfe wave" + click "draw your own".

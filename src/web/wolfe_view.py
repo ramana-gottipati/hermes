@@ -498,6 +498,15 @@ try:
 except Exception:  # pragma: no cover - never let the drawing store break the Wolfe routes
     pass
 
+# Mount the isolated WOLFE LEARNINGS capture store (/dash/wolfe/learnings ...) onto THIS
+# router too — same durable, no-main.py-edit include pattern. Capture-and-preserve of
+# Ramana's hand-drawn wave examples; never touches detection / §A / §B / winner_scan.
+try:
+    from src.web.wolfe_learnings_store import router as _wolfe_learn_router
+    router.include_router(_wolfe_learn_router)
+except Exception:  # pragma: no cover - never let the learnings store break the Wolfe routes
+    pass
+
 # Mount the OPEN-TRADES "remaining ROI" filterable view (/dash/wolfe/trades) onto THIS
 # router so it goes live without a v2_surfaces / lens_registry edit and survives a
 # redeploy (committed) — same durable include pattern as harmonic/drawings above. It is
