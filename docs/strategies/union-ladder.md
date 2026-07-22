@@ -18,7 +18,10 @@
 > drift-proof forward-gate anchors are ledger 16AS; `union_forward.py` gates on the 16AS
 > closed-window set and prints the seal-time headlines beside, drift disclosed. Whether headline
 > rows are ever RESTATED (and whether gold ETFs stay in the universe) is an owner decision tied
-> to `task_7a70ad77` — until then the seal-time records stand.
+> to `task_7a70ad77` — until then the seal-time records stand. **(16BG, 2026-07-22:** a further
+> ETF-class CA batch — 174 ETF/index-fund splits — re-adjusted the era-floor books again; the
+> forward gate re-anchored A1/A2/K30 and now allows them a small tolerance band, the ETF-free base
+> books staying tight as the tamper-check.**)**
 
 **One-line definition:** the Union Ladder is the full-record compendium of every union-family configuration — sealed, recorded, and rejected alike — with each member's complete ruleset and every recorded result number standing in one place, so the whole family can be read side by side without chasing deltas across ledger entries.
 
@@ -149,6 +152,40 @@ deselection/stop/death). Everything else per the shared machinery + A2 floor + r
 Component single-axis rows (16AF, on the A2-composite base): top-30 alone 25.9%/α+14.6 ·
 let-winners-run alone 26.5%/α+15.1/DD −27.3 · rank-weights alone 26.3%/α+15.1/β0.79 (passed;
 not composed — drift took the declared precedence).
+
+## 6b. 🔒 THE R-IMPROVEMENT SIBLINGS — the HOLD / DEEP variants (2026-07-22; ledger 16BD/16BE/16BF)
+
+Three sealed variants from the "lift CAGR / cut drawdown" research pass, each = an existing base +
+one or two **orthogonal, individually robustness-swept** levers. Unlike §1–§6 (whose tables are
+FLAT/seal-basis), these are measured on the identical **Zerodha real-cost gauntlet** (ledger 16BC),
+so their NET numbers are comparable to each other. Forward-tested 2026-10-03+ beside the four
+originals; family adjudication picks ≤1 across ALL sealed specs (these share levers/base with
+K30/A2, disclosed in their preregs, so a joint pass ≠ separate discoveries).
+
+**The two levers:**
+- **HOLD** (16BD) — retain a held name while it stays within the **top 2× the holding count**
+  (refill to size from the best non-held survivors). Cuts turnover + mildly improves selection;
+  drawdown ≈ unchanged. Robust across bands 40–90.
+- **DEEP** (16BE) — the TURN leg fires only from a **deeper oversold: RSI-of-RS < 20** (vs the
+  shared machinery's < 30). Higher-conviction turns → stronger bounces AND fewer false turns, so it
+  RAISES return and CUTS drawdown. Robust across floors <25/<20. (Sector-relative RS only —
+  index-relative was tested and FAILED the positive-geometric selector bar, 16BE.)
+
+| sibling | seal | = base + lever(s) | flat CAGR | NET (gauntlet) | ₹1cr → net | worst drop |
+|---|---|---|---|---|---|---|
+| _(COMPOSITE-30 baseline)_ | `07ef2ef9…` | — | 26.4% | +17.8% | ₹27.6cr | −38% |
+| **K30-HOLD** | `e6994c19…` | COMPOSITE-30 + HOLD (top-60) | 27.2% | **+19.0%** | ₹33.6cr | −38% |
+| **A2-HOLD** | `17e0dd1a…` | A2 (EW top-40) + HOLD (top-80) | 26.6% | **+18.6%** | ₹31.5cr | −33% |
+| **K30-DEEP-HOLD** | `b705f770…` | COMPOSITE-30 + DEEP + HOLD | 27.5% | **+19.2%** | ₹34.8cr | **−29%** |
+
+**Read:** **K30-DEEP-HOLD** is the best net (19.2%) AND the lowest drawdown (−29%) of the whole
+family — the stack keeps the HOLD return-boost and the DEEP drawdown-cut. **A2-HOLD** is the
+lower-drawdown equal-weight cousin (its net is mildly OPTIMISTIC — equal-weight under-charges
+reweight drift under the gauntlet, 16BC). **⚠** all IN-SAMPLE, and net-of-cost ≠ net-of-selection;
+**K30-DEEP-HOLD carries the HIGHEST overfit risk of the seven** (two stacked in-sample levers) —
+disclosed in its prereg. Per-window breakdowns not separately run (the gauntlet is full-period).
+Preregs: `union-k30-hold-prereg.md` · `union-a2-hold-prereg.md` · `union-k30-deephold-prereg.md`.
+All seven siblings now grade mechanically in `union_forward.py` on 2026-10-03+ (ledger 16BG).
 
 ## 7. ❌ The walls (full detail in catalog §G + the ledger)
 
