@@ -478,7 +478,7 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
            "overfit risk (two stacked in-sample levers). Full record: <a href='/dash/strategy-ref?p=union-ladder'>Union Ladder "
            "compendium →</a>. Descriptive; not advice.</p>"
            "</div>")
-        + "<div class='bar'><b>Origin: 📚 CLASSIC</b> — all four runners are public, bookish families (provenance map: <code>docs/strategies/origins.md</code>); none is proprietary. Ramana-original and house-proprietary strategies live on <a href='/dash/strategist'>Strategist</a>.</div>"
+        + "<div class='bar'><b>Origin: 📚 CLASSIC</b> — all four runners are public, bookish families (provenance map: <code>docs/strategies/origins.md</code>); none is proprietary. Founder-original and house-proprietary strategies live on <a href='/dash/strategist'>Strategist</a>.</div>"
         + "<div class='honesty'>NAV is <b>flat-cost</b> (0.3%/side on the churned fraction, "
         "labeled) and marked at rebalance dates. <b>STEADY-25 is the ONLY book fundable net of "
         "participation cost</b> (net ~1.02 @₹50cr, the S163-signed benchmark). <b>PACER-25, "
