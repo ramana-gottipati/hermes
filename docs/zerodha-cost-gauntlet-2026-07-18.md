@@ -177,6 +177,10 @@ gauntlet above:
   **−38% unchanged**. Robust: net gain positive at EVERY band 40–60 (+0.6 to +1.2pp), drawdown pinned
   throughout — not a lucky threshold. Lifts gross too (better selection, not just cost). Sealed as the 5th
   union sibling, `docs/prereg/union-k30-hold-prereg.md` (sha256 `e6994c19…`), forward-judged 2026-10-03+.
+- **C on A2 → ALSO SEALED (A2-HOLD, the lower-drawdown variant).** Same 2×-holdings band (top-80) on A2's
+  equal-weight top-40 base: net **17.2→18.6%** (₹1cr 25.0→31.5cr), worst-drop **−33% unchanged**; robust
+  across bands 60–90 (+1.1 to +1.6). `docs/prereg/union-a2-hold-prereg.md` (sha256 `17e0dd1a…`). ⚠ EW
+  undercharge (16BC) → mildly optimistic net; A2-HOLD's case is the shallower drawdown, not a higher net than K30-HOLD.
 - **B-proxy — price-crash filter → BURIED (inert).** Removed zero names/rebalance: momentum already avoids
   just-crashed stocks. Zero effect on net or drawdown.
 - **B — governance blow-up filter → FORWARD-ONLY.** Pledge/promoter-sell/surveillance/insider feeds have no
