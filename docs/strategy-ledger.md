@@ -2028,6 +2028,19 @@ managed trades. Same harness/controls as STREAM BAND. **PREDICTION ON RECORD bef
   regime-dependent beta: clears the bar in strong-trend regimes (h2), not choppy ones (h1). This is
   the honest CEILING of the momentum-band family. Segment books: `mbr_book` key CELL_B_TREND_STRONG.
 
+- **Vol-targeting the stack (uniform risk overlay, NOT a 2018-19-specific hack) — cuts the drawdown
+  hard AND lifts risk-adjusted return; the FIRST momentum-band form to beat the index on R/V.** Overlay
+  = scale monthly exposure w=clip(target / trailing-12m-annualised-vol, 0, 1) on the CELL_B_TREND_STRONG
+  net monthly series, deleveraged capital parked at 6% cash (causal/PIT). Robust across targets
+  (deleverage-only): **12% → netCAGR 12.5% / R/V 0.90 / MaxDD −40%** (h1 0.41→0.66); 15% → 13.5% / 0.83
+  / −49%; 18% → 14.1% / 0.80 / −53% — vs RAW 13.2% / 0.71 / −63% and INDEX 13.4% / 0.86 / −30%. At the
+  12-15% targets R/V EXCEEDS the index's 0.86 (first time in the whole exploration); the 15% version
+  even ends slightly ahead of both raw and the index (deleveraging into 2018-19/2020 avoided the
+  losses). CAVEATS: it's a RISK-ADJUSTED win, not new return (CAGR flat-to-−0.7pp); best h1 R/V 0.66
+  still < 0.89 (both-halves bar still unmet); DD still deeper than the index; the vol target is a free
+  parameter (grid shown so the direction is transparent, not cherry-picked). Reproduce: trailing-12m
+  vol overlay on `mbr_book` CELL_B_TREND_STRONG net.
+
 - **Equity curves (₹100 start; net of cost unless noted; monthly-compounded, year-end marks):** A2 net
   (looser pure-2-fractal trail) rides a hair above B net (RSI-45 exit) the WHOLE way — the EXIT-LAB
   "loosest wins" law — but both finish far below Nifty-500 buy-hold. Gross (B) = 12.3× is BETA not
