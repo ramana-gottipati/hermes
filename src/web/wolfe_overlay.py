@@ -48,8 +48,8 @@ SNIPPET = """<script>
   var cb=document.getElementById('wfChk'); if(!cb) return;
   var lbl=document.getElementById('wfLbl');
   var ser=[], fans=[], DATA=null, fansOn=false, mode='pred', di=0;
-  var BARS=null, manual=[], manualZones=[], probe=null, clickWired=false;
-  var autosnap=true, editing=null, wfWarn='';                                 // draw: magnet ON (Ramana) — but guarded: never collapses two points onto one bar, never teleports an out-of-coverage click
+  var BARS=null, manual=[], manualZones=[], probe=null, clickWired=false, keyWired=false;
+  var autosnap=true, editing=null, wfWarn='', redoStack=[];                    // draw: magnet ON (Ramana) — guarded; redoStack powers Ctrl+Y redo
   var NS={autoscaleInfoProvider:function(){return null;}};
   function add(opts,data){ var s=window.__wfpc.addLineSeries(Object.assign({priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},opts,NS)); s.setData(data); ser.push(s); return s; }
   function clear(){ ser.forEach(function(s){try{window.__wfpc.removeSeries(s);}catch(e){}}); ser=[]; fans=[]; }
@@ -272,7 +272,7 @@ SNIPPET = """<script>
         s.setMarkers([{time:rt,position:(zi%2?'belowBar':'aboveBar'),color:col,shape:'square',text:'Z'+(zi+1)+' '+x.price+' ('+x.r12+'∩'+x.r34+')'}]);
       });
     }
-    wfWarn='';
+    var warns=wolfeWarnings();                                                // P3/P4 directional placement checks (from point 3 on)
     if(manual.length>=4){
       var rt2=rightTime(), rb=(BARS?BARS.length-1:-1);
       var b0=barIx(manual[0].time), b1=barIx(manual[1].time), b2=barIx(manual[2].time), b3=barIx(manual[3].time);
@@ -286,27 +286,46 @@ SNIPPET = """<script>
         add({color:'rgba(88,166,255,0.55)',lineWidth:1,lineStyle:2},[{time:manual[a].time,value:manual[a].value},{time:rt2,value:Math.round((manual[a].value+s*(rb-ba))*100)/100}]); };
       extLeg(0,2,b0,b2); extLeg(1,3,b1,b3);                                     // rail 1-3 (pt5 forms on its extension) + rail 2-4
       if(legLenPx(2,3) > legLenPx(0,1))                                        // STRICT symmetry gate: leg 1-2 must be >= leg 3-4
-        wfWarn='The distance between points 1 and 2 is less than the distance between points 3 and 4.';
+        warns.push('The distance between points 1 and 2 is less than the distance between points 3 and 4.');
     }
+    wfWarn=warns.join('  &middot;  ');                                         // placement notes + symmetry, all shown in the DRAW bar
+  }
+  function wolfeWarnings(){                                                    // directional placement checks — ACCEPT the click, just inform
+    var out=[], L=manual.length; if(L<3) return out;
+    var bull=dirBull(), p1=manual[0].value, p3=manual[2].value;               // direction = leg 1->2 (same basis the magnet/roles use)
+    if(bull ? (p3>=p1) : (p3<=p1)) out.push('The placement of point 3 is incorrect.');   // bull: 3 below 1 · bear: 3 above 1
+    if(L>=4){ var p4=manual[3].value;                                          // bull: 4 above 3 but below 1 · bear: 4 below 3 but above 1
+      if(bull ? !(p3<p4 && p4<p1) : !(p3>p4 && p4>p1)) out.push('The placement of point 4 is incorrect.'); }
+    return out;
+  }
+  function doUndo(){ if(!manual.length) return; redoStack.push(manual.pop());  // Ctrl+Z / undo link — step back one point, remember it for redo
+    if(editing!=null&&editing>=manual.length) editing=null; resnap(); drawManual(); controls(); }
+  function doRedo(){ if(!redoStack.length||manual.length>=5) return; manual.push(redoStack.pop()); resnap(); drawManual(); controls(); }  // Ctrl+Y / redo link
+  function onKey(e){                                                           // undo/redo keys — ONLY while drawing, and never while typing in a field
+    if(mode!=='draw') return;
+    var tg=(e.target&&e.target.tagName)||''; if(/INPUT|TEXTAREA|SELECT/.test(tg)||(e.target&&e.target.isContentEditable)) return;
+    if(e.ctrlKey&&!e.shiftKey&&(e.key==='z'||e.key==='Z')){ e.preventDefault(); doUndo(); }
+    else if(e.ctrlKey&&(e.key==='y'||e.key==='Y')){ e.preventDefault(); doRedo(); }
   }
   function onClick(param){
     if(mode!=='draw'||!param||!param.point||param.time==null) return;
     var price=ensureProbe().coordinateToPrice(param.point.y);
     if(price==null) return;
     var t=normTime(param.time);
-    if(editing!=null){ manual[editing]={time:t,value:Math.round(price*100)/100}; editing=null; resnap(); drawManual(); controls(); return; }  // drop the edited point
+    if(editing!=null){ manual[editing]={time:t,value:Math.round(price*100)/100}; editing=null; redoStack.length=0; resnap(); drawManual(); controls(); return; }  // drop the edited point (a new action invalidates redo)
     if(manual.length>=5) return;
-    manual.push({time:t,value:Math.round(price*100)/100}); resnap(); drawManual(); controls();
+    manual.push({time:t,value:Math.round(price*100)/100}); redoStack.length=0; resnap(); drawManual(); controls();   // a fresh point invalidates the redo stack
   }
   function enterDraw(){
-    mode='draw'; hideBadge(); clear(); manual=[]; manualZones=[]; editing=null; wfWarn=''; ensureProbe();   // hide the auto-wave badge — it describes the DETECTED wave, not the one being hand-drawn
+    mode='draw'; hideBadge(); clear(); manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0; ensureProbe();   // hide the auto-wave badge — it describes the DETECTED wave, not the one being hand-drawn
     if(!clickWired){ try{ window.__wfpc.subscribeClick(onClick); }catch(e){}
       try{ var el=window.__wfpc.chartElement&&window.__wfpc.chartElement(); if(el) el.addEventListener('dblclick',onDbl); }catch(e){}
       clickWired=true; }
+    if(!keyWired){ document.addEventListener('keydown',onKey); keyWired=true; }   // Ctrl+Z / Ctrl+Y active while drawing (guarded to draw-mode)
     controls();
   }
   function exitDraw(){
-    clear(); manual=[]; manualZones=[]; editing=null; wfWarn='';
+    clear(); manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0;
     mode=defaultMode(); di=0; redraw();
   }
   function drawLink(){ return ' &nbsp;&middot; <span id="wfDraw" style="cursor:pointer;text-decoration:underline;color:#58a6ff">✎ draw your own</span>'; }
@@ -327,14 +346,16 @@ SNIPPET = """<script>
     var warnHtml = wfWarn? (' &nbsp;&middot; <b style="color:#ff6a7a">⚠ '+wfWarn+'</b>') : '';
     lbl.innerHTML='<b style="color:#58a6ff">✎ DRAW</b> '+next+
       ' &nbsp;&middot; <span id="wfSnap" title="auto-snap 1/3/5 to lows, 2/4 to highs (reversed on a bear)" style="cursor:pointer;text-decoration:underline;color:'+(autosnap?'#3fd486':'var(--ink-2)')+'">'+(autosnap?'auto-snap: on':'auto-snap: off')+'</span>'+
-      ' &middot; <span id="wfUndo" style="cursor:pointer;text-decoration:underline">undo</span>'+
+      ' &middot; <span id="wfUndo" title="undo (Ctrl+Z)" style="cursor:pointer;text-decoration:underline">undo</span>'+
+      ' &middot; <span id="wfRedo" title="redo (Ctrl+Y)" style="cursor:pointer;text-decoration:underline">redo</span>'+
       ' &middot; <span id="wfReset" style="cursor:pointer;text-decoration:underline">reset</span>'+
       ' &middot; <span id="wfAuto" style="cursor:pointer;text-decoration:underline;color:var(--ink-2)">use auto</span>'+
       chips+zs+warnHtml;
     var e;
     if(e=document.getElementById('wfSnap')) e.onclick=function(){ autosnap=!autosnap; resnap(); drawManual(); controls(); };
-    if(e=document.getElementById('wfUndo')) e.onclick=function(){ manual.pop(); if(editing!=null&&editing>=manual.length) editing=null; resnap(); drawManual(); controls(); };
-    if(e=document.getElementById('wfReset')) e.onclick=function(){ manual=[]; manualZones=[]; editing=null; wfWarn=''; drawManual(); controls(); };
+    if(e=document.getElementById('wfUndo')) e.onclick=function(){ doUndo(); };
+    if(e=document.getElementById('wfRedo')) e.onclick=function(){ doRedo(); };
+    if(e=document.getElementById('wfReset')) e.onclick=function(){ manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0; drawManual(); controls(); };
     if(e=document.getElementById('wfAuto')) e.onclick=function(){ exitDraw(); };
     var pts=document.querySelectorAll('.wfPt');
     for(var k=0;k<pts.length;k++){ pts[k].onclick=function(){ editing=parseInt(this.getAttribute('data-i'),10); drawManual(); controls(); }; }
