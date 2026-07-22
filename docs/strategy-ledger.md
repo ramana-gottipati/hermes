@@ -102,6 +102,7 @@ the exact figures; do not silently re-attempt. (Mirrored in memory `failure-mode
 | **Accumulation-footprint detector v1 (2026-07-05b)** | pre-registered gate **FAIL 1/4** (only trade-size cleared δ≥+0.20 vs both controls: +0.329/+0.250); 764/947 episodes had NO pre-public window (SEBI PIT T+2); n=54 usable | "Front-detect the insider from the tape" is structurally near-impossible in India at filing granularity. deliv_per showed ~no case elevation (δ≈+0.07) — consistent with MEP's alpha failure. Survivor: avg-trade-size ratio = descriptive column only. Follow-ups (campaign arcs E-04, disclosure drift E-03) require fresh pre-registration. |
 | CCI credibility as a factor | Spearman ≈0; HIGH−LOW excess −10% @12m (inverse, survivorship) | FALSIFIED as a factor → descriptive/veto only. |
 | **C-BLEND 50/50 as a FUNDABLE book (2026-07-05c)** | Flat-cost Sharpe **1.32** (recorded champion) → participation-cost **NET 0.52 @Rs25cr · 0.17 @Rs50cr · −0.30 @Rs100cr**; beats the index at NO AUM; H2 (honest window) 0.70 @Rs50cr < 0.89; ann cost 22%→86% | The 1.32 was **flat-cost only**. Monthly rebalance × mid-cap tilt (median capacity ~Rs38cr) makes Almgren participation impact fatal; the RISKADJ core is worse. C-BLEND stays a **descriptive/paper overlay** (D66 fence holds), never a fundable book. Only participation-fundable corner = quarterly large-cap **LOWVOL_MOM** (1.02 @Rs50cr, ~Rs100cr ceiling). Re-cost: `cblend_cost_recut.py`. |
+| **MOMENTUM BAND + RSI single-name swing (2026-07-22)** | Upper-band breakout entry (T=EMA5(HLC3) > EMA13(high)) + RSI/2-fractal managed exit, pre-registered `0e90bf2c`, 45,131 events / 124,832 trades 2012-26: EVENT median 22d excess **−0.90%**, Cliff's δ vs placebo **−0.012** (FAIL-null, negative both halves); BOOK net return/vol **0.53** (h1 0.19 / h2 0.87, both <0.89), raw CAGR 19.4% → **net 8.4%** (cost −11pp) | The "buy strength" edge of the STREAM BAND band is ALSO an anti-signal; RSI-as-stop churns (phase-1 hair-trigger, 94% exits, 5-bar hold) and the RSI-80 partial *hurts* (−0.25pp mean = profit-taker law again, 07-14e). Beats random-entry (+0.20) but nowhere near fundable. Full entry: § Study 2026-07-22; cites 07-13/14b/14c/14d/14e. |
 
 The corollary (the doctrine these failures prove): **price strength is the only gross forward-return
 engine; value/quality/credibility/accumulation are veto/filter/context layers, not rankers; and no
@@ -1908,6 +1909,52 @@ price-index Nifty 500 = Sharpe 0.64, halves 0.58/0.78, ₹1 Cr → ₹12.60 Cr, 
 - **Verdict: CONDITIONAL — V17 is the champion-CANDIDATE, pending Ramana's ratification (the frozen champion
   formally remains V8 per his standing instruction).** Next rigor if ratified: TR-benchmark re-cut · V17 alpha
   t-stat · the V2 ≤40-stock constituent expression.
+
+## Study 2026-07-22 — MOMENTUM BAND + RSI: the UPPER-band breakout entry (BUY STRENGTH) + RSI/fractal managed exit (DONE — pre-registered FAIL; the strength edge is an anti-signal too, RSI stops don't rescue it)
+
+Ramana's momentum reframing of the STREAM BAND spec, and the ONE untested sliver of the reversal-pair
+arc. STREAM BAND (07-13) tested the LOWER-bank RECLAIM (buy weakness); this tests the OPPOSITE edge
+Ramana named as his momentum trigger — T=EMA5(HLC3) crosses ABOVE the UPPER bank EMA13(adj-high) = BUY
+STRENGTH — with RSI(14 Wilder, price) + degree-2 down-fractal managed exits (never tested: the arc's
+stops were stream/two-candle/%/ATR/chandelier, none RSI). Pre-registered + hash-frozen BEFORE first
+run (prereg `momentum_band_rsi` `0e90bf2c…`, `--verify` clean); module
+`research/explosive_moves/momentum_band_rsi.py`; JSON `out/momentum_band_rsi.json`. Universe 3,499
+EQ/CM symbols, 2012-06→2026-07, CA-adjusted; n=45,131 MOM-BUY events (de-overlap 22 bars), 124,832
+managed trades. Same harness/controls as STREAM BAND. **PREDICTION ON RECORD before the run: FAIL
+(~0.6<0.89). Confirmed.**
+
+- **EVENT verdict: FAIL-null (G2/G3/G4 all fail).** 22d excess mean +0.51% / **median −0.90%** /
+  46.0% positive; **both placebos beat it** (sym med −0.70%, shift −0.69%); Cliff's δ **−0.012 /
+  −0.013** (negative); halves med **−1.08% / −0.82%** (negative both). Monotone across horizons (5d
+  −0.51 · 10d −0.66 · 22d −0.90 · 66d −1.58 median; mean positive throughout = right-skew, the SAME
+  anatomy as the reclaim). Buying strength at the upper-band cross carries no forward edge — marginally
+  WORSE than a random same-stock day.
+- **BOOK (Cell B, loose exit = 2-fractal-stop OR RSI≤45, no profit-take): net return/vol 0.53** full
+  (h1 2012-18 **0.19** / h2 2019-26 **0.87**), CAGR 8.4%, MaxDD −58.1%, hit 35.9%, median trade
+  **−2.74% net**, avg hold 20 bars. **G_BOOK FAIL** (both halves <0.89; even the best half 0.87<0.89).
+  **Raw (gross) 1.00 retvol / CAGR 19.4% → net 8.4%: cost eats 11pp of CAGR** (avg RT 0.57%, ~40k
+  trades) — the 1.29→0.09 / C-BLEND cost pattern, a third sighting.
+- **G_BETTER vs random-entry-same-exit: PASS (+0.20)** — 0.53 net vs 0.33 random control. UNLIKE the
+  fractal floor (07-14b, entry inert vs random), the momentum entry DOES carry ~0.20 retvol of
+  information over the exit geometry — but the absolute level is sub-hurdle, so "better than random"
+  and "not fundable" are both true. The one non-zero-but-useless residual of the arc.
+- **RSI-as-stop (NEW): the phase-1 "exit if RSI < entry-RSI" rule is a hair-trigger** — Cell A
+  (Ramana-literal) exited **94%** of trades via that stop, avg hold **5.3 bars**, net mean −0.08% /
+  median −1.26%: the two-candle-exit disease (07-14d) in RSI clothing. The "hold till RSI 80" reading
+  (Cell A2, fractal-only until 80) is the least-bad RSI variant (mean net +1.3%) but book-equivalent to
+  Cell B and still median −2.57%.
+- **RSI-80 PARTIAL profit-take (NEW): confirms the EXIT LAB profit-taker law.** On Cell A2, taking
+  half off at the first RSI≥80 moved mean net **−0.25pp** (median +0.13pp): it shaves the right-tail
+  (the only paying part) while barely helping the median — exactly "any rule that trims winners
+  amputates the paying part" (07-14e), now shown for RSI too.
+- **Disposition: REJECTED — descriptive-only.** The reversal-pair arc's LAST sliver is closed: the
+  momentum (buy-strength) edge is an anti-signal at event level and sub-hurdle as a book; RSI stops
+  either churn (phase-1) or fail to mint edge; the RSI-80 partial hurts. The pre-registered prediction
+  stood. Any future band/RSI/fractal single-name swing proposal must cite THIS entry +
+  07-13/14/14b/14c/14d/14e. Surviving descriptive residual unchanged (band-state + own-history stretch
+  percentile as context columns).
+
+---
 
 ## Study 2026-07-13 — STREAM BAND (13-EMA HiLo band + 5-EMA HLC3 trigger) reversal cross (DONE — pre-registered FAIL-null; the BUY-cross *negatively* selects)
 

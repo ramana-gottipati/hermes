@@ -1,0 +1,199 @@
+{
+ "registered_gate": "see module docstring (prereg registry: momentum_band_rsi)",
+ "run_at": "2026-07-22 08:52Z",
+ "prediction": "FAIL expected (see docstring priors)",
+ "EVENT_primary": {
+  "cell": {
+   "n": 45131,
+   "mean22": 0.512,
+   "med22": -0.9,
+   "pos%": 46.0
+  },
+  "horizons": {
+   "5d": {
+    "n": 45682,
+    "mean%": 0.047,
+    "med%": -0.512,
+    "pos%": 45.0
+   },
+   "10d": {
+    "n": 45576,
+    "mean%": 0.223,
+    "med%": -0.656,
+    "pos%": 45.6
+   },
+   "22d": {
+    "n": 45131,
+    "mean%": 0.512,
+    "med%": -0.9,
+    "pos%": 46.0
+   },
+   "66d": {
+    "n": 43775,
+    "mean%": 1.728,
+    "med%": -1.581,
+    "pos%": 46.2
+   }
+  },
+  "placebo_sym": {
+   "n": 137397,
+   "mean22": 0.545,
+   "med22": -0.701,
+   "pos%": 46.6
+  },
+  "placebo_shift": {
+   "n": 39918,
+   "mean22": 0.503,
+   "med22": -0.685,
+   "pos%": 46.7
+  },
+  "cliffs_vs_sym": -0.0119,
+  "cliffs_vs_shift": -0.013,
+  "half1_med22%": -1.08,
+  "half2_med22%": -0.823,
+  "gates": {
+   "G1_n300": true,
+   "G2_mean_med_pos": false,
+   "G3_cliffs_.05_both": false,
+   "G4_both_halves": false
+  },
+  "VERDICT": "FAIL-null"
+ },
+ "TRADES_by_cell": {
+  "B": {
+   "n": 40329,
+   "success%(net_full>0)": 35.9,
+   "mean_gross%": 1.71,
+   "mean_net_full%": 1.13,
+   "med_net_full%": -2.74,
+   "mean_net_partial%": 1.13,
+   "med_net_partial%": -2.74,
+   "avg_hold": 20.2,
+   "scaled%": 0.0,
+   "avg_cost_rt%": 0.573,
+   "stop_hit_mix": {
+    "frac_stop": 23476,
+    "rsi45": 16331,
+    "rsi_p1": 0,
+    "censored": 522
+   }
+  },
+  "A": {
+   "n": 45024,
+   "success%(net_full>0)": 32.6,
+   "mean_gross%": 0.49,
+   "mean_net_full%": -0.08,
+   "med_net_full%": -1.26,
+   "mean_net_partial%": -0.21,
+   "med_net_partial%": -1.23,
+   "avg_hold": 5.3,
+   "scaled%": 5.9,
+   "avg_cost_rt%": 0.57,
+   "stop_hit_mix": {
+    "frac_stop": 2146,
+    "rsi45": 601,
+    "rsi_p1": 42180,
+    "censored": 97
+   }
+  },
+  "A2": {
+   "n": 39479,
+   "success%(net_full>0)": 37.7,
+   "mean_gross%": 1.87,
+   "mean_net_full%": 1.3,
+   "med_net_full%": -2.57,
+   "mean_net_partial%": 1.05,
+   "med_net_partial%": -2.44,
+   "avg_hold": 22.4,
+   "scaled%": 14.4,
+   "avg_cost_rt%": 0.573,
+   "stop_hit_mix": {
+    "frac_stop": 37694,
+    "rsi45": 1235,
+    "rsi_p1": 0,
+    "censored": 550
+   }
+  }
+ },
+ "RSI80_partial_effect": {
+  "note": "median net WITH the RSI-80 partial minus WITHOUT (Cell A2). EXIT LAB predicts <=0.",
+  "delta_med_net%": 0.13,
+  "delta_mean_net%": -0.25
+ },
+ "BOOK_cellB_net": {
+  "full": {
+   "retvol": 0.53,
+   "cagr%": 8.4,
+   "maxdd%": -58.1,
+   "months": 170
+  },
+  "h1_2012_18": {
+   "retvol": 0.19,
+   "cagr%": 1.9,
+   "maxdd%": -45.9,
+   "months": 79
+  },
+  "h2_2019_26": {
+   "retvol": 0.87,
+   "cagr%": 14.5,
+   "maxdd%": -23.8,
+   "months": 91
+  },
+  "avg_pos": 245.5
+ },
+ "BOOK_cellB_gross(raw)": {
+  "full": {
+   "retvol": 1.0,
+   "cagr%": 19.4,
+   "maxdd%": -51.0,
+   "months": 170
+  },
+  "h1_2012_18": {
+   "retvol": 0.67,
+   "cagr%": 12.2,
+   "maxdd%": -41.3,
+   "months": 79
+  },
+  "h2_2019_26": {
+   "retvol": 1.32,
+   "cagr%": 26.0,
+   "maxdd%": -18.5,
+   "months": 91
+  },
+  "avg_pos": 233.9
+ },
+ "BOOK_random_control_net": {
+  "full": {
+   "retvol": 0.33,
+   "cagr%": 4.7,
+   "maxdd%": -62.0,
+   "months": 170
+  },
+  "h1_2012_18": {
+   "retvol": 0.12,
+   "cagr%": 0.4,
+   "maxdd%": -34.2,
+   "months": 79
+  },
+  "h2_2019_26": {
+   "retvol": 0.5,
+   "cagr%": 8.5,
+   "maxdd%": -40.1,
+   "months": 91
+  },
+  "avg_pos": 176.8
+ },
+ "CAGR_raw_vs_net": {
+  "raw_cagr%": 19.4,
+  "net_cagr%": 8.4,
+  "cost_impact_cagr_pp": 11.0
+ },
+ "BOOK_gates": {
+  "G_BOOK_0.89_both_halves": false,
+  "G_BETTER_vs_random_+0.15": true,
+  "cellB_net_retvol_full": 0.53,
+  "random_net_retvol_full": 0.33,
+  "VERDICT": "FAIL"
+ },
+ "OVERALL_VERDICT": "REJECTED (descriptive-only)"
+}
