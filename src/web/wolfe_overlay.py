@@ -419,6 +419,16 @@ SNIPPET = """<script>
     // leaving, but do NOT pan/zoom (panTo removed). Only the badge updates.
     clear(); var w=curWave(); if(w){ drawWave(w); } updateBadge(w); controls();
   }
+  function restoreSaved(fallback){                                            // paint the saved hand-drawn wave if one exists for this symbol, else run fallback (the auto view)
+    var s=null; try{ s=JSON.parse(localStorage.getItem(wKey())||'null'); }catch(e){}
+    if(Array.isArray(s)&&s.length){ enterDraw(); return; }                    // localStorage = instant (same browser)
+    if(fallback) fallback();
+    if(!wRawSym()) return;
+    try{ fetch('/dash/drawings?sym='+encodeURIComponent(wStoreSym())).then(function(r){return r.json();}).then(function(dd){   // server = cross-device first open
+      var srv=(dd&&Array.isArray(dd.items))?dd.items:[];
+      if(srv.length && mode!=='draw'){ try{ localStorage.setItem(wKey(),JSON.stringify(srv.slice(0,5))); }catch(e){} enterDraw(); }
+    }).catch(function(){}); }catch(e){}
+  }
   function load(){
     if(lbl) lbl.textContent='loading…';
     var sym=new URLSearchParams(location.search).get('sym')||'';
@@ -427,6 +437,7 @@ SNIPPET = """<script>
       if(!d||(!d.prediction&&(!d.completed||!d.completed.length))){
         DATA=d||null;
         if(lbl){ lbl.innerHTML='no auto Wolfe wave'+drawLink(); wireDraw(); }   // still let him draw his own
+        restoreSaved(null);                                                    // …and paint his saved hand-drawn wave if he has one
         return;
       }
       DATA=d; mode=defaultMode(); di=0;
@@ -443,12 +454,25 @@ SNIPPET = """<script>
           }
         }
       }
-      redraw();
+      if(want){ redraw(); }                                                   // an explicit ?wolfe= deep-link → show THAT auto wave, don't override
+      else { restoreSaved(redraw); }                                          // else paint the saved hand-drawn wave if present, otherwise the auto wave
     }).catch(function(){ if(lbl) lbl.textContent='overlay error'; });
   }
   cb.addEventListener('change', function(){
     if(this.checked){ if(DATA||BARS!==null) redraw(); else load(); }
     else { clear(); manual=[]; manualZones=[]; mode='pred'; hideBadge(); if(lbl) lbl.textContent=''; }
   });
+  // ON OPEN (Ramana): if this symbol has a saved hand-drawn wave, auto-enable the overlay and
+  // paint it the moment the chart opens — no need to tick "Wolfe wave" + click "draw your own".
+  (function(){
+    function activate(){ if(!cb.checked) cb.checked=true; if(DATA||BARS!==null) redraw(); else load(); }
+    function ready(fn){ if(window.__wfpc){ fn(); return; } var n=0,t=setInterval(function(){ if(window.__wfpc){ clearInterval(t); fn(); } else if(++n>60){ clearInterval(t); } },100); }   // wait up to ~6s for the chart
+    var s=null; try{ s=JSON.parse(localStorage.getItem(wKey())||'null'); }catch(e){}
+    if(Array.isArray(s)&&s.length){ ready(activate); return; }                 // localStorage hit → open + paint immediately
+    if(!wRawSym()) return;
+    try{ fetch('/dash/drawings?sym='+encodeURIComponent(wStoreSym())).then(function(r){return r.json();}).then(function(dd){   // cross-device first open
+      if(dd&&Array.isArray(dd.items)&&dd.items.length){ try{ localStorage.setItem(wKey(),JSON.stringify(dd.items.slice(0,5))); }catch(e){} ready(activate); }
+    }).catch(function(){}); }catch(e){}
+  })();
 })();
 </script>"""
