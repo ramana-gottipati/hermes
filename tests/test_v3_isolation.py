@@ -19,7 +19,8 @@ from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parents[1]
 V3_MODULES = ("ui_tokens_v3", "shell_v3", "ui_components_v3", "term_chip",
-              "v3_preview", "ui_showcase_v3")
+              "v3_preview", "ui_showcase_v3", "news_dock",
+              "stock_hub_v3", "hub_sections_v3", "stock_chart_v3")
 V3_MARKERS = ("data-ui-v3", "uk-tokens v3", "pv3chip", "pv3-top")
 
 

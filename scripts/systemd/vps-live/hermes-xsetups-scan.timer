@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes X-compute setups scan Timer (nightly, weekdays)
+# Deliberately NO Requires= (AUD-95): enabling this timer mid-day must only SCHEDULE, never fire.
+
+[Timer]
+# 10:30 PM IST = 17:00 UTC, Mon-Fri -- after the bhavcopy chain (14:00), deals (14:30), wolfe
+# (16:00), harmonic (16:10) and launchpad (16:20); a ~5.5min job, off-peak. Persistent catches a
+# missed run after downtime; RandomizedDelaySec spreads catch-up fires.
+OnCalendar=Mon..Fri *-*-* 17:00:00
+RandomizedDelaySec=300
+Persistent=true
+Unit=hermes-xsetups-scan.service
+
+[Install]
+WantedBy=timers.target

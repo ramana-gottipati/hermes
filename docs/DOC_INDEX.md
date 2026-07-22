@@ -92,8 +92,10 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/redesign-coordination.md` | Redesign approval + communication record — verdict grammar, Codex/Gemini verdicts + dispositions, module status. THE single source for redesign-program approvals. |
 | `docs/metric-verdicts.md` | Term-chip sidecar: per-metric Verdict · How-it-could-improve · Origin lines (parsed only by `src/web/term_chip.py`; definitions stay in `docs/metrics-glossary.md`). |
 | `docs/codex-review/REDESIGN-M0M2-CODEX.md` | Codex channel record: redesign plan review verdict (M0–M2 focus), verbatim. |
+| `docs/redesign-m5-today-spec.md` | M5 Today-v3 module spec (orientation home + adopted count-tile band). TRANSIENT — build only on owner go; folds into the coordination record on landing. |
 | `docs/redesign-m4-stock-hub-spec.md` | M4 stock-hub module spec (evidence-scroll per the ratified contracts). TRANSIENT — build only on owner go; folds into the coordination record on landing. |
 | `docs/codex-review/M4-STOCK-HUB-CODEX.md` | Codex channel record: M4 stock-hub spec review verdict, verbatim (1 BLOCKING + 6 ADVISORY, dispositioned in redesign-coordination.md §3b). |
+| `docs/codex-review/REDESIGN-M4SPEC-CODEX.md` | Codex channel record: the parallel M4 spec pre-build verdict (OBJECT → v1.1 fixes), verbatim — the two passes are reconciled in the spec's status block. |
 
 ## C. DESIGN(stale) — keep, trim superseded sections later (6)
 
@@ -169,6 +171,8 @@ keep while the bridge is in use (gitignore-able).
 | `docs/prereg/union-c40ra-prereg.md` | Pre-registered THIRD sibling: β14 + top-40 + RISKADJ-rank (frozen rules + criteria + 3-way family adjudication + multiplicity disclosure, SHA-256 sealed; family closed at three); ledger 2026-07-16AB. |
 | `docs/prereg/union-ml2-prereg.md` | Pre-registered walk-forward ML ranker v2 over the ERA-FLOOR capped qualifiers (GBM primary per 16AA's declared succession; frozen 5-criterion bar incl. slip-2 stress; SHA-256 sealed BEFORE the run). |
 | `docs/prereg/union-composite30-prereg.md` | Pre-registered FOURTH sibling: COMPOSITE-30, the Ramana-confirmed lead (family reopened by owner decision 2026-07-16; full self-contained spec + 4-way adjudication; SHA-256 sealed); ledger 2026-07-16AH. |
+| `docs/prereg/union-k30-hold-prereg.md` | Pre-registered FIFTH sibling: K30-HOLD = COMPOSITE-30 with one lever change (hold a name while it stays in the top-60, 2× the 30 held), from the "improve the R logic" inquiry; +1.1pp net-of-gauntlet, DD unchanged, robustness-swept; SHA-256 sealed `e6994c19…`; ledger 2026-07-16BD. |
+| `docs/prereg/union-a2-hold-prereg.md` | Pre-registered SIXTH sibling: A2-HOLD = the A2 composite (equal-weight top-40, lower drawdown) + the same 2×-holdings hold-band (top-80); +1.4pp net-of-gauntlet, DD −33% unchanged; SHA-256 sealed `17e0dd1a…`; ledger 2026-07-16BD. |
 | `docs/prereg/union-ladder-validation-prereg.md` | Pre-registered VALIDATION protocol (NOT a strategy registration / not a 5th sibling): three frozen checks on the existing union ladder — C1 D139 paired-significance of the increments, C2 interim ≤2018-frozen / 2019-26-held OOS, C3 deflated forward-CAGR per CL-RES-07; SHA-256 sealed `37c28824…`; coordination session, 2026-07-16. |
 | `docs/strategies/union-ladder.md` | LIVING compendium: every union-family configuration IN FULL (complete specs + all recorded numbers incl. stress ladders) — sealed, recorded, and walled members; Ramana's record-in-full directive (S173). |
 | `docs/codex-review/rs-strategy-brief-2026-07-15.md` | The full-day RS-strategy brief sent to Codex for independent review (every config, number and bug); its verdict is ledger 2026-07-15R. |

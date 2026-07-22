@@ -147,6 +147,10 @@ NAV_ONLY: dict[str, tuple[str, str]] = {
                                       "board; nav is right until a per-symbol read exists"),
     "seasonal-divergence": ("markets", "two-index calendar co-movement — a descriptive board; the "
                                        "per-symbol seasonal base rate is covered by the seasonal flow"),
+    "seasonal-calendar":  ("markets", "expiry/holiday return conditioning (X-10) — a descriptive board "
+                                      "read against the seasonal null prior (calendar effects were largely "
+                                      "0-certified); the per-symbol seasonal base rate is covered by the "
+                                      "seasonal flow, so nav + the glossary metrics are the right coverage"),
     "actions":            ("markets", "corporate-actions calendar (ex-dates/dividends) — a forward "
                                       "calendar board; nav is the right coverage"),
     "buyback-calc":       ("markets", "buyback tender-quota calculator — an interactive tool, not a "

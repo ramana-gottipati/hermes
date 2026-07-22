@@ -96,6 +96,10 @@ LENSES: tuple[Lens, ...] = (
     # diverge? Descriptive co-movement history, never a signal.
     Lens("seasonal-divergence", "Index divergence", "market", "markets", "/dash/seasonal-divergence",
          group="Big picture", aliases=("index-overlap", "co-movement", "nifty200-vs-nifty50")),
+    # Expiry & holiday conditioning (X-10) — how each name behaves around monthly F&O expiry and
+    # market holidays vs its own all-days mean. Descriptive calendar context, never a signal.
+    Lens("seasonal-calendar", "Expiry & holidays", "market", "markets", "/dash/seasonal-calendar",
+         group="Big picture", aliases=("expiry", "holiday", "expiry-week", "expiry-day", "calendar-conditioning")),
     # Corporate-actions calendar — forward ex-dates, day by day (D94 #5, S91).
     Lens("actions", "Corp actions", "market", "markets", "/dash/actions",
          group="Events & flow", aliases=("corp-actions", "ex-dates", "dividends", "corporate-actions")),

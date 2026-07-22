@@ -106,6 +106,9 @@ _ROUTER_SPECS = [
     # Event cadence (D128) — cross-entity OVERDUE-vs-own-rhythm + expected-by-cadence, from the
     # seasonal_events snapshot; the additive companion to /dash/actions + /dash/results-reactions.
     ("event-cadence", "src.web.seasonal_events_view", "/dash/event-cadence"),
+    # Expiry & holiday conditioning (X-10) — 4th seasonal-family member; reads the bounded
+    # x_setups_signals snapshot (S205 spine). Descriptive-only, read against the seasonal null prior.
+    ("seasonal-calendar", "src.web.calendar_conditioning_view", "/dash/seasonal-calendar"),
     # How to read the charts (deep-data value sprint) — beginner's visual guide to the site's
     # chart shapes + plain-word ideas; linked from every deep-data lens header + Coverage.
     ("reading-guide", "src.web.reading_guide_view", "/dash/reading-guide"),
@@ -184,6 +187,12 @@ _ROUTER_SPECS = [
     # rendered bytes provably unchanged); remove these two lines to revert the entire preview.
     ("v3-preview", "src.web.v3_preview", "/dash/preview"),
     ("ui-showcase-v3", "src.web.ui_showcase_v3", "/dash/_ui3"),
+    # Redesign M4 (docs/redesign-m4-stock-hub-spec.md, owner go 2026-07-21): the evidence-scroll
+    # stock hub. Preview-only, direct-URL; remove this line to revert the module.
+    ("stock-hub-v3", "src.web.stock_hub_v3", "/dash/preview/stock"),
+    # M4 increment 2: the additive chart fork's server side (series-CSV export route);
+    # the snippet itself is embedded by the hub's chart section.
+    ("stock-chart-v3", "src.web.stock_chart_v3", "/dash/preview/stock/export"),
 ]
 
 # ── the canonical site IA — GENERATED from the single lens registry ──────────

@@ -70,6 +70,10 @@ INTENTIONAL_NON_NAV: dict[str, str] = {
     "/dash/preview":    "v3 preview landing + opt-in gate — additive preview program, deliberately "
                         "unlinked from default chrome until cut-over ratification",
     "/dash/_ui3":       "v3 design-system + term-chip showcase — preview/dev-only, deliberately unlinked",
+    "/dash/preview/stock": "M4 stock hub — preview-only surface, linked from the preview landing "
+                           "and by direct URL; never from default chrome (byte-identity rule)",
+    "/dash/preview/stock/export": "M4 chart series CSV — a data endpoint reached from the chart "
+                                  "rail's CSV link; an export, never a page",
     # /dash/pat left this allowlist (S-D): "Ask Pat" is now a registered Trust lens —
     # reachable from the rendered nav, so the old "Cmd-K summon only" IA note is amended.
     "/dash/api/symbol-search": "name→ticker JSON typeahead feed (S-D) — consumed by the Cmd-K bar, "

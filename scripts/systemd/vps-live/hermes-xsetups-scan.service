@@ -1,0 +1,21 @@
+[Unit]
+Description=Hermes patearn - nightly X-compute setups scan (persist x_setups_signals)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+# The four charter X-compute scans (overnight_split X-04, volume_shelves X-07, base_breakout
+# X-09, calendar_conditioning X-10) materialised into x_setups_signals so a future surface reads
+# latest() instantly instead of recomputing (~5.5min over the full universe, S206). Runs under
+# .venv-research -- the scans need numpy; the prod .venv is stdlib-only. Pure compute, no LLM
+# (Rs0), descriptive-only. Same nightly-persist pattern as hermes-launchpad-scan.
+ExecStart=/opt/hermes/.venv-research/bin/python -m src.automation.x_setups_signals --persist-scan
+StandardOutput=append:/var/log/hermes-xsetups-scan.log
+StandardError=append:/var/log/hermes-xsetups-scan.log
+# AUD-31/35 sandbox (fleet-standard): a wedged oneshot must FAIL not hang; RW only the hermes tree + logs.
+TimeoutStartSec=1800
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/hermes /var/log
