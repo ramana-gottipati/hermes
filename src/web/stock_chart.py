@@ -569,7 +569,7 @@ SNIPPET = """<script>
         // .cfs: the chart overlays the viewport (top set by JS so the fixed rail can sit above it).
         // .cfs-rail: the drawing rail becomes a FIXED top bar ABOVE the chart, so its tools stay
         // visible + move with the chart in fullscreen. .rail-collapsed hides the rail body (drawer).
-        st.textContent='.cfs{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;z-index:9999!important;max-width:none!important;margin:0!important;border-radius:0!important;background:'+C.bg+'}'
+        st.textContent='.cfs{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;height:auto!important;z-index:9999!important;max-width:none!important;margin:0!important;border-radius:0!important;background:'+C.bg+'}'
           +'.cfs-rail{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:10000!important;margin:0!important;max-height:48vh!important;overflow:auto!important;border-radius:0!important}'
           +'.rail-collapsed>*:not(.cbar){display:none!important}';
         document.head.appendChild(st); }
@@ -619,6 +619,15 @@ SNIPPET = """<script>
         var a=document.createElement('a'); a.href=url; a.download=nm+'-patearn.png'; document.body.appendChild(a); a.click(); setTimeout(function(){ try{a.remove();}catch(e){} },0); }
       sb.onclick=takeShot;
       document.addEventListener('keydown',function(e){ if((e.key==='F'||e.key==='f')&&e.shiftKey){ e.preventDefault(); tog(); } else if(e.key==='Escape'&&host.classList.contains('cfs')) tog(); });
+      // stock NAME (top-left) + a subtle 'patearn' brand mark (bottom-right) — both live INSIDE the
+      // chart host, so they stay visible on the live chart AND in fullscreen (the page's own name
+      // label sits outside the chart and is hidden when fullscreen takes over).
+      var nm=(new URLSearchParams(location.search).get('sym')||'');
+      try{ var _cl=document.querySelector('.chartlbl'); if(_cl){ var _t=(_cl.textContent||'').split(/\\s[\\u2013\\u2014-]\\s/)[0].trim(); if(_t) nm=_t; } }catch(e){}
+      var nameEl=E('div','position:absolute;top:8px;left:12px;z-index:6;pointer-events:none;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;color:rgba(230,237,243,.92);text-shadow:0 1px 4px rgba(0,0,0,.7)',nm);
+      host.appendChild(nameEl);
+      var wm=E('div','position:absolute;right:14px;bottom:30px;z-index:5;pointer-events:none;font:700 14px -apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.6px;color:rgba(230,237,243,.26)','patearn');
+      host.appendChild(wm);
       host.appendChild(fb); host.appendChild(sb);
     })();
 
