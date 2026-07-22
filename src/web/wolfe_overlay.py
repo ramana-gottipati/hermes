@@ -325,7 +325,21 @@ SNIPPET = """<script>
   }
   // ---- LEARNINGS (Ramana 2026-07-22): capture-and-preserve the hand-drawn wave as an isolated,
   //      persistent example (server table wolfe_learnings). Never touches the detector/scoring. ----
-  var learnCount=0, learnPanel=null, learnOpen=false;
+  var learnCount=0, learnPanel=null, learnOpen=false, learnItems=[], overlaySer=[], overlayOn=false;
+  function clearOverlay(){ overlaySer.forEach(function(s){try{window.__wfpc.removeSeries(s);}catch(e){}}); overlaySer=[]; }   // multi-wave overlay lives in ITS OWN series list — clear()/drawManual never touch it
+  function addOverlay(opts,data){ var s=window.__wfpc.addLineSeries(Object.assign({priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},opts,NS)); s.setData(data); overlaySer.push(s); return s; }
+  function paintOverlay(){                                                      // ALL saved learnings on the chart AT ONCE — dim, so the active working wave stands out
+    clearOverlay(); if(!overlayOn) return;
+    (learnItems||[]).forEach(function(it){
+      var pts=(it.points||[]); if(pts.length<2) return;
+      var seen={}, line=[];
+      pts.slice().sort(function(a,b){return a.time<b.time?-1:(a.time>b.time?1:0);}).forEach(function(p){ if(seen[p.time])return; seen[p.time]=1; line.push({time:p.time,value:p.value}); });
+      if(line.length<2) return;
+      var col=(it.direction==='BULL')?'rgba(63,212,134,0.5)':'rgba(255,106,122,0.5)';
+      var s=addOverlay({color:col,lineWidth:1,lineStyle:0},line);
+      try{ s.setMarkers([{time:line[line.length-1].time,position:'inBar',color:col,shape:'circle',text:'#'+it.id}]); }catch(e){}   // label each overlaid wave with its #id
+    });
+  }
   function lSym(){ return (new URLSearchParams(location.search).get('sym')||'').trim(); }
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
   function refreshLCount(){ if(!lSym()) return;
@@ -357,9 +371,11 @@ SNIPPET = """<script>
     if(!learnOpen){ p.style.display='none'; return; }
     p.style.display='block'; p.innerHTML='loading\\u2026';
     fetch('/dash/wolfe/learnings?sym='+encodeURIComponent(lSym())).then(function(r){return r.json();}).then(function(d){
-      var items=(d&&d.items)||[]; learnCount=items.length;
-      if(!items.length){ p.innerHTML='<i style="color:var(--ink-2)">No saved learnings yet for this symbol. Draw a wave, then \\u201c\\u2605 save as learning\\u201d.</i>'; return; }
-      p.innerHTML='<b style="color:#d29922">Wolfe learnings \\u2014 '+esc(lSym())+' ('+items.length+')</b>'+items.map(function(it){
+      var items=(d&&d.items)||[]; learnCount=items.length; learnItems=items;
+      if(!items.length){ clearOverlay(); p.innerHTML='<i style="color:var(--ink-2)">No saved learnings yet for this symbol. Draw a wave, then \\u201c\\u2605 save as learning\\u201d.</i>'; return; }
+      p.innerHTML='<b style="color:#d29922">Wolfe learnings \\u2014 '+esc(lSym())+' ('+items.length+')</b>'
+        +' &nbsp; <span id="lShowAll" style="cursor:pointer;text-decoration:underline;color:'+(overlayOn?'#3fd486':'var(--ink-2)')+'">'+(overlayOn?'\\u25a0 hide all on chart':'\\u25a1 show all on chart')+'</span>'
+        +items.map(function(it){
         var when=''; try{ when=new Date(it.created_at*1000).toISOString().slice(0,10); }catch(e){}
         var col=(it.direction==='BULL')?'#3fd486':'#ff6a7a', pts=(it.points||[]).map(function(q,i){return (i+1)+':'+q.value;}).join(' ');
         return '<div data-id="'+it.id+'" style="border-top:1px solid var(--bg-2);padding:6px 0">'
@@ -377,6 +393,8 @@ SNIPPET = """<script>
       [].forEach.call(p.querySelectorAll('.lSave'),function(el){ el.onclick=function(){ var row=this.closest('[data-id]'), id=+row.getAttribute('data-id'), note=row.querySelector('.lNote').value, b=this;
         fetch('/dash/wolfe/learnings/note?id='+id,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({note:note})}).then(function(r){return r.json();}).then(function(){ b.textContent='saved \\u2713'; setTimeout(function(){ b.textContent='save note'; },1200); }); }; });
       [].forEach.call(p.querySelectorAll('.lMic'),function(el){ el.onclick=function(){ startDictation(this.closest('[data-id]').querySelector('.lNote'),this); }; });
+      var sa=document.getElementById('lShowAll'); if(sa) sa.onclick=function(){ overlayOn=!overlayOn; paintOverlay(); this.innerHTML=(overlayOn?'\\u25a0 hide all on chart':'\\u25a1 show all on chart'); this.style.color=overlayOn?'#3fd486':'var(--ink-2)'; };   // toggle ALL saved waves at once — in place (no re-fetch, no flash)
+      if(overlayOn) paintOverlay();                                            // keep the overlay in sync with the freshly-fetched list
     }).catch(function(){ p.innerHTML='<i style="color:#ff6a7a">could not load learnings</i>'; });
   }
   function doUndo(){ if(!manual.length) return; redoStack.push(manual.pop());  // Ctrl+Z / undo link — step back one point, remember it for redo
@@ -407,7 +425,7 @@ SNIPPET = """<script>
   }
   function exitDraw(){
     clear(); manual=[]; manualZones=[]; editing=null; wfWarn=''; redoStack.length=0;
-    learnOpen=false; if(learnPanel) learnPanel.style.display='none';              // hide the learnings drawer when leaving draw mode
+    learnOpen=false; if(learnPanel) learnPanel.style.display='none'; overlayOn=false; clearOverlay();   // hide the learnings drawer + clear the multi-wave overlay when leaving draw mode
     mode=defaultMode(); di=0; redraw();
   }
   function drawLink(){ return ' &nbsp;&middot; <span id="wfDraw" style="cursor:pointer;text-decoration:underline;color:#58a6ff">✎ draw your own</span>'; }
@@ -521,7 +539,7 @@ SNIPPET = """<script>
   }
   cb.addEventListener('change', function(){
     if(this.checked){ if(DATA||BARS!==null) redraw(); else load(); }
-    else { clear(); manual=[]; manualZones=[]; mode='pred'; hideBadge(); learnOpen=false; if(learnPanel) learnPanel.style.display='none'; if(lbl) lbl.textContent=''; }
+    else { clear(); manual=[]; manualZones=[]; mode='pred'; hideBadge(); learnOpen=false; if(learnPanel) learnPanel.style.display='none'; overlayOn=false; clearOverlay(); if(lbl) lbl.textContent=''; }
   });
   // ON OPEN (Ramana): if this symbol has a saved hand-drawn wave, auto-enable the overlay and
   // paint it the moment the chart opens — no need to tick "Wolfe wave" + click "draw your own".
