@@ -18,6 +18,7 @@ from __future__ import annotations
 import html as _html
 
 from src.web.ui_tokens_v3 import tokens_css_v3
+from src.web.ui_skin_bold import skin_css
 
 # The 6 ratified destinations (Part I §4 · Part II §C.1). Fixed order — never varies per page.
 # Preview pages may link classic routes for destinations whose v3 twins don't exist yet
@@ -164,15 +165,16 @@ def shell(title: str, focus_html: str, rail_html: str = "", extra_head: str = ""
     crumbbar = _crumb_bar(crumbs) if crumbs else ""
     navshow = ('<button class="pv3-btn pv3-navshow" onclick="pv3Nav()" '
                'aria-label="Expand navigation">⟩ Nav</button>') if nav_items else ""
-    return ("<!doctype html><html lang=\"en\" data-ui-v3><head><meta charset=\"utf-8\">"
+    return ("<!doctype html><html lang=\"en\" data-ui-v3 data-skin=\"bold\"><head><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             "<meta name=\"robots\" content=\"noindex\">"
             "<title>" + t + " — patearn preview</title>"
-            + tokens_css_v3() + _SHELL_CSS + extra_head + "</head><body>"
+            + tokens_css_v3() + skin_css() + _SHELL_CSS + extra_head + "</head><body>"
             "<header class=\"pv3-top\">"
             "<span class=\"pv3-brand\">patearn<small>Indian-equity evidence, described</small></span>"
             "<span class=\"pv3-badge\">PREVIEW</span>"
             "<span class=\"pv3-sp\"></span>" + navshow +
+            "<button class=\"pv3-btn\" onclick=\"pv3Skin()\" aria-label=\"Switch bold/quiet skin\">Skin</button>"
             "<button class=\"pv3-btn\" onclick=\"pv3Theme()\" aria-label=\"Switch light/dark theme\">Theme</button>"
             "<a class=\"pv3-btn\" href=\"/dash\">Classic site</a>"
             "</header>"
@@ -210,6 +212,8 @@ def _selftest() -> int:
     assert "pv3-navrail" in full and "pv3Nav()" in full and "pv3-navshow" in full
     assert full.index("pv3-dests") < full.index("pv3-crumbs") < full.index("pv3-grid")
     assert len(DESTS) == 6
+    # the ratified bold skin: default-on, toggleable, double-scoped (2026-07-22)
+    assert 'data-skin="bold"' in doc and "pv3-skin-bold v1" in doc and "pv3Skin()" in doc
     print("shell_v3 selftest OK — grid, themes, nav contract (bar+crumbs+rail+collapse)")
     return 0
 
