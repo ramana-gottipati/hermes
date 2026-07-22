@@ -188,3 +188,22 @@ gauntlet above:
 
 Runners (additive, sealed engine untouched): `research/explosive_moves/gauntlet/build_c_bproxy.py` (toggled-rule
 variant) + `build_band_sweep.py` (robustness sweep).
+
+## 11. RSI-of-RS reversal — sector-vs-index + deeper-oversold (2026-07-22, ledger 16BE)
+
+Ramana asked which RSI the strategy uses (the stock's or the RS line's) and to test variants. **Traced:** the
+union's TURN leg runs RSI on **stock ÷ its SECTOR**; the TREND leg runs RSI on the **stock's own price**; a stock
+qualifies on EITHER. Two forks tested:
+- **Sector-relative ≫ index-relative.** As a selector (forward-3m-excess), sector-relative reversal has geometric
+  **+0.47%/q (significant)**; index-relative (stock ÷ Nifty 500) has geometric **−0.48%** — it FAILS the
+  positive-geometric bar and isn't significant. **Do not switch to index-relative** (beating your own sector is a
+  cleaner turn signal than beating the market, whose RS carries sector beta).
+- **Deeper oversold = a DOUBLE-WIN in the union.** Deepening the reversal floor <30→<25→<20 raises net CAGR AND
+  cuts drawdown, monotone: **17.8% / −38% → 18.7% / −33% → 18.6% / −29%** (K30 config, same gauntlet). This is the
+  lift-return-AND-cut-drawdown result the inquiry was after. **Strong seal candidate**, ideally stacked with the
+  K30-HOLD hold-band lever.
+- **Standalone reversal book = not viable.** The TURN leg alone nets ~11% (below the index), thin — it needs the
+  TREND leg (the union), confirming the recorded "6b alone" result. Buried.
+
+Runners (additive, sealed engine untouched): `research/explosive_moves/gauntlet/rsirs_denom_test.py` (selector) +
+`build_reversal_gauntlet.py` (full book). All IN-SAMPLE.
