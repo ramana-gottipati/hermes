@@ -1929,6 +1929,38 @@ price-index Nifty 500 = Sharpe 0.64, halves 0.58/0.78, ₹1 Cr → ₹12.60 Cr, 
   formally remains V8 per his standing instruction).** Next rigor if ratified: TR-benchmark re-cut · V17 alpha
   t-stat · the V2 ≤40-stock constituent expression.
 
+## Study 2026-07-22c — LOW-VOL DEFENSIVE SLEEVE + blend: closing the momentum-band drawdown gap with an UNCORRELATED factor (DONE — the blend PASSES both halves + beats the index on every axis; ⚠ low-vol is the star and it's un-fenced)
+
+Portfolio-construction follow-up to the name-ladder (07-22): the momentum-band DD gap is SYSTEMATIC
+factor risk, so closing it needs an UNCORRELATED sleeve, not more momentum names. Built a low-vol
+defensive equity sleeve (bottom-vol quintile of liquid EQ names ≥₹5cr, monthly, trailing-126d
+annualised vol; 0.15%/side turnover cost) and blended with `mbr_book` CELL_B_TREND_STRONG net.
+Pre-registered (`lowvol_sleeve` `fefef943`, `--verify` clean); module + `out/lowvol_sleeve.json`;
+169 months 2012-06→2026-06, avg 91 names. This is PORTFOLIO CONSTRUCTION (risk), NOT a momentum/
+reversal hybrid — low-vol is a third, defensive factor (Ramana's separate-lines rule intact).
+
+- **The sleeve is genuinely UNCORRELATED: corr(lowvol, momentum-stack) = −0.02** (vs index −0.03) —
+  so the blend earns real factor diversification (the blend's R/V exceeds BOTH sleeves = the
+  uncorrelated-streams free lunch).
+- **Standalone (net): low-vol sleeve R/V 1.14 / CAGR 15.9% / DD −21.5%, BOTH halves (h1 1.22 / h2
+  1.10)** — beats the index (0.85 / 13.4% / −30%) AND the momentum stack (0.71 / 13.3% / −63%) on
+  EVERY axis incl. the both-halves 0.89 bar. The low-vol anomaly, consistent with the ledger's
+  LOWVOL_MOM (the one participation-fundable corner).
+- **★ Blend 40/60 (40% mom / 60% lowvol) net: R/V 1.32 / CAGR 15.7% / DD −32.7% (≈ index −30%), h1
+  1.10 / h2 1.52 — PASSES both halves** (the gate the momentum stack alone FAILED at h1 0.41). First
+  fundable-LOOKING book of the whole chain: closes the DD gap AND beats the index on return +
+  risk-adjusted return in both halves. Vol-sizing on top adds nothing (already stabilised). 50/50 =
+  1.23 / 15.5% / −37.6% (h1 0.94).
+- **⚠ HONEST: low-vol is doing the work; momentum is the JUNIOR partner.** Low-vol alone has HALF the
+  blend's drawdown (−21.5 vs −32.7) and nearly the same return (15.9 vs 15.7); adding momentum lifts
+  R/V (1.14→1.32 via diversification) but ADDS drawdown. Lowest-DD → more low-vol; best R/V → 40/60.
+- **⚠ NOT YET FUNDABLE — the sleeve is fresh + UN-FENCED.** Cost was a flat 0.15%/side on turnover
+  (NOT the participation/Zerodha gauntlet); no capacity / OOS-freeze / survivorship fences yet. The
+  numbers look excellent but must clear the same gauntlet the momentum book got before any capital.
+  PROMOTION PATH: fence the low-vol sleeve (participation cost, capacity, fit→freeze→OOS).
+
+---
+
 ## Study 2026-07-22b — REVERSAL, CLEAN oversold-bounce (deep drawdown + RSI-30 turn; NON-band, NON-momentum) (DONE — pre-registered FAIL at BOTH gates; reversal falsified at the CONCEPT level, not just the band mechanics)
 
 The REVERSAL line as a distinct, fresh approach per Ramana's 2026-07-22 directive (momentum and

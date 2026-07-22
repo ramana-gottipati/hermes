@@ -1,0 +1,66 @@
+{
+ "registered_gate": "see docstring (prereg: lowvol_sleeve)",
+ "run_at": "2026-07-22 13:16Z",
+ "months": 169,
+ "corr_lowvol_vs_momstack": -0.018,
+ "corr_lowvol_vs_index": -0.027,
+ "standalone": {
+  "momentum_stack_net": {
+   "retvol": 0.71,
+   "cagr%": 13.3,
+   "maxdd%": -63.2
+  },
+  "lowvol_sleeve_net": {
+   "retvol": 1.14,
+   "cagr%": 15.9,
+   "maxdd%": -21.5
+  },
+  "index": {
+   "retvol": 0.85,
+   "cagr%": 13.4,
+   "maxdd%": -30.0
+  }
+ },
+ "blends_net": {
+  "mom40_lowvol60": {
+   "retvol": 1.32,
+   "cagr%": 15.7,
+   "maxdd%": -32.7,
+   "plus_voltgt15": {
+    "retvol": 1.31,
+    "cagr%": 15.5,
+    "maxdd%": -32.7
+   }
+  },
+  "mom50_lowvol50": {
+   "retvol": 1.23,
+   "cagr%": 15.5,
+   "maxdd%": -37.6,
+   "plus_voltgt15": {
+    "retvol": 1.23,
+    "cagr%": 15.4,
+    "maxdd%": -37.5
+   }
+  },
+  "mom60_lowvol40": {
+   "retvol": 1.12,
+   "cagr%": 15.2,
+   "maxdd%": -43.4,
+   "plus_voltgt15": {
+    "retvol": 1.13,
+    "cagr%": 15.2,
+    "maxdd%": -42.0
+   }
+  },
+  "mom70_lowvol30": {
+   "retvol": 1.0,
+   "cagr%": 14.8,
+   "maxdd%": -48.8,
+   "plus_voltgt15": {
+    "retvol": 1.03,
+    "cagr%": 14.9,
+    "maxdd%": -44.9
+   }
+  }
+ }
+}
