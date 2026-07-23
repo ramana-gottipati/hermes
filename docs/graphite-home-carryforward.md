@@ -83,10 +83,14 @@ density · index-redundancy killed · news dedup). **Cross-author near-miss** ca
 
 ## 4. OPEN — next feedback
 
-**DONE + DEPLOYED this session (commit `3d5637d`):** ① section organization (scroll-stack) · ②
-Market-Pulse expanded (7-tile deck) · ③ watchlist + portfolio (featured card, reuses `watchlist` +
-`stocks_in_play`) · ④ real-vs-demo honesty (sample badges; globals dropped; portfolio honest
-"connect holdings" empty) · + the selectable **ticker feed** + **pin/collapse/hide** (new owner asks).
+**DONE + DEPLOYED this session:** ① section organization (scroll-stack) · ② Market-Pulse expanded
+(7-tile deck) · ③ watchlist + portfolio (featured card, reuses `watchlist` + `stocks_in_play`) · ④
+real-vs-demo honesty (sample badges; globals dropped) · **⑤ response-format calibration** (Pat ask
+box + Telegram `chat.py` prompt) · selectable **ticker feed** · **pin/collapse/hide** · **classic-site
+directory** in the top-right (whole classic site from `lens_registry`, one-way) · **analyst "today"
+additions**: **regime one-liner** (top) + **Today's conviction** (reuses `stock_rs.conviction_shortlist`)
++ **Filings & ownership** rail card (insider + SAST). Commits: `3d5637d`·`3b41f73`·`a82330a`·`4f714b6`·`677203d`.
+Everything deployed to `/dash/home`; suite 833 pass; classic + old preview byte-untouched.
 
 **STILL OPEN:**
 1. **Owner PIXEL-review** — the Browser pane was down this session, so structure+gates were verified,
