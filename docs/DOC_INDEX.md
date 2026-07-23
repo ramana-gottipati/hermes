@@ -56,10 +56,11 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/patearn-charter.md` | CEO-mode operating doctrine + NOW roadmap (amended by the Decision log). |
 | `docs/patearn-analytics-company-plan.md` | Company-level plan (D134): analytics-company posture + validated regulatory boundaries + adaptable layers L0–L8 + structured cost model + the rated component roadmap. |
 
-## B. DESIGN(live) — design-of-record, keep (26)
+## B. DESIGN(live) — design-of-record, keep (27)
 
 | Doc | Note |
 |---|---|
+| `docs/x-setups-render-spec.md` | TRANSIENT hand-off: the X-setups render-lens build spec (data spine LIVE S205/S207; render owner/redesign-gated). Retire when the lens ships. |
 | `docs/concall-intelligence-design.md` | P1–P7 built/deployed; only data remains. |
 | `docs/cci-backtest-methodology-and-review.md` | Design-of-record + panel review. |
 | `docs/cpr-strategy-design.md` | Built, verified, live. |
