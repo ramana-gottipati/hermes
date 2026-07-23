@@ -41,7 +41,7 @@ def _st(r, months, lo=None, hi=None):
             round((float(eq[-1]) ** (12 / len(x)) - 1) * 100, 1), round(dd * 100, 1))
 
 
-def _analyze(book, trend_off, vol_off):
+def _analyze(book, trend_off, vol_off, vix_off, vix_start):
     bmonths = sorted(book)
     base = np.array([book[m] for m in bmonths])
 
@@ -60,6 +60,17 @@ def _analyze(book, trend_off, vol_off):
     }
     if vol_off:
         r["VOL_overlay"] = {"scale0.3_full": _st(ov(vol_off, 0.3), bmonths), "scale0.0_full": _st(ov(vol_off, 0.0), bmonths)}
+    if vix_off:
+        offw = [book[m] for m in bmonths if m >= vix_start and vix_off.get(_prior(m), False)]
+        onw = [book[m] for m in bmonths if m >= vix_start and not vix_off.get(_prior(m), False)]
+        r["VIX_overlay [India VIX, fair window]"] = {
+            "window": vix_start + "+",
+            "base_on_window": _st(base, bmonths, vix_start, None),
+            "scale0.3": _st(ov(vix_off, 0.3), bmonths, vix_start, None),
+            "scale0.0": _st(ov(vix_off, 0.0), bmonths, vix_start, None),
+            "vix_off_avg%": round(float(np.mean(offw)) * 100, 2) if offw else None,
+            "vix_on_avg%": round(float(np.mean(onw)) * 100, 2) if onw else None,
+        }
     return r
 
 
@@ -92,11 +103,23 @@ def run():
         if not np.isnan(vol[i]) and len(seen_vol) > 12:
             vol_off[m] = bool(vol[i] > np.percentile(seen_vol, 66.7))   # top tercile, history-to-date
 
+    vd, vc = index_series("India VIX")
+    vc = np.asarray(vc, float)
+    vme = {}
+    for i, dt in enumerate(vd):
+        vme[dt[:7]] = float(vc[i])                                   # last India VIX each month
+    vix_off = {}; seen_vix = []
+    for m in sorted(vme):
+        seen_vix.append(vme[m])
+        if len(seen_vix) > 6:
+            vix_off[m] = bool(vme[m] > np.percentile(seen_vix, 66.7))  # elevated implied vol, top tercile to-date
+    vix_start = "2015-01"
+
     out = {
-        "months_lowvol": len(lowvol), "months_mom": len(mom),
-        "read": "a de-risk overlay HELPS a book that gets HURT in risk-off (separation: off<on); it HURTS a book that is ALREADY a risk-off hedge (off>on). WORKS = cuts MaxDD while holding CAGR.",
-        "low_vol_v2 [defensive — overlay expected NOT to help]": _analyze(lowvol, trend_off, vol_off),
-        "momentum_CELL_B_TREND_STRONG [high-beta — overlay expected to CUT the -63% DD]": _analyze(mom, trend_off, vol_off),
+        "months_lowvol": len(lowvol), "months_mom": len(mom), "vix_coverage_from": min(vme) if vme else None,
+        "read": "de-risk overlay HELPS a book HURT in risk-off (separation off<on), HURTS a book that is ALREADY a hedge (off>on). TREND=index vs 200-DMA (full window); VIX=India VIX forward-looking implied-vol top-tercile (fair window 2015+).",
+        "low_vol_v2 [defensive — overlay expected NOT to help]": _analyze(lowvol, trend_off, vol_off, vix_off, vix_start),
+        "momentum_CELL_B_TREND_STRONG [high-beta — overlay expected to CUT the -63% DD]": _analyze(mom, trend_off, vol_off, vix_off, vix_start),
     }
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "regime_overlay.json").write_text(json.dumps(out, indent=1))

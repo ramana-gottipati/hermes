@@ -2043,6 +2043,17 @@ hurdle, CAGR ≈ index, and has NO selection edge (it's beta with a drawdown bra
 overlay does NOT rescue the crossover. In-sample; needs a forward test before trust. **CORRECTS the earlier
 loose "regime overlay = CAGR lever" claim: it is a DRAWDOWN lever, and only on books that bleed in risk-off.**
 
+**VIX FOLLOW-UP (India VIX wired as a real regime feature — ALREADY on the box via `indexes.py`/`index_rows`,
+2014-05→today, 2997 rows).** The forward-looking implied-vol regime (India VIX top-tercile-to-date, PIT)
+does NOT beat the simple 200-DMA trend regime — it is INVERTED for momentum. VIX-separation (momentum,
+2015+ fair window): VIX-off (high-VIX) avg **+1.46%/mo** > VIX-on +0.69% — high-VIX months are GOOD for this
+trend-filtered momentum book (it catches recovery bounces), so de-risking on VIX cuts the good months and
+CRUSHES CAGR (2015+ base 0.55/9.7/−63 → VIX-0.0 0.48/**6.4**/−42: DD cut but CAGR gutted). The simple TREND
+filter stays the better de-risk signal (its off<on). **Lesson: the fancier implied-vol signal LOST to the
+plain trend filter for this job — measure, don't assume.** India VIX may still earn its keep as a DIFFERENT
+feature (position sizing / mean-reversion timing), not as a de-risk overlay — a separate test. (AMFI NAVAll
+reachable = fund NAVs only; stock-level MF flow needs AMC-portfolio parsing — a real build, not a quick pull.)
+
 ### EMA-crossover family — VERDICT (2026-07-23, explicit)
 
 **The EMA CROSSOVER ITSELF PRODUCES NOTHING FUNDABLE.** Both crossover strategies fail:
