@@ -2222,6 +2222,17 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   `lens_registry` imports nothing from the web layer, so reading it doesn't couple the home to a
   render module (still passes the import-ban gate); defensive fallback to the plain link. New gate
   `test_classic_site_directory_bundles_the_whole_registry_one_way`. The classic site is byte-untouched.
+- **Analyst "today" additions (owner: "what would an Indian analyst expect" → build the top 3):**
+  (1) **Regime one-liner** at the very top — one calibrated descriptive sentence (mood word + breadth/
+  delivery/Nifty-vs-200-DMA facts + a single "watch:" clause, e.g. FII net sellers), composed from
+  reads already in hand. (2) **Today's conviction** card (after the pulse) — reuses the CANONICAL
+  `stock_rs.conviction_shortlist` (same as `/dash/conviction`, DRY): RS leader + accumulating + near
+  entry + pt14 ✓, with sym-links + near-entry/★-quality chips. (3) **Filings & ownership** rail card —
+  unified insider (`insider_events`) + SAST pledge/Reg-29 (`sast_pledge_events`/`sast_reg29_events`)
+  events, plain-English + signed dot, newest-first. All defensive + demo-fallback-with-sample; new
+  reads `conviction_now`/`filings_recent`; builders `regime_banner`/`conviction_block`/`filings_block`;
+  read-contract extended (conviction signature + filings columns at source); `test_home_featured`
+  extended. Suite 833 pass (only the pre-existing `test_rule_lab` red).
 
 ### Session 214 — 2026-07-23 — EMA-CROSSOVER FAMILY carried to a VERDICT: both crossover strategies FAIL (momentum = par/beta, reversal = dead); the only fundable output is a SEPARATE low-vol factor (quarterly+hysteresis, scales to ~₹500cr); `ema_crossover_forward.py` forward test ARMED + a quarterly VPS→Telegram checkpoint LIVE
 (Renumbered S210→S214 on push contact — origin held 210–213.) The 16BD momentum-band+RSI lane S209 flagged as a parallel sibling — carried to a full verdict. All research ran on the VPS (`.venv-research`; the laptop has only synthetic fixtures). Reconciled by cherry-picking ONLY my 15 disjoint commits onto origin/main (the chart/wolfe local commits left untouched for their owner — no cross-absorption).

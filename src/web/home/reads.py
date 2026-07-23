@@ -337,3 +337,68 @@ def movers(conn, limit: int = 6) -> dict:
             continue
     rows.sort(key=lambda x: x["pct"], reverse=True)
     return {"gainers": rows[:limit], "losers": rows[-limit:][::-1]} if rows else {}
+
+
+# ── the analyst's "today" additions: conviction shortlist + ownership filings ─────
+def conviction_now(limit: int = 6) -> list:
+    """The cross-pillar Conviction shortlist (RS leader + accumulating now + near entry, pt14 quality
+    as a ✓) — reuses the CANONICAL stock_rs.conviction_shortlist (same as /dash/conviction, DRY). It
+    opens its own read-only connection. [] on any error → the caller shows demo (marked sample)."""
+    try:
+        from src.automation.stock_rs import conviction_shortlist
+        return list(conviction_shortlist(limit=limit) or [])[:limit]
+    except Exception:  # noqa: BLE001 — a heavy/edge synthesis must never 500 the home
+        return []
+
+
+def _insider_ev(r: dict) -> dict:
+    tc = (r.get("txn_class") or "").upper()
+    sc = (r.get("signal_class") or "").lower()
+    who = "Promoter" if r.get("promoter_group_flag") else "Insider"
+    verb = "buy" if ("BUY" in tc or "ACQ" in tc) else ("sell" if ("SELL" in tc or "DISP" in tc) else "trade")
+    cls = "pos" if sc == "conviction" else ("warn" if sc in ("caution", "pledge") else "")
+    return {"symbol": r.get("symbol"), "detail": f"{who} {verb}", "date": r.get("disclosure_dt"), "cls": cls}
+
+
+def _pledge_ev(r: dict) -> dict:
+    et = (r.get("event_type") or "").lower()
+    pct = r.get("event_pct")
+    created = ("creat" in et) or ("invoc" in et)
+    verb = "Pledge created" if created else ("Pledge released" if ("releas" in et or "revoc" in et) else "Pledge change")
+    detail = verb + (f" {abs(float(pct)):.1f}%" if pct is not None else "")
+    return {"symbol": r.get("symbol"), "detail": detail, "date": r.get("broadcast_dt"), "cls": ("warn" if created else "pos")}
+
+
+def _reg29_ev(r: dict) -> dict:
+    ac = (r.get("acq_sale") or "").lower()
+    who = "Promoter" if r.get("promoter_flag") else "Substantial holder"
+    if "acq" in ac or "buy" in ac:
+        return {"symbol": r.get("symbol"), "detail": f"{who} stake acquired", "date": r.get("broadcast_dt"), "cls": "pos"}
+    if "sale" in ac or "sell" in ac or "disp" in ac:
+        return {"symbol": r.get("symbol"), "detail": f"{who} stake sold", "date": r.get("broadcast_dt"), "cls": "warn"}
+    return {"symbol": r.get("symbol"), "detail": f"{who} stake change", "date": r.get("broadcast_dt"), "cls": ""}
+
+
+def filings_recent(conn, days: int = 21, limit: int = 12) -> list:
+    """Recent ownership/insider filings — insider transactions + SAST pledge + Reg-29 stake events,
+    unified and newest-first, each a plain-English descriptive line. [] if the tables are absent/empty
+    (the caller falls back to demo). Descriptive only, never a recommendation."""
+    out = []
+    if _has(conn, "insider_events"):
+        out += [_insider_ev(r) for r in _rows(
+            conn, "SELECT symbol, disclosure_dt, txn_class, signal_class, promoter_group_flag FROM insider_events "
+                  "WHERE disclosure_dt >= date('now', ?) ORDER BY disclosure_dt DESC LIMIT ?",
+            (f"-{int(days)} day", limit))]
+    if _has(conn, "sast_pledge_events"):
+        out += [_pledge_ev(r) for r in _rows(
+            conn, "SELECT symbol, broadcast_dt, event_type, event_pct FROM sast_pledge_events "
+                  "WHERE broadcast_dt >= date('now', ?) ORDER BY broadcast_dt DESC LIMIT ?",
+            (f"-{int(days)} day", limit))]
+    if _has(conn, "sast_reg29_events"):
+        out += [_reg29_ev(r) for r in _rows(
+            conn, "SELECT symbol, broadcast_dt, acq_sale, promoter_flag FROM sast_reg29_events "
+                  "WHERE broadcast_dt >= date('now', ?) ORDER BY broadcast_dt DESC LIMIT ?",
+            (f"-{int(days)} day", limit))]
+    out = [e for e in out if e.get("symbol")]
+    out.sort(key=lambda x: x.get("date") or "", reverse=True)
+    return out[:limit]

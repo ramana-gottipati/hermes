@@ -127,6 +127,16 @@ def _compose(conn, on: bool) -> str:
     if not sev.get("total"):
         sev = demo.SEVERITY
     mood = market_mood(b_in, nifty_up)
+    fd, fd_demo = _pick(reads.fii_dii_recent(conn), demo.FII_DII)
+    conv, conv_demo = _pick(reads.conviction_now(), demo.CONVICTION)
+    fil, fil_demo = _pick(reads.filings_recent(conn), demo.FILINGS)
+
+    # ── the regime one-liner (very top): one calibrated, descriptive read of the day ──
+    _adp = [C._d(r).get("avg_dp") for r in internals]
+    _delivery = _adp[-1] if _adp else None
+    _fii_net = next((float(C._d(r)["net_value"]) for r in fd
+                     if C._d(r).get("category") == "FII/FPI" and C._d(r).get("net_value") is not None), None)
+    regime = C.regime_banner(mood.get("word"), b_in, breadth, _delivery, _fii_net, nifty_up)
 
     # ── the FEATURED card + the selectable ticker ──
     wl, wl_demo = _pick(reads.watchlist_rows(conn), demo.WATCHLIST)
@@ -145,15 +155,18 @@ def _compose(conn, on: bool) -> str:
                   C.count_band(sev) + C.changed_rows(reads.what_changed(conn) or demo.WHATCHANGED)
                   + C.learn("Signals that flipped state since yesterday — described from the tape, never a prediction."),
                   sub="signals that flipped")
+    conviction = C.zone("Today's conviction", "Cross-pillar synthesis · nightly", C.conviction_block(conv),
+                        sub="where all pillars align", sample=conv_demo, name="Conviction")
     news_rows, news_demo = _pick(reads.recent_news(conn, limit=20), demo.NEWS)
     news = C.zone("Market news", "Newswire · 2× daily", C.wire(news_rows),
                   sub="headlines, symbol-tagged", sample=news_demo)
-    main = '<div class="g-main">' + featured + pulse + trig + news + "</div>"
+    main = '<div class="g-main">' + regime + featured + pulse + conviction + trig + news + "</div>"
 
-    # ── RAIL: flows · calendars · go-deeper · toggle ──
-    fd, fd_demo = _pick(reads.fii_dii_recent(conn), demo.FII_DII)
+    # ── RAIL: flows · filings · calendars · go-deeper · toggle ──
     flows = C.zone("FII / DII flows", "FII/DII cash · post-close", C.flows_block(fd),
                    sub="foreign vs domestic", sample=fd_demo)
+    filings = C.zone("Filings & ownership", "SEBI disclosures · daily", C.filings_block(fil),
+                     sub="insider · pledge · stake", sample=fil_demo, name="Filings")
     ca_rows, ca_demo = _pick(reads.upcoming_ca(conn, days=21), demo.CA)
     ca = C.zone("Going ex — corporate actions", "NSE filings · daily", C.ca_agenda(ca_rows),
                 sub="dividends · splits · bonuses", sample=ca_demo, name="Going ex")
@@ -166,6 +179,6 @@ def _compose(conn, on: bool) -> str:
                          '<p style="font-size:12px;color:var(--ink-3);margin:0 0 8px">Opt-in · isolated from the '
                          "classic site.</p><form method=\"post\" action=\"/dash/home/toggle\">"
                          "<button class=\"g-btn\" type=\"submit\">" + toggle + "</button></form>")
-    side = '<div class="g-side">' + flows + ca + res + drawer + toggle_card + "</div>"
+    side = '<div class="g-side">' + flows + filings + ca + res + drawer + toggle_card + "</div>"
 
     return ribbon + C.hidden_tray() + '<div class="g-dash">' + main + side + "</div>"

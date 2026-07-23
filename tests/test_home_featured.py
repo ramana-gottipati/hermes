@@ -62,6 +62,26 @@ def test_ticker_feeds_render_and_only_first_shows():
     assert "NIFTY 50" in html and "g-smp" in html                   # the sample feed is marked
 
 
+def test_regime_conviction_filings_builders():
+    reg = C.regime_banner("Constructive", 64.0, {"adv": 1758, "dec": 592}, 56.0, -1240.0, True)
+    assert "g-regime" in reg and "Constructive" in reg and "advancing" in reg
+    assert "200-DMA" in reg and "FII net sellers" in reg               # watch clause fires on negative FII
+    cv = C.conviction_block([{"symbol": "TCS", "rs_rank": 90, "primary_sector": "Nifty IT",
+                              "gap_to_key_p3m": 1.2, "pt14_ns": 160, "pt14_dq": 0}])
+    assert "TCS" in cv and "RS #90" in cv and "near entry" in cv and "★ quality" in cv
+    assert "g-empty" in C.conviction_block([])
+    fl = C.filings_block([{"symbol": "RELIANCE", "detail": "Promoter buy", "date": "2026-07-23", "cls": "pos"}])
+    assert "RELIANCE" in fl and "Promoter buy" in fl and "g-fl-dot pos" in fl
+    assert "g-empty" in C.filings_block([])
+
+
+def test_today_additions_escape_untrusted():
+    fl = C.filings_block([{"symbol": "<script>", "detail": "<b>x", "date": "2026-07-23", "cls": "warn"}])
+    cv = C.conviction_block([{"symbol": "<script>", "rs_rank": 1, "primary_sector": "<i>"}])
+    for h in (fl, cv):
+        assert "<script>" not in h and "<i>" not in h and "<b>x" not in h
+
+
 def test_new_builders_escape_and_leak_no_markers():
     outs = [
         C.watchlist_block([{"symbol": "<script>x</script>", "pct": 1.0, "trend": "<b>"}]),

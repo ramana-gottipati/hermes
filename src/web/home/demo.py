@@ -103,3 +103,18 @@ MOVERS = {
     "losers": [{"symbol": "PAYTM", "pct": -5.3}, {"symbol": "ZOMATO", "pct": -4.1},
                {"symbol": "IDFCFIRSTB", "pct": -3.8}, {"symbol": "BANDHANBNK", "pct": -3.1}],
 }
+
+# ── the analyst's "today" additions ──────────────────────────────────────────────
+CONVICTION = [
+    {"symbol": "PERSISTENT", "rs_rank": 94, "primary_sector": "Nifty IT", "gap_to_key_p3m": 1.4, "pt14_ns": 172, "pt14_dq": 0},
+    {"symbol": "DIXON", "rs_rank": 91, "primary_sector": "Nifty Consumer Durables", "gap_to_key_p3m": -0.8, "pt14_ns": None, "pt14_dq": 0},
+    {"symbol": "CDSL", "rs_rank": 88, "primary_sector": "Nifty Fin Services", "gap_to_key_p3m": 2.6, "pt14_ns": 161, "pt14_dq": 0},
+    {"symbol": "POLYCAB", "rs_rank": 85, "primary_sector": "Nifty Capital Goods", "gap_to_key_p3m": 4.2, "pt14_ns": 158, "pt14_dq": 0},
+]
+FILINGS = [
+    {"symbol": "RELIANCE", "detail": "Promoter buy", "date": "2026-07-23", "cls": "pos"},
+    {"symbol": "TATAPOWER", "detail": "Pledge released 1.8%", "date": "2026-07-23", "cls": "pos"},
+    {"symbol": "VEDL", "detail": "Pledge created 3.2%", "date": "2026-07-22", "cls": "warn"},
+    {"symbol": "INFY", "detail": "Substantial holder stake acquired", "date": "2026-07-22", "cls": "pos"},
+    {"symbol": "ZEEL", "detail": "Insider sell", "date": "2026-07-21", "cls": "warn"},
+]

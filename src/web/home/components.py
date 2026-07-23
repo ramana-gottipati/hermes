@@ -657,6 +657,76 @@ def hidden_tray() -> str:
     return '<div class="g-hidden-tray" id="g-tray"></div>'
 
 
+# ── the analyst's "today" additions: regime line · conviction · filings ───────────
+def regime_banner(mood_word, breadth_pct, breadth_row, delivery_pct, fii_net, nifty_up) -> str:
+    """One calibrated, descriptive sentence at the very top — the read an analyst wants first.
+    Leads with the mood word, states the day's facts, and flags the single most salient thing to
+    watch. Descriptive of the tape, never advice."""
+    parts = []
+    b = _d(breadth_row)
+    if b and b.get("adv") is not None:
+        parts.append(f"{int(b.get('adv') or 0)} advancing vs {int(b.get('dec') or 0)}")
+    elif breadth_pct is not None:
+        parts.append(f"breadth {float(breadth_pct):.0f}%")
+    if delivery_pct is not None:
+        parts.append(f"~{float(delivery_pct):.0f}% delivered")
+    if nifty_up is not None:
+        parts.append("Nifty above its 200-DMA" if nifty_up else "Nifty below its 200-DMA")
+    watch = ""
+    try:
+        if fii_net is not None and float(fii_net) < 0:
+            watch = " Watch: FII net sellers today."
+        elif breadth_pct is not None and float(breadth_pct) < 40:
+            watch = " Watch: breadth is thinning."
+    except (TypeError, ValueError):
+        watch = ""
+    facts = ", ".join(parts)
+    body = (esc(facts) + "." if facts else "") + esc(watch)
+    return ('<div class="g-regime"><span class="g-regime-dot"></span>'
+            '<span class="g-regime-t"><b>' + esc(mood_word or "Market") + ".</b> " + body + "</span></div>")
+
+
+def conviction_block(rows) -> str:
+    if not rows:
+        return empty("No names have all three pillars aligned today.")
+    out = ""
+    for r in (rows or [])[:8]:
+        r = _d(r)
+        rank = r.get("rs_rank")
+        sector = (r.get("primary_sector") or "").replace("Nifty ", "").strip()
+        tags = ""
+        gap = r.get("gap_to_key_p3m")
+        try:
+            if gap is not None and abs(float(gap)) <= 3:
+                tags += '<span class="g-cv-tag near">near entry</span>'
+        except (TypeError, ValueError):
+            pass
+        if r.get("pt14_ns") is not None and not r.get("pt14_dq"):
+            tags += '<span class="g-cv-tag q">★ quality</span>'
+        meta = "RS #" + (esc(rank) if rank is not None else "—") + (" · " + esc(sector) if sector else "")
+        out += ('<div class="g-cv"><span class="g-cv-s">' + sym_link(r.get("symbol")) + "</span>"
+                '<span class="g-cv-meta g-num">' + meta + "</span>"
+                '<span class="g-cv-tags">' + tags + "</span></div>")
+    return ('<div class="g-convw">' + out + "</div>"
+            + learn("Names where all three pillars line up — a relative-strength leader, institutions "
+                    "accumulating now, near a buyable entry, with quality as a ✓. Described from the data, never a recommendation."))
+
+
+def filings_block(rows) -> str:
+    if not rows:
+        return empty("No fresh ownership filings in this window.")
+    out = ""
+    for r in (rows or [])[:12]:
+        r = _d(r)
+        cls = (r.get("cls") or "").strip()
+        dot = "pos" if cls == "pos" else ("warn" if cls == "warn" else "")
+        out += ('<div class="g-fl"><span class="g-fl-dot ' + dot + '"></span>'
+                '<span class="g-fl-s">' + sym_link(r.get("symbol")) + "</span>"
+                '<span class="g-fl-d">' + esc(r.get("detail")) + "</span>"
+                '<span class="g-fl-when g-num">' + esc((r.get("date") or "")[:10]) + "</span></div>")
+    return '<div class="g-filings">' + out + "</div>"
+
+
 # ── the .g-* stylesheet (scoped by data-ui-g on the root, via the token layer) ──
 def css() -> str:
     return """<style>/* g-kit */
@@ -879,6 +949,30 @@ def css() -> str:
 :root[data-ui-g] .g-hidden-tray{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;background:var(--bg-1);border:1px dashed var(--line-2);border-radius:var(--r);margin-bottom:16px;font-size:12px;color:var(--ink-3)}
 :root[data-ui-g] .g-hidden-tray:empty{display:none}
 :root[data-ui-g] .g-restore{background:var(--bg-3);border:1px solid var(--line-2);color:var(--ink-2);border-radius:var(--r-pill);padding:4px 10px;font:600 11px var(--font);cursor:pointer}
+/* ── regime one-liner (very top) ── */
+:root[data-ui-g] .g-regime{display:flex;align-items:center;gap:11px;padding:11px 15px;margin-bottom:16px;
+  background:linear-gradient(100deg,var(--acc-dim),transparent 72%),var(--bg-1);border:1px solid var(--line);
+  border-left:3px solid var(--accent);border-radius:var(--r);font-size:13.5px;color:var(--ink-2);line-height:1.45}
+:root[data-ui-g] .g-regime-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none;box-shadow:0 0 10px var(--glow)}
+:root[data-ui-g] .g-regime-t b{color:var(--ink)}
+/* ── conviction shortlist ── */
+:root[data-ui-g] .g-convw{display:flex;flex-direction:column}
+:root[data-ui-g] .g-cv{display:grid;grid-template-columns:112px 1fr auto;gap:12px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--line);font-size:13px}
+:root[data-ui-g] .g-cv:last-child{border-bottom:0}
+:root[data-ui-g] .g-cv-meta{color:var(--ink-3);font-size:12px}
+:root[data-ui-g] .g-cv-tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+:root[data-ui-g] .g-cv-tag{font:600 9.5px/1 var(--mono);border-radius:var(--r-pill);padding:3px 7px;white-space:nowrap;border:1px solid var(--line-2);color:var(--ink-2)}
+:root[data-ui-g] .g-cv-tag.near{color:var(--up);border-color:color-mix(in srgb,var(--up) 45%,transparent)}
+:root[data-ui-g] .g-cv-tag.q{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+/* ── filings & ownership feed ── */
+:root[data-ui-g] .g-filings{display:flex;flex-direction:column;max-height:260px;overflow-y:auto;scrollbar-width:thin}
+:root[data-ui-g] .g-fl{display:grid;grid-template-columns:11px 92px 1fr auto;gap:9px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--line);font-size:12.5px}
+:root[data-ui-g] .g-fl:last-child{border-bottom:0}
+:root[data-ui-g] .g-fl-dot{width:7px;height:7px;border-radius:50%;background:var(--ink-3)}
+:root[data-ui-g] .g-fl-dot.pos{background:var(--up)}
+:root[data-ui-g] .g-fl-dot.warn{background:var(--warn)}
+:root[data-ui-g] .g-fl-d{color:var(--ink-2)}
+:root[data-ui-g] .g-fl-when{font-size:11px;color:var(--ink-3);text-align:right}
 </style>"""
 
 

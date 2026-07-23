@@ -183,3 +183,22 @@ def test_home_reads_execute_against_the_real_schemas():
     assert reads.watchlist_rows(c) == []
     assert reads.portfolio(c) == {}
     assert reads.movers(c) == {}
+    assert reads.filings_recent(c) == []                 # filings tables absent from this schema set
+    assert isinstance(reads.conviction_now(), list)      # defensive: opens its own conn, never raises
+
+
+def test_conviction_shortlist_helper_signature():
+    from src.automation.stock_rs import conviction_shortlist
+    assert "limit" in inspect.signature(conviction_shortlist).parameters, \
+        "stock_rs.conviction_shortlist(limit=...) signature changed — the home's conviction card reuses it"
+
+
+def test_filings_event_table_columns_at_source():
+    """insider/SAST tables aren't in SCHEMA_BASE — pin the columns the home reads at their module
+    source (the reads are also defensive: a missing table degrades the filings card to demo)."""
+    from src.automation import insider_events, sast_events
+    isrc, ssrc = inspect.getsource(insider_events), inspect.getsource(sast_events)
+    for col in ("disclosure_dt", "txn_class", "signal_class", "promoter_group_flag"):
+        assert col in isrc, ("insider_events lost a column the home reads", col)
+    for col in ("broadcast_dt", "event_type", "event_pct", "acq_sale", "promoter_flag"):
+        assert col in ssrc, ("sast_events lost a column the home reads", col)
