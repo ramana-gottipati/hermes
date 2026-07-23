@@ -1999,6 +1999,27 @@ product** — net R/V ~1.0, matches/beats the index, DD ~−21% vs index −30%,
 holds to ₹250-500cr. The blend is a small-AUM return-per-vol booster only. Descriptive; NEXT = a
 forward/paper test (freeze the spec, watch quarterly) before any capital.
 
+### Study 2026-07-23 — WEEKLY BAND RECLAIM: the weekly timeframe does NOT rescue the daily-falsified reclaim (REJECTED)
+
+The one crossover variant that attacked the actual reason the daily arc failed — the TIMEFRAME. Signal:
+T=EMA5(HLC3) crosses UP through L=EMA13(low) on WEEKLY bars ("buy the reclaim after weakness"); proper
+SL/TSL = ratcheting weekly 2°-down-fractal + band invalidation (weekly close < L) + 52-week censor. Module
+`research/explosive_moves/weekly_band_reclaim.py` (prereg `9990a435`). Prior on record: CAUTIOUS-FAIL.
+
+**RESULT — FAILS BOTH GATES; weekly did NOT help.**
+- **Gate-1 SELECTION:** ~10,400 events; 13-week median excess **−2.79%** (WORSENING to −5.32% at 26wk, pos
+  ~40%); Cliff's δ vs placebo **−0.02** (worse than random); both halves negative (−4.0% / −2.2%) →
+  **FAIL-null** (G2/G3/G4 all fail). An ANTI-signal, exactly like its daily form (STREAM BAND 07-13).
+- **Gate-2 BOOK** (net, weekly EW → monthly): R/V **0.15** / CAGR 0.8% / DD −60% — and WORSE than a
+  random-entry control (R/V 0.51). The reclaim ENTRY destroys value vs the exits alone. NOT FUNDABLE.
+
+**WHY the horizon fix didn't work:** the reclaim is a BUY-WEAKNESS entry, and weakness PERSISTS at the
+2–6-month horizon too (the excess gets MORE negative with horizon). The weekly-timeframe fix would help a
+buy-STRENGTH signal (moving it toward momentum-persistence); it cannot rescue a buy-weakness signal, whose
+edge is negative at every horizon tested. VERDICT: REJECTED, descriptive-only. **Closes the "but what
+about weekly?" question — the low-band reclaim is a robust anti-signal on BOTH daily and weekly.** Cite
+alongside the daily momentum FAIL-null (this arc) + STREAM BAND 07-13.
+
 ### EMA-crossover family — VERDICT (2026-07-23, explicit)
 
 **The EMA CROSSOVER ITSELF PRODUCES NOTHING FUNDABLE.** Both crossover strategies fail:

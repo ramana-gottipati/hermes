@@ -39,7 +39,7 @@ STUDIES = ["pead", "footprint", "insider_drift", "filing_latency", "concall_inte
            "dividend_drift", "rebrand_pump", "campaign_arcs", "rating_drift",
            "shp_combos", "hedge_density", "evlib", "hedge_density_v2", "streamband",
            "fractal_floor", "fractal_fences", "reclaim_selection", "streamband_managed", "exit_lab",
-           "momentum_band_rsi", "reversal_oversold", "lowvol_sleeve", "lowvol_sleeve_q"]
+           "momentum_band_rsi", "reversal_oversold", "lowvol_sleeve", "lowvol_sleeve_q", "weekly_band_reclaim"]
 RETRO = {"pead", "footprint", "insider_drift", "filing_latency", "concall_intent", "evlib"}
 
 _DDL = """CREATE TABLE IF NOT EXISTS prereg_registry(
