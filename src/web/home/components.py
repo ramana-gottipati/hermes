@@ -332,6 +332,24 @@ def pulse_block(idx: list, mood: dict, mood_pct, breadth, series: list = None) -
     return ('<div class="g-pulse2">' + left + '<div class="g-pl-r">' + gtile + btile + "</div></div>")
 
 
+def ribbon(idx: list, extra: list = None) -> str:
+    """The top market ribbon — key indices + global/currency/commodity, horizontally scrollable."""
+    chips = ""
+    for r in (idx or [])[:4]:
+        txt, cls = _signed_pct(r.get("ret_1d_pct"))
+        chips += ('<span class="g-rib"><b>' + esc(r.get("index_name")) + "</b>"
+                  '<span class="g-num">' + _num(r.get("close_value"), 0) + "</span>"
+                  '<span class="g-num ' + cls + '">' + txt + "</span></span>")
+    for e in (extra or []):
+        up = float(e.get("chg", 0)) >= 0
+        chips += ('<span class="g-rib"><b>' + esc(e.get("name")) + "</b>"
+                  '<span class="g-num">' + esc(e.get("value")) + "</span>"
+                  '<span class="g-num ' + ("up" if up else "dn") + '">'
+                  + ("▲" if up else "▼") + f'{abs(float(e.get("chg", 0))):.2f}%' + "</span></span>")
+    return ('<div class="g-ribbon"><span class="g-rib-live">● LIVE</span>'
+            '<div class="g-rib-scroll">' + chips + "</div></div>")
+
+
 # ── the .g-* stylesheet (scoped by data-ui-g on the root, via the token layer) ──
 def css() -> str:
     return """<style>/* g-kit */
@@ -458,6 +476,21 @@ def css() -> str:
 :root[data-ui-g] .g-agenda::-webkit-scrollbar,:root[data-ui-g] .g-wire::-webkit-scrollbar,:root[data-ui-g] .g-changed::-webkit-scrollbar{width:8px}
 :root[data-ui-g] .g-agenda::-webkit-scrollbar-thumb,:root[data-ui-g] .g-wire::-webkit-scrollbar-thumb,:root[data-ui-g] .g-changed::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:8px}
 :root[data-ui-g] .g-agenda::-webkit-scrollbar-track,:root[data-ui-g] .g-wire::-webkit-scrollbar-track,:root[data-ui-g] .g-changed::-webkit-scrollbar-track{background:transparent}
+/* the 2-region dashboard: main column (pulse + news hero) | sidebar of widgets */
+:root[data-ui-g] .g-ribbon{display:flex;align-items:center;gap:14px;padding:9px 14px;background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);margin-bottom:16px}
+:root[data-ui-g] .g-rib-live{font:700 10px/1 var(--font);letter-spacing:.14em;color:var(--acc);flex:none}
+:root[data-ui-g] .g-rib-scroll{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none;min-width:0}
+:root[data-ui-g] .g-rib-scroll::-webkit-scrollbar{display:none}
+:root[data-ui-g] .g-rib{display:inline-flex;align-items:baseline;gap:6px;font-size:12px;white-space:nowrap}
+:root[data-ui-g] .g-rib b{font-weight:700}
+:root[data-ui-g] .g-rib .g-num{color:var(--ink-2)}
+:root[data-ui-g] .g-rib .up{color:var(--up)}
+:root[data-ui-g] .g-rib .dn{color:var(--down)}
+:root[data-ui-g] .g-dash{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:860px){:root[data-ui-g] .g-dash{grid-template-columns:minmax(0,1fr)}}
+:root[data-ui-g] .g-main,:root[data-ui-g] .g-side{display:flex;flex-direction:column;gap:16px;min-width:0}
+:root[data-ui-g] .g-main>.g-zone,:root[data-ui-g] .g-side>.g-zone{margin-bottom:0}
+:root[data-ui-g] .g-main .g-wire{max-height:440px}
 </style>"""
 
 

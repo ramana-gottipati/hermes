@@ -8,6 +8,13 @@ the surface as a preview.
 """
 from __future__ import annotations
 
+GLOBAL = [
+    {"name": "DOW", "value": "44,120", "chg": 0.35},
+    {"name": "NASDAQ", "value": "20,540", "chg": 0.62},
+    {"name": "USD/INR", "value": "83.42", "chg": -0.08},
+    {"name": "GOLD", "value": "71,850", "chg": 0.44},
+    {"name": "CRUDE", "value": "$81.2", "chg": -0.55},
+]
 INDEX = [
     {"index_name": "NIFTY 50", "close_value": 24218.4, "ret_1d_pct": 0.71},
     {"index_name": "SENSEX", "close_value": 79486.3, "ret_1d_pct": 0.63},
