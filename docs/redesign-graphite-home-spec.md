@@ -1,156 +1,175 @@
-# Graphite Home — fresh-and-parallel build spec (pre-build)
+# Graphite Home — fresh-and-parallel build spec (v1.1, pre-build)
 
 **Class: SPEC (pre-build).** The engineering contract for the new v3 home section. Build is gated
-on the owner's explicit go + a Codex review of THIS spec (redesign-coordination §1.4). This spec is
-the *how-to-build*; the *look* is the ratified blueprint `scratchpad/v3-home-blueprint.html`
-(artifact `aff1743c`). Retire condition: folds into PROJECT_STATE §Decision log once the section
-ships and the old preview is deprecated.
+on the owner's explicit go + Codex review of THIS spec (redesign-coordination §1.4). The *look* is
+the ratified blueprint `scratchpad/v3-home-blueprint.html` (artifact `aff1743c`). v1.1 folds in the
+Codex OBJECT review of v1.0 (`docs/codex-review/GRAPHITE-HOME-SPEC-CODEX.md`) — 7 BLOCKING + 3
+ADVISORY, all accepted. Retire condition: folds into PROJECT_STATE §Decision log at cutover.
 
 ---
 
 ## 0. The decision this implements (owner, 2026-07-23)
 
-Build **FRESH-AND-PARALLEL**: a completely new, self-contained section.
-- **ZERO changes** to the classic site (`/dash/*`) AND **zero changes** to the existing v3 preview
-  (M0–M5: `v3_preview`, `today_v3`, `shell_v3`, `ui_tokens_v3`, `ui_skin_bold`, `news_dock`,
-  `stock_hub_v3`, …) **until** the new home is confirmed done + ready.
-- **Only then** deprecate the old preview (§12). Until then the old one is a frozen reference too.
-- Identity = **direction B (Graphite Instrument)**; experience = visual-first · expandable drawers ·
-  floating alive Pat · dual-persona (beginner + expert) · futuristic but **data-earned** motion.
+Build **FRESH-AND-PARALLEL**: a new, self-contained section. **ZERO changes** to the classic site
+(`/dash/*`) AND **zero changes** to the existing v3 preview (M0–M5) **until** the new home is
+confirmed done + ready; **only then** deprecate the old preview (§12). Identity = direction B
+(Graphite Instrument); experience = visual-first · expandable drawers · floating alive Pat ·
+dual-persona (beginner + expert) · futuristic but **data-earned** motion.
 
-## 1. Isolation contract (the safety property — machine-enforced)
+## 1. Isolation contract (v1.1 — the honest, load-bearing safety property)
 
-| Guarantee | Mechanism | Test |
+**Key architectural decision (resolves Codex B1/B3):** during the parallel-build phase the section
+is a **direct-URL, INTERNAL_DEV route** — reached only by typing the URL + the opt-in cookie, with
+**no affordance in any classic chrome and NO `lens_registry` entry**. Because the classic nav is
+*generated from* `lens_registry` (`v2_surfaces.py:211-230` builds `_IA_ALT/_IA_SUB` from it),
+adding a lens now would change the classic nav — a zero-drift violation. So lens / Pat-coverage /
+education / nav registration is **deferred to cutover** (§12), when nav changing is the intended
+act. During build, playbook compliance = route-gate + fence + AA + the named home tests (§7).
+
+**The existing files that WILL be touched — the complete, honest list (all additive-only):**
+
+| File | Change | Behaviour-changing? |
 |---|---|---|
-| No classic-site byte drift | never open a legacy file | `test_home_isolation`: curl/byte-diff `/dash` pre/post |
-| No existing-preview drift | never open a `*_v3`/`v3_preview`/`ui_skin_bold` file | byte-diff `/dash/preview` pre/post |
-| No cross-import | legacy + existing-preview import **nothing** from `src/web/home/`; `home/*` imports only leaf helpers + read-only data reads | AST import scan |
-| CSS cannot leak | tokens on `:root[data-ui-g]`, components `.g-*` — isolated from BOTH `ui_kit`/`.uk`/`:root{}` AND `data-ui-v3`/`.pv3-*` | string scan: no `:root{`, no `.uk`, no `.pv3`, no `data-ui-v3` |
-| No middleware reshape | home shell omits the legacy markers (`.uk-sub`, `id="uk-main"`) AND the preview markers | render scan |
-| Declared routes only | new routes registered in the route gate as `INTERNAL_DEV` | `test_dash_route_registry` |
+| `src/web/v2_surfaces.py` | +1 `_ROUTER_SPECS` entry (mount the home router) | No — registers a new sibling; no existing spec edited |
+| `tests/test_dash_route_registry.py` | + `INTERNAL_DEV` rows for `/dash/home*` | No — additive metadata (gate enumerates `/dash/*`; that's why the route is `/dash/home`, per B2) |
+| `PROJECT_STATE.md` | mandatory same-commit state update | No — doc only |
 
-**The ONE pre-existing file touched:** the app-wiring entrypoint gets **one additive mount line**
-(register the new router). That is inherent to adding any route section and is *not* a change to
-the existing preview's or classic site's behaviour — it registers a new sibling. Everything else is
-new files under `src/web/home/`. (Flagged transparently; owner already approved this touchpoint.)
+**NOT touched during build:** `lens_registry.py` (would change nav), `test_pat_coverage.py`,
+`test_education_coverage.py`, `docs/metrics-glossary.md`, and **no `*_v3`/`v3_preview`/`ui_skin_bold`
+/legacy render module** (import ban, §5). Everything else is new files under `src/web/home/`.
+
+**Machine-enforced guarantees (named gates in §7):** classic-site byte-identity · existing-preview
+byte-identity · no cross-import (home ⇎ preview/legacy render modules) · scoped-CSS both directions
+(no `data-ui-v3`/`.pv3`/`pv3` in Graphite HTML; no `data-ui-g`/`.g-`/`pvg` in preview HTML) ·
+route-gate registration · own chrome (no `.uk-sub`/`uk-main`/`pv3-` markers → no middleware reshape).
 
 ## 2. Placement + mount
 
-- New package **`src/web/home/`** (self-contained). Names owner-tweakable (§13).
-- Section root route **`/home`** (opt-in). Opt-in cookie **`pvg`** (distinct from `pv3`).
-- `src/web/home/__init__.py` exposes `router: APIRouter` + `wire(app)`; mounted via the existing
-  additive `v2_surfaces._ROUTER_SPECS` list (survives redeploy) — **one new entry, no existing entry
-  changed** — or a single `main.py` include if cleaner. Reversible = remove that one entry.
-- Routes: `GET /home` (composed home) · `POST /home/toggle` (opt-in, POST-only per playbook #11) ·
-  `GET /home/_kit` (component showcase, INTERNAL_DEV). Future zone-detail routes under `/home/*`.
+- New package **`src/web/home/`** (self-contained). Section root route **`/dash/home`** (under
+  `/dash` so the existing route gate at `tests/test_dash_route_registry.py:216-223` covers it — B2).
+- Opt-in cookie **`pvg`**; CSS scope `:root[data-ui-g]` + `.g-*` (distinct from `pv3`/`data-ui-v3`).
+- `src/web/home/__init__.py` exposes `router: APIRouter`; mounted by **one** additive
+  `v2_surfaces._ROUTER_SPECS` entry. Reversible = remove that entry.
+- Routes: `GET /dash/home` · `POST /dash/home/toggle` (POST-only) · `GET /dash/home/_kit`
+  (showcase, INTERNAL_DEV) · CSV endpoints for tabular zones (§6). All INTERNAL_DEV in the gate.
 
 ## 3. Identity tokens (`src/web/home/tokens.py`)
 
-Graphite, both themes, **AA-verified** (`scratchpad/aa_check.py` dark; light accent `#096b65`;
-`scratchpad/candle_aa.py` candles). Scope `:root[data-ui-g]` + `[data-theme="light"]`.
-
-- **Dark (signature):** bg `#080b11…#243040` · line `#223040/#2c3d4f` · ink `#e8eef4/#9fb0c0/#6f8394` ·
-  accent `#17b0aa` (+hi `#2fe6da`, on-acc `#04211f`) · up `#3ad17f` down `#f2617f` warn `#f4b740`.
-- **Light:** bg `#eef2f5…#dde5ec` · ink `#101a22/#45586a/#667a8b` · accent `#096b65` (+hi `#0f857f`) ·
+Graphite, both themes, AA-verified (`scratchpad/aa_check.py`, `scratchpad/candle_aa.py`). Scope
+`:root[data-ui-g]` + `[data-theme="light"]`.
+- **Dark:** bg `#080b11…#243040` · line `#223040/#2c3d4f` · ink `#e8eef4/#9fb0c0/#6f8394` · accent
+  `#17b0aa`(+hi`#2fe6da`,on`#04211f`) · up `#3ad17f` down `#f2617f` warn `#f4b740`.
+- **Light:** bg `#eef2f5…#dde5ec` · ink `#101a22/#45586a/#667a8b` · accent `#096b65`(+hi`#0f857f`) ·
   up `#0e8a57` down `#c93a52` warn `#96660a`.
-- **Candles (invariant identity, AA-corrected light):** dark up `#4d9dff`/dn `#8496ad`
-  (lines `#a9d0ff`/`#c6d1e2`); **light up `#1668cc`/dn `#6f8096` (lines `#5b93da`/`#455468`)** — the
-  #9 fix.
+- **Candles (invariant, AA-corrected light):** dark up`#4d9dff`/dn`#8496ad`(lines`#a9d0ff`/`#c6d1e2`);
+  light up`#1668cc`/dn`#6f8096`(lines`#5b93da`/`#455468`) — the #9 fix.
 - Type: one UI face + tabular-mono numerals (Part IV §L). Geometry: moderate radius, hairline
-  borders, subtle glow — **no** legacy chamfer/aurora.
-- **AA gate** `tests/test_home_tokens_aa.py`: computes WCAG contrast for every token pair, both
-  themes; asserts ≥4.5 (text) / ≥3.0 (graphical incl. candle fill+outline). Enforced like the
-  label/ret-vol gates (the "devops" ask).
+  borders, subtle glow — no legacy chamfer/aurora.
 
 ## 4. Shell + component kit (`src/web/home/shell.py`, `components.py`)
 
-- **Shell:** top bar (brand · PREVIEW badge · 6 destinations · persona segment · theme · "Classic
-  site" link) → **above-the-fold fence** → the zone grid → floating-Pat slot → footer fence. Own
-  chrome; no legacy/preview markers.
-- **Kit (`.g-*`):** tile · gauge · split-bar · **diverging-flow** · agenda-row · wire-row · drawer
-  (`<details>`) · term-chip · count-tile · **provenance-chip** · sparkline · candle-mini. All
-  builders are **DOM-safe** — data via `textContent`, SVG behind trusted static helpers, any rich
-  snippet escaped (Codex #7). Full reduced-motion coverage (Codex #8).
+- **Shell:** top bar (brand · PREVIEW · 6 dests · persona segment · theme · "Classic site" link) →
+  **above-the-fold fence** → zone grid → floating-Pat slot → footer fence. Own chrome; no
+  legacy/preview markers.
+- **Kit (`.g-*`):** tile · gauge · split-bar · diverging-flow · agenda-row · wire-row · drawer ·
+  term-chip · count-tile · provenance-chip · sparkline · candle-mini. **DOM-safe** (Codex B/#7):
+  data set via `textContent`; any rich fragment escaped; SVG behind trusted static string helpers
+  that never interpolate untrusted data. Full reduced-motion coverage.
 
-## 5. Zones — each is a renderer over an EXISTING read (grounded in the inventory)
+## 5. Zones — renderers over `src/web/home/reads.py` (self-contained; NO preview imports)
 
-| # | Zone | Table(s) | Reuse read | Notes |
+**Import ban (Codex B4/B5):** `home/*` must NOT import `today_v3`, `news_dock`, `shell_v3`,
+`ui_components_v3`, `ui_tokens_v3`, `ui_skin_bold`, `v3_preview`, or any `*_v3` render module — those
+return `pv3-*` HTML, not data. `home/reads.py` imports ONLY `src.core.db` + genuinely-shared,
+non-preview, read-only automation helpers, and reimplements the rest as bounded SELECTs.
+
+| # | Zone | Read (exact) | Source | Isolation note |
 |---|---|---|---|---|
-| 1 | Market pulse | `index_signals` (+`index_rows`), `market_internals_daily`, RRG `rs_extras` | `today_v3._mood_html` idiom; `cockpit` reads | index cards + NIFTY candle-mini + mood gauge + breadth; breadth carries an honest ⚠ as-of until §9 timer lands |
-| 2 | Today / what-changed | `signal_alert_state`, `signal_events` | `today_v3._what_changed`, `whatchanged_flow` | severity count-tiles + humanised sym-linked rows |
-| 3 | **FII/DII flows** | `fii_dii_flows` | **new** read-only `home/reads.fii_dii_recent()` | signed diverging bar (correct signed-value colour) + 10-session trend — the free win |
-| 4 | Going-ex (upcoming CA) | `corporate_actions` (`ex_date≥today`) | `corp_actions.upcoming` | agenda strip |
-| 5 | Results calendar | `board_meetings` (fwd 30d) | `results_calendar.upcoming_results` | agenda strip |
-| 6 | News wire | `sent_news`, `news_symbol_tags` | `news_view._recent_market_news` / `news_dock` read | sym-tagged rows |
-| 7 | Go-deeper drawers | `rs_extras` (RRG), `stock_signals.power_dvpt` | existing reads | progressive disclosure |
+| 1 | Market pulse | `reads.index_pulse(conn)` (SELECT from `index_signals`+`index_rows`) · `reads.breadth_latest(conn)` (latest `market_internals_daily` row `d,adv,dec,pct_adv`) · `reads.mood(conn)` (reimplement the pure market_mood calc from `index_signals` — NOT imported from `today_v3`) | `index_signals`, `index_rows`, `market_internals_daily` | breadth carries an honest as-of stamp (no timer in v1, §9) |
+| 2 | Today/what-changed | `whatchanged_flow.changes(...)` (real read, `src/pat/whatchanged_flow.py:62-77` — `src/pat/` is NOT a preview module) + `reads.severity_counts(conn)` over `signal_alert_state` | `signal_alert_state`, `signal_events` | reuse the pure read; render fresh in `.g-*` |
+| 3 | **FII/DII flows** | `reads.fii_dii_recent(conn, limit=10)` — `SELECT trade_date,category,net_value FROM fii_dii_flows WHERE category IN('FII','DII') ORDER BY trade_date DESC` (table-guarded, category-normalised, as-of) | `fii_dii_flows` (`deals.py:60`) | new read-only helper; the free win |
+| 4 | Going-ex (CA) | `corp_actions.upcoming(conn, days=21)` (`src/automation/corp_actions.py:492`, read-only) | `corporate_actions` | shared automation read, not preview |
+| 5 | Results calendar | `results_calendar.upcoming_results(days=30)` (`src/automation/results_calendar.py:165`) | `board_meetings` | shared automation read |
+| 6 | News wire | `reads.recent_news(conn, limit=8)` (bounded SELECT from `sent_news`+`news_symbol_tags`, reimplemented — do NOT import `news_view`/`news_dock`) + a **copied pure `_safe_url`** on every href (Codex #9) | `sent_news`, `news_symbol_tags` | href sanitised; regression test §7 |
+| 7 | Go-deeper drawers | `reads.rrg(conn)` (`rs_extras`) · `reads.delivery_leaders(conn)` using the REAL columns `power_dvpt_1m…_12m` (default `power_dvpt_3m`; there is NO bare `power_dvpt` column — Codex B5) | `rs_extras`, `stock_signals` | correct column names |
 
-Optional later zones (owner §13): `results_reactions` PEAD tape · `slb_volumes` short-interest ·
-delivery-spike leaders. **Every read is bounded + read-only; no table/timer/renderer is modified.**
+Optional later zones (owner §13): `results_reactions` PEAD tape · `slb_volumes` · delivery leaders
+promoted. Every read is bounded + read-only; no table/timer/renderer is modified.
 
 ## 6. Floating Pat (`src/web/home/pat_dock.py`)
 
 - Alive guide: breathing/blink/look avatar · **data-bound** proactive bubbles (from the real
-  what-changed/flows feeds, not canned) · typing indicator · typewriter.
-- **a11y (Codex #4/#5):** `role="dialog"` + `aria-modal`, labelled by title; focus the input on
-  open, return focus to the trigger on close; Escape closes; `inert` when closed; real controls
-  (no fake tab roles / hrefs).
-- Backend: **reuse the existing Pat closed-vocab engine** (`/dash/pat`) — deterministic, descriptive,
-  SEBI-safe; never free-form advice. DOM-safe rendering. Register Pat coverage per
-  `docs/pat-knowledge-contract.md` (DATA/EXPLAIN/NAV for every zone metric).
+  what-changed / flows reads) · typing indicator · typewriter.
+- **a11y (Codex B4/B5):** `role="dialog"` + `aria-modal` labelled by title; focus the input on open;
+  return focus to the trigger on close; Escape closes; `inert` when closed; real controls (no fake
+  `role="tab"` without keyboard, no `href="#"`).
+- Backend: reuse the existing Pat closed-vocab engine (`/dash/pat`) — deterministic, descriptive,
+  SEBI-safe. DOM-safe rendering. (Pat *coverage-gate* registration deferred to cutover, §12.)
+- Tabular zones expose **server-side CSV** endpoints (Pro persona).
 
-## 7. Dual-persona — real depth (Codex #3)
+## 7. Named test gates (Codex B6 — prose is not a gate)
 
-- **Beginner:** plain-English-first everywhere; **every code term is a glossary chip** (hover =
-  definition, click = Pat-explain); one explainer caption per zone; Pat proactive/guided; a
-  first-read path. No unexplained `RS`/`DVPT`/`pt14`/`CONVICTION` on screen.
-- **Pro:** dense (more rows/precision); **evidence links** (numbers → the primary filing/source row,
-  fiscal.ai pattern); sort/filter + **server-side CSV** on tabular zones (SURFACE-PLAYBOOK);
-  keyboard-complete (`/` search, `E` expand, `P` Pat, column sort); guidance muted.
-- Persist mode in `pvg_mode` (cookie + localStorage).
+| Test | Asserts |
+|---|---|
+| `tests/test_home_isolation.py` | classic + existing-preview byte-identity pre/post · no cross-import (AST) · scoped-CSS **both directions** (Codex #8) · declared-routes-only |
+| `tests/test_home_tokens_aa.py` | WCAG contrast every token pair, both themes; ≥4.5 text / ≥3.0 graphical incl. candle fill+outline (the "devops" candle gate) |
+| `tests/test_home_pat_a11y.py` | rendered Pat has `aria-modal`, `inert`-when-closed, Escape handler, focus-in/return markup |
+| `tests/test_home_dom_safety.py` | no data-bearing `innerHTML` without escape; news hrefs pass `_safe_url` (`javascript:`/`data:` collapse regression, Codex #9) |
+| `tests/test_home_reduced_motion.py` | reduced-motion path renders no animated canvas + no transitions |
+| `tests/test_home_persona.py` | Beginner vs Pro produce distinct DOM (glossary chips + explainers in Beginner; evidence links + dense controls in Pro) |
 
-## 8. Motion — earned, not decorative (Codex #10)
+## 8. Dual-persona depth (Codex B3) · Motion (Codex #10) · reduced-motion
 
-Reveal-on-load (orientation) · gauge/bar draw-to-value (reveals the datum) · candle draw-in ·
-**freshness pulse** when a zone's as-of = today · drill-expansion motion. Ambient field subtle;
-**reduced-motion = none**. Every animation RM-guarded; nothing animates that doesn't carry data.
+- **Beginner:** plain-English-first; every code term = a glossary chip (hover=def, click=Pat);
+  per-zone explainer; Pat proactive; a first-read path. No unexplained `RS`/`DVPT`/`pt14`/`CONVICTION`.
+- **Pro:** dense; evidence links (numbers → primary source row); sort/filter + server CSV;
+  keyboard-complete (`/`,`E`,`P`,sort); guidance muted. Persist in `pvg_mode`.
+- **Motion earned:** reveal-on-load · draw-to-value gauges/bars · candle draw-in · freshness pulse
+  when as-of=today · drill-expansion. Ambient subtle. **reduced-motion = none**, gate-tested (§7).
 
-## 9. Data gaps handled in this build
+## 9. Data gaps (v1.1 scoping — Codex B7)
 
-- **`market_internals` timer** — add `hermes-market-internals.timer` (or fold `refresh_tail()` into
-  the bhavcopy chain) so breadth isn't stale. Isolated infra add (new unit + captured drop-in), not
-  a change to existing code. Interim: breadth ships with an honest as-of stamp.
-- **FII/DII** — new read-only `home/reads.py`.
-- **CA split** — two zones over one table by `ex_date` (no schema change).
+- **`market_internals` timer: DEFERRED out of the home build.** v1 ships breadth with an honest
+  **as-of stamp, no timer**. The timer is a **separate infra increment** (its own change): new
+  `hermes-market-internals.timer` + `.service` + captured `scripts/systemd/vps-live/` drop-in +
+  `OnFailure`/freshness + PROJECT_STATE update — NOT folded into the bhavcopy chain (that would edit
+  existing infra). Owner picks timing (§13).
+- **FII/DII:** new read-only `reads.fii_dii_recent` (SQL in §5).
+- **CA split:** two zones over one table by `ex_date` (no schema change).
 
-## 10. SURFACE-PLAYBOOK compliance (binding, Guardrail #9)
+## 10. Playbook compliance — split by phase (resolves Codex B1/B3)
 
-Sister-data check (extend, don't duplicate — done: the inventory maps every zone to an existing
-read) · `lens_registry` entry (or declared children, never orphan URLs) · education scaffold +
-glossary term for every metric · fence · **Pat registration** (`tests/test_pat_coverage.py`) ·
-server CSV where tabular · `sym` deep-links · nav labels plain-English-first · home-exposure
-decision (the new `/home` is opt-in; default site untouched).
+- **Build phase (now):** route-gate INTERNAL_DEV · fence · descriptive-only · AA · the §7 home
+  tests · DOM-safe · own chrome. **No lens / no Pat-coverage-gate / no nav** (they'd change the
+  classic site). Direct-URL only.
+- **Cutover phase (§12, later, gated):** register the `Lens` (+ generated nav) · Pat coverage
+  (`test_pat_coverage`) · education/glossary terms (`test_education_coverage`) · `sym` deep-links ·
+  home-exposure — THEN retire the old preview. The nav change happens here, intentionally.
 
 ## 11. Deploy + reversibility
 
 Writer-safe: scp new files (callees before caller, S158) → add the one mount entry → restart in a
 **confirmed writer-clear window** (never ~14:01 UTC bhavcopy; check writers first) → health 200 →
-public walk (all zones 200 with content · isolation 0-leak · classic + preview byte-unchanged).
-**Reversible:** remove the one mount entry → section gone; classic + existing preview provably
-unchanged throughout (the isolation tests prove it every commit).
+walk (all zones 200 · isolation 0-leak · classic + preview byte-unchanged). **Reversible:** remove
+the one mount entry → gone; the §7 isolation gates prove classic + preview unchanged every commit.
 
-## 12. Retire-old-preview plan (LATER — gated, not part of this build)
+## 12. Cutover / retire-old-preview (LATER — gated, not part of this build)
 
-Only after the owner confirms the new home is **done + ready**: a clean separate change un-mounts +
-deletes the existing preview modules (`v3_preview`, `today_v3`, `shell_v3`, `ui_tokens_v3`,
-`ui_skin_bold`, `hub_sections_v3`, `stock_hub_v3`, `stock_chart_v3`, `ui_components_v3`,
-`ui_showcase_v3`, `news_dock` if unshared) + their routes/tests. Guarded by the same byte-identity
-test for the classic site. Nothing here pre-empts that step.
+Only after the owner confirms the new home is **done + ready**: (a) register lens/Pat/education/nav
+(the intended nav change); (b) un-mount + delete the existing preview modules (`v3_preview`,
+`today_v3`, `shell_v3`, `ui_tokens_v3`, `ui_skin_bold`, `hub_sections_v3`, `stock_hub_v3`,
+`stock_chart_v3`, `ui_components_v3`, `ui_showcase_v3`, `news_dock` if unshared) + routes/tests.
+Guarded by the classic-site byte-identity gate. Nothing here pre-empts that step.
 
-## 13. Open items for the owner (resolve at build review; defaults ship)
+## 13. Open items for the owner (defaults ship)
 
-1. **Names:** route `/home` (vs `/dash/home` · `/next`) + package `src/web/home/` — default as written.
-2. **Extra zones** beyond FII/DII: PEAD tape (`results_reactions`) · SLB · delivery leaders — default: FII/DII only for v1, extras as fast-follows.
-3. **`market_internals` timer:** add now (breadth live) vs ship breadth with an as-of stamp + timer next — default: add the timer in the same build (small, isolated).
-4. **Build increments (proposed):** (i) tokens + shell + kit + isolation tests; (ii) zones 1–3
-   (pulse/today/flows); (iii) zones 4–6 (calendars/news); (iv) Pat + persona depth; (v) polish +
-   walk. Each increment: gates green + additive + reversible.
+1. **Names:** route `/dash/home` · package `src/web/home/` — default as written.
+2. **Extra zones** beyond FII/DII: PEAD tape · SLB · delivery leaders — default: FII/DII in v1,
+   extras as fast-follows.
+3. **`market_internals` timer:** default = **defer** (v1 breadth = as-of stamp, no timer); the timer
+   ships as its own infra increment when you say go.
+4. **Build increments:** (i) tokens + shell + kit + `reads.py` + the §7 isolation/AA gates;
+   (ii) zones 1–3; (iii) zones 4–6; (iv) Pat + persona depth + a11y/DOM/RM gates; (v) polish + walk.
+   Each: gates green · additive · reversible.
+
+**Next: Codex convergence re-check of v1.1 → owner build-go → increment (i).**
