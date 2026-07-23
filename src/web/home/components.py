@@ -210,7 +210,7 @@ def agenda(items: list) -> str:
 
 def ca_agenda(rows: list) -> str:
     items = []
-    for r in (rows or [])[:6]:
+    for r in (rows or [])[:14]:
         r = _d(r)
         detail = (r.get("details") or "").strip()          # the feed's own label, e.g. "Dividend - Rs1.25"
         if not detail:                                     # bonus/split: build from the ratio
@@ -223,7 +223,7 @@ def ca_agenda(rows: list) -> str:
 
 def results_agenda(rows: list) -> str:
     items = []
-    for r in (rows or [])[:6]:
+    for r in (rows or [])[:14]:
         r = _d(r)
         items.append((r.get("meeting_date"), r.get("symbol"), esc((r.get("purpose") or "Results")[:56])))
     return agenda(items)
@@ -234,7 +234,7 @@ def wire(rows: list) -> str:
     if not rows:
         return empty("No headlines have landed yet.")
     out = ""
-    for r in (rows or [])[:6]:
+    for r in (rows or [])[:14]:
         r = _d(r)
         href = safe_url(r.get("url"))
         title = esc(r.get("title"))
@@ -453,6 +453,11 @@ def css() -> str:
 :root[data-ui-g] .g-row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start}
 @media(max-width:820px){:root[data-ui-g] .g-row2{grid-template-columns:1fr}}
 :root[data-ui-g] .g-row2 .g-zone{margin-bottom:0}
+/* fixed-size boxes that scroll internally (owner directive) — never a flat endless page */
+:root[data-ui-g] .g-agenda,:root[data-ui-g] .g-wire,:root[data-ui-g] .g-changed{max-height:300px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent;padding-right:4px}
+:root[data-ui-g] .g-agenda::-webkit-scrollbar,:root[data-ui-g] .g-wire::-webkit-scrollbar,:root[data-ui-g] .g-changed::-webkit-scrollbar{width:8px}
+:root[data-ui-g] .g-agenda::-webkit-scrollbar-thumb,:root[data-ui-g] .g-wire::-webkit-scrollbar-thumb,:root[data-ui-g] .g-changed::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:8px}
+:root[data-ui-g] .g-agenda::-webkit-scrollbar-track,:root[data-ui-g] .g-wire::-webkit-scrollbar-track,:root[data-ui-g] .g-changed::-webkit-scrollbar-track{background:transparent}
 </style>"""
 
 
