@@ -192,38 +192,40 @@ def _date_chip(iso) -> str:
 
 
 def agenda(items: list) -> str:
-    """items = list of (date_iso, symbol, desc, tail_html)."""
+    """items = list of (date_iso, symbol, desc_html). The detail sits INLINE after the symbol (no
+    far-right chip -> no dead horizontal space), and a repeated date collapses to a blank chip so
+    the date column reads once per day (kills the monotonous 14x '23 Jul')."""
     if not items:
         return empty("Nothing on the calendar in this window.")
-    out = ""
-    for date_iso, sym, desc, tail in items:
-        out += ('<div class="g-ag">' + _date_chip(date_iso)
-                + '<span class="g-ag-b"><span class="g-ag-s g-num">' + esc(sym) + "</span> "
-                '<span class="g-ag-d">' + esc(desc) + "</span></span>"
-                '<span class="g-ag-t">' + tail + "</span></div>")
+    out, prev = "", None
+    for date_iso, sym, desc in items:
+        d = ("" if date_iso is None else str(date_iso))[:10]
+        chip = _date_chip(date_iso) if d != prev else '<span class="g-date g-date-cont"></span>'
+        prev = d
+        out += ('<div class="g-ag">' + chip
+                + '<span class="g-ag-b"><b class="g-ag-s g-num">' + esc(sym) + "</b> "
+                '<span class="g-ag-d">' + desc + "</span></span></div>")
     return '<div class="g-agenda">' + out + "</div>"
 
 
 def ca_agenda(rows: list) -> str:
     items = []
-    for r in (rows or [])[:8]:
+    for r in (rows or [])[:6]:
         r = _d(r)
-        rf, rt = r.get("ratio_from"), r.get("ratio_to")
-        if rf and rt:
-            tail = esc(str(rf)) + " : " + esc(str(rt))
-        else:
-            tail = esc((r.get("details") or "")[:18])
-        items.append((r.get("ex_date"), r.get("symbol"), (r.get("action_type") or "Corporate action"),
-                      ('<span class="g-kind">' + tail + "</span>") if tail else ""))
+        detail = (r.get("details") or "").strip()          # the feed's own label, e.g. "Dividend - Rs1.25"
+        if not detail:                                     # bonus/split: build from the ratio
+            at = (r.get("action_type") or "Action").title()
+            rf, rt = r.get("ratio_from"), r.get("ratio_to")
+            detail = at + ((" " + str(rf) + ":" + str(rt)) if (rf and rt) else "")
+        items.append((r.get("ex_date"), r.get("symbol"), esc(detail)))
     return agenda(items)
 
 
 def results_agenda(rows: list) -> str:
     items = []
-    for r in (rows or [])[:8]:
+    for r in (rows or [])[:6]:
         r = _d(r)
-        items.append((r.get("meeting_date"), r.get("symbol"),
-                      (r.get("purpose") or "Results")[:40], '<span class="g-kind">Results</span>'))
+        items.append((r.get("meeting_date"), r.get("symbol"), esc((r.get("purpose") or "Results")[:56])))
     return agenda(items)
 
 
@@ -288,33 +290,46 @@ def delivery_drawer(leaders: list) -> str:
 
 
 # ── zone 1 body: market pulse ───────────────────────────────────────────────────
-def pulse_block(idx: list, mood: dict, breadth, series: list = None) -> str:
-    if idx:
-        cards = ""
-        for r in idx[:4]:
-            txt, cls = _signed_pct(r.get("ret_1d_pct"))
-            cards += ('<div class="g-icard"><div class="g-nm">' + esc(r.get("index_name")) + "</div>"
-                      '<div class="g-lv g-num">' + _num(r.get("close_value")) + "</div>"
-                      '<div class="g-ch g-num ' + cls + '">' + txt + "</div></div>")
-        cards = '<div class="g-icards">' + cards + "</div>"
-    else:
-        cards = empty("Today's index signals haven't landed yet.")
-    # mood is a DESCRIPTIVE state -> verdict-free (neutral), NOT up/down colour
-    mood_html = ('<div class="g-mood"><span class="g-dot"></span><b>Market mood: '
-                 + esc(mood.get("word", "No data")) + "</b><span class=\"g-sub\">"
-                 + esc(mood.get("plain", "")) + "</span></div>")
-    # breadth adv/dec IS a signed/directional value -> up/down colour is correct
-    if breadth and (breadth.get("adv") is not None):
+def gauge(value, label: str = "", word: str = "") -> str:
+    """The restored 0-100 semicircle gauge (the mood tile). JS fills the arc to data-value."""
+    try:
+        v = max(0.0, min(100.0, float(value)))
+    except (TypeError, ValueError):
+        v = 0.0
+    return ('<div class="g-gauge" data-value="' + f"{v:.0f}" + '" role="img" aria-label="'
+            + esc(label) + " " + f"{v:.0f}" + ' of 100">'
+            '<svg viewBox="0 0 140 82" preserveAspectRatio="xMidYMid meet">'
+            '<path class="g-gtrack" d="M14 74 A60 60 0 0 1 126 74" fill="none" stroke-width="11" stroke-linecap="round"/>'
+            '<path class="g-gfill" d="M14 74 A60 60 0 0 1 126 74" fill="none" stroke-width="11" stroke-linecap="round"/>'
+            '</svg><div class="g-gword">' + esc(word) + "</div></div>")
+
+
+def pulse_block(idx: list, mood: dict, mood_pct, breadth, series: list = None) -> str:
+    # LEFT: compact index cards + a sparkline
+    cards = ""
+    for r in (idx or [])[:4]:
+        txt, cls = _signed_pct(r.get("ret_1d_pct"))
+        cards += ('<div class="g-icard"><div class="g-nm">' + esc(r.get("index_name")) + "</div>"
+                  '<div class="g-lv g-num">' + _num(r.get("close_value")) + "</div>"
+                  '<div class="g-ch g-num ' + cls + '">' + txt + "</div></div>")
+    if not cards:
+        cards = empty("Index signals pending.")
+    left = ('<div class="g-pl-l"><div class="g-icards">' + cards + "</div>" + spark(series or []) + "</div>")
+    # RIGHT: the restored semicircle mood gauge + breadth (verdict-free mood; signed breadth)
+    gtile = ('<div class="g-mtile"><span class="g-lab">Market mood</span>'
+             + gauge(mood_pct, "Market mood", mood.get("word", "No data"))
+             + '<span class="g-sub">' + esc((mood.get("plain") or "")[:64]) + "</span></div>")
+    if breadth and breadth.get("adv") is not None:
         adv, dec = int(breadth.get("adv") or 0), int(breadth.get("dec") or 0)
-        breadth_html = ('<div class="g-breadth" data-adv="' + str(adv) + '" data-dec="' + str(dec) + '">'
-                        '<div class="g-split"><span class="g-split-up"></span></div>'
-                        '<div class="g-split-lab"><span class="up">' + str(adv) + ' adv</span>'
-                        '<span class="dn">' + str(dec) + ' dec</span></div>'
-                        '<div class="g-as">as of ' + esc(breadth.get("d", "")) + "</div></div>")
+        btile = ('<div class="g-mtile"><span class="g-lab">Breadth · NSE</span>'
+                 '<div class="g-breadth" data-adv="' + str(adv) + '" data-dec="' + str(dec) + '">'
+                 '<div class="g-split"><span class="g-split-up"></span></div>'
+                 '<div class="g-split-lab"><span class="up">' + str(adv) + ' adv</span>'
+                 '<span class="dn">' + str(dec) + ' dec</span></div></div>'
+                 '<span class="g-sub">advancers vs decliners</span></div>')
     else:
-        breadth_html = empty("Breadth internals haven't refreshed yet.")
-    sp = spark(series or [])
-    return '<div class="g-pulse">' + cards + sp + mood_html + breadth_html + "</div>"
+        btile = '<div class="g-mtile">' + empty("Breadth pending.") + "</div>"
+    return ('<div class="g-pulse2">' + left + '<div class="g-pl-r">' + gtile + btile + "</div></div>")
 
 
 # ── the .g-* stylesheet (scoped by data-ui-g on the root, via the token layer) ──
@@ -392,7 +407,8 @@ def css() -> str:
 :root[data-ui-g] .g-spark.dn{color:var(--down)}
 :root[data-ui-g] .g-spark svg{width:100%;height:38px;display:block}
 :root[data-ui-g] .g-agenda{display:flex;flex-direction:column}
-:root[data-ui-g] .g-ag{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line)}
+:root[data-ui-g] .g-ag{display:flex;align-items:baseline;gap:12px;padding:8px 2px;border-bottom:1px solid var(--line)}
+:root[data-ui-g] .g-date-cont{border-color:transparent!important;background:transparent!important;color:transparent}
 :root[data-ui-g] .g-ag:last-child{border-bottom:0}
 :root[data-ui-g] .g-date{font:700 11px/1.25 var(--mono);color:var(--ink);background:var(--bg-0);border:1px solid var(--line-2);border-radius:7px;padding:5px 8px;text-align:center;min-width:54px}
 :root[data-ui-g] .g-date small{display:block;font-size:9px;color:var(--ink-3);font-weight:500}
@@ -423,6 +439,20 @@ def css() -> str:
 :root[data-ui-g] .g-note{font-size:12px;color:var(--ink-3);margin-top:12px;line-height:1.5}
 :root[data-ui-g] .g-learn{font-size:12.5px;color:var(--ink-2);margin-top:12px;line-height:1.55;padding:10px 12px;background:var(--acc-dim);border-left:2px solid var(--accent);border-radius:0 8px 8px 0}
 :root[data-ui-g] .g-learn b{color:var(--ink)}
+:root[data-ui-g] .g-pulse2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:14px}
+@media(max-width:720px){:root[data-ui-g] .g-pulse2{grid-template-columns:minmax(0,1fr)}}
+:root[data-ui-g] .g-pl-l{display:flex;flex-direction:column;gap:10px}
+:root[data-ui-g] .g-pl-r{display:grid;grid-template-rows:1fr 1fr;gap:10px}
+:root[data-ui-g] .g-mtile{background:var(--bg-0);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px;display:flex;flex-direction:column;gap:6px}
+:root[data-ui-g] .g-mtile .g-sub{color:var(--ink-2)}
+:root[data-ui-g] .g-gauge{position:relative;width:100%;max-width:170px;margin:2px auto 0}
+:root[data-ui-g] .g-gauge svg{width:100%;height:auto;display:block}
+:root[data-ui-g] .g-gtrack{stroke:var(--bg-3)}
+:root[data-ui-g] .g-gfill{stroke:var(--accent)}
+:root[data-ui-g] .g-gword{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-weight:700;font-size:16px;color:var(--ink);text-shadow:0 0 16px var(--glow)}
+:root[data-ui-g] .g-row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start}
+@media(max-width:820px){:root[data-ui-g] .g-row2{grid-template-columns:1fr}}
+:root[data-ui-g] .g-row2 .g-zone{margin-bottom:0}
 </style>"""
 
 
@@ -452,4 +482,9 @@ document.querySelectorAll(".g-spark").forEach(function(el){
     +'<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(s[n-1]).toFixed(1)+'" r="2.5" fill="'+col+'"/></svg>';
 });
 document.querySelectorAll(".g-rb-f").forEach(function(el){ w(el, (+el.getAttribute("data-w")||0)+"%"); });
+document.querySelectorAll(".g-gauge").forEach(function(el){
+  var v=Math.max(0,Math.min(100,+el.getAttribute("data-value")||0)), fill=el.querySelector(".g-gfill");
+  if(!fill) return; var L=fill.getTotalLength(); fill.style.strokeDasharray=L; var off=L*(1-v/100);
+  if(RM){ fill.style.strokeDashoffset=off; } else { fill.style.strokeDashoffset=L; fill.style.transition="stroke-dashoffset 1.2s cubic-bezier(.2,.7,.2,1)"; requestAnimationFrame(function(){ fill.style.strokeDashoffset=off; }); }
+});
 })();</script>"""

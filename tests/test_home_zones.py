@@ -23,8 +23,9 @@ _NO_MOOD = {"word": "No data", "plain": "", "cls": "b-neu", "parts": []}
 
 def test_zones_render_defensively_on_an_empty_db():
     c = _conn()  # no tables at all
-    pulse = C.pulse_block(reads.index_pulse(c), _NO_MOOD, reads.breadth_latest(c), reads.index_series(c))
+    pulse = C.pulse_block(reads.index_pulse(c), _NO_MOOD, 0, reads.breadth_latest(c), reads.index_series(c))
     assert pulse and "g-empty" in pulse                     # honest empty index/breadth
+    assert "g-gauge" in pulse and 'data-value="0"' in pulse  # the restored semicircle mood gauge
     assert "g-empty" in C.changed_rows(reads.what_changed(c))
     assert "g-empty" in C.flows_block(reads.fii_dii_recent(c))
     band = C.count_band(reads.severity_counts(c))
@@ -85,7 +86,7 @@ def test_calendars_news_and_drawer_render_from_data():
     assert "RELIANCE" in ag and "Bonus" in ag and "g-date" in ag
     ra = C.results_agenda([{"symbol": "HDFCBANK", "company": "HDFC Bank",
                             "meeting_date": "2026-07-24", "purpose": "Q1 Results"}])
-    assert "HDFCBANK" in ra and "g-kind" in ra
+    assert "HDFCBANK" in ra and "Q1 Results" in ra and "g-date" in ra
     wr = C.wire([{"source": "Mint", "url": "https://x.com/a", "title": "RBI holds rate",
                   "sent_at": "2026-07-23 09:00"}])
     assert "RBI holds rate" in wr and 'href="https://x.com/a"' in wr and "Mint" in wr

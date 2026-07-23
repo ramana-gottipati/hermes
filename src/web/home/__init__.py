@@ -74,31 +74,43 @@ def _compose(conn) -> str:
     """Increment (ii): zones 1-3 over real, self-contained reads (market pulse · today ·
     FII/DII flows). Zones 4-7 (calendars/news/drawers) + the alive Pat land in (iii)-(iv)."""
     from src.web.market_mood import market_mood
+    from src.web.home import demo
+    # each zone: live read, or representative preview data when the live read is empty (owner
+    # directive 2026-07-23 — generate the data so the preview shows the full experience).
+    idx = reads.index_pulse(conn) or demo.INDEX
     b_in, nifty_up = reads.mood_inputs(conn)
+    if b_in is None and nifty_up is None:
+        b_in, nifty_up = demo.MOOD_INPUTS
+    breadth = reads.breadth_latest(conn) or demo.BREADTH
+    series = reads.index_series(conn, "NIFTY 50", 30) or demo.SERIES
     z1 = C.zone("Market pulse", "index_signals · nightly",
-                C.pulse_block(reads.index_pulse(conn), market_mood(b_in, nifty_up),
-                              reads.breadth_latest(conn), reads.index_series(conn, "NIFTY 50", 30)),
+                C.pulse_block(idx, market_mood(b_in, nifty_up), (b_in if b_in is not None else 0), breadth, series),
                 sub="where the whole market stands today")
+    sev = reads.severity_counts(conn)
+    if not sev.get("total"):
+        sev = demo.SEVERITY
     z2 = C.zone("Today — what changed", "signal_events · nightly",
-                C.count_band(reads.severity_counts(conn)) + C.changed_rows(reads.what_changed(conn))
-                + C.learn("These are signals that flipped state since yesterday — a delivery band crossed, "
-                          "relative strength turned, a quality gate passed. Described from the tape, never a prediction."),
+                C.count_band(sev) + C.changed_rows(reads.what_changed(conn) or demo.WHATCHANGED)
+                + C.learn("Signals that flipped state since yesterday — a delivery band crossed, relative "
+                          "strength turned, a quality gate passed. Described from the tape, never a prediction."),
                 sub="the signals that flipped since yesterday")
     z3 = C.zone("FII / DII flows", "fii_dii_flows · 14:30 & 16:30",
-                C.flows_block(reads.fii_dii_recent(conn))
-                + C.learn("FII = foreign institutions; DII = domestic (mutual funds, insurers). A green bar to the "
-                          "right is net buying, red to the left is net selling — a signed rupee value."),
-                sub="who's buying — foreign vs domestic institutions")
+                C.flows_block(reads.fii_dii_recent(conn) or demo.FII_DII)
+                + C.learn("FII = foreign institutions; DII = domestic (mutual funds, insurers). A green bar "
+                          "right is net buying, red left is net selling — a signed rupee value."),
+                sub="foreign vs domestic institutions")
     z4 = C.zone("Going ex — corporate actions", "corporate_actions · 02:20",
-                C.ca_agenda(reads.upcoming_ca(conn, days=21)),
-                sub="dividends, splits & bonuses coming up")
+                C.ca_agenda(reads.upcoming_ca(conn, days=21) or demo.CA),
+                sub="dividends, splits & bonuses ahead")
     z5 = C.zone("Results calendar", "board_meetings · 02:00",
-                C.results_agenda(reads.upcoming_results(days=30)),
+                C.results_agenda(reads.upcoming_results(days=30) or demo.RESULTS),
                 sub="who reports next")
     z6 = C.zone("News wire", "sent_news · 03:30 & 11:30",
-                C.wire(reads.recent_news(conn, limit=6)),
+                C.wire(reads.recent_news(conn, limit=6) or demo.NEWS),
                 sub="the latest market headlines")
-    eyebrow = ('<div style="margin:26px 0 10px;font:600 11px/1 var(--font);letter-spacing:.2em;'
+    eyebrow = ('<div style="margin:24px 0 10px;font:600 11px/1 var(--font);letter-spacing:.2em;'
                'text-transform:uppercase;color:var(--ink-3)">Dig deeper — open only what you need</div>')
-    z7 = eyebrow + C.delivery_drawer(reads.delivery_leaders(conn))
-    return z1 + z2 + z3 + z4 + z5 + z6 + z7
+    z7 = eyebrow + C.delivery_drawer(reads.delivery_leaders(conn) or demo.DELIVERY)
+    # tile-dense layout (owner feedback): pulse full-width, then 2-col rows to kill the dead space
+    row2 = lambda a, b: '<div class="g-row2">' + a + b + "</div>"
+    return z1 + row2(z2, z3) + row2(z4, z5) + z6 + z7
