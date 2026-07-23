@@ -190,6 +190,13 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 
 ### Key file paths
 
+**EMA-crossover family + low-vol factor + forward test (S214, 2026-07-23) — new:**
+- `research/explosive_moves/momentum_band_rsi.py` — the UPPER-band breakout (buy strength: T=EMA5(HLC) crosses above U=EMA13(high)) + RSI/fractal managed exit; cells B/A/A2/C; event-study gate + gross/net books → `mbr_book`/`mbr_trades`/`mbr_events`. Seal `0e90bf2c`. VERDICT par-with-index BETA (FAIL-null), capacity-dead. `--build`/`--selftest`.
+- `research/explosive_moves/reversal_oversold.py` — CLEAN oversold-bounce reversal (≥25% below the 252d high + RSI crosses up through 30); two-gate frame → `rev_book`/`rev_trades`/`rev_events`. Seal `4d932089`. VERDICT net-negative, worse than random → REJECTED.
+- `research/explosive_moves/lowvol_sleeve.py` (monthly, 07-22c) & `lowvol_sleeve_q.py` (**quarterly + hysteresis — the fundable book**, 07-22d) — a low-VOLATILITY FACTOR (bottom-vol quintile, EW) → `lowvol_book`/`lowvolq_book` + holdings; `--fence` = capacity recut via `cost_participation.side_costs`. Seals `fefef943`/`b8c1dec4`. **NOT an EMA crossover.**
+- `research/explosive_moves/ema_crossover_forward.py` — the forward-test runner (the `union_forward` twin): reporting-only over the 3 sealed engines; integrity+reproduction gate, forward window, frozen criteria C1–C5, CROSSOVER ADJUDICATION (MOM/REV only; LOW = non-crossover comparator, excluded via `role`). `--rebuild`/`--asof`/`--selftest`; one-pager `out/ema_crossover_forward.json`. No seal of its own.
+- `scripts/ema_forward_checkpoint.sh` + `scripts/systemd/vps-live/hermes-ema-forward.{service,timer}` — the quarterly VPS→Telegram checkpoint (runs the runner `--rebuild`, DMs the verdict via the Hermes bot; oneshot + quarterly OnCalendar, no `Requires=`). Armed on the box, next fire 2026-10-03.
+
 **Tooling — worktree convention (S169):**
 - `scripts/new-lane.sh` / `scripts/retire-lane.sh` — create/remove an isolated per-lane worktree (branch `lane/<slug>` off origin/main, under the sibling dir `Hermes.worktrees/`, sets `core.hooksPath`). The working-tree isolation that stops cross-absorption + index-reset between concurrent sessions. Doctrine: `docs/worktree-convention.md`.
 
@@ -601,6 +608,20 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 ---
 
 ## Decision log (the big ones)
+
+### D146 — The EMA crossover produces nothing fundable; low-vol is a SEPARATE factor, not a crossover (2026-07-23, session 214)
+The full EMA-crossover family (`momentum_band_rsi` buy-strength + `reversal_oversold`) was carried to a
+verdict: **the crossover itself has no forward selection edge at the 5-vs-13 horizon** — momentum is
+beta taxed to par (event δ −0.01, net R/V 0.71, capacity-dead at ₹4.6cr median ADV), reversal is
+net-negative / worse-than-random. Both descriptive-only. The ONLY fundable book the arc produced,
+`lowvol_sleeve_q`, is a **low-VOLATILITY FACTOR** (ranks names by trailing 126d vol, holds the calmest,
+quarterly + hysteresis) that shares NONE of the crossover machinery (T/U/L/RSI/fractal). **BINDING:
+never label low-vol a crossover result** — it is carried in the forward test only as the non-crossover
+COMPARATOR / "book to beat", EXCLUDED from the crossover adjudication (enforced by the `role` field in
+`ema_crossover_forward.py`). Numbers: `docs/strategy-ledger.md` § "EMA-crossover family — VERDICT" +
+Studies 2026-07-22c/22d. WHY it lands at par: a short-horizon absolute band-cross fires in the
+1–4-week REVERSAL zone (not the 6–12-month momentum-persistence zone), so it confirms a spent move
+rather than predicting one — the gross that exists is market beta, taxed to the index by churn.
 
 ### D144 — the WEB-EXPERIENCE REDESIGN program: plan ratified in part (M0–M2), multi-agent approval protocol installed (2026-07-17)
 Ramana approved M0+M1+M2 of `docs/redesign-plan-2026-07-17.md` (the Focus+Rails redesign: opt-in
@@ -2166,6 +2187,14 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 214 — 2026-07-23 — EMA-CROSSOVER FAMILY carried to a VERDICT: both crossover strategies FAIL (momentum = par/beta, reversal = dead); the only fundable output is a SEPARATE low-vol factor (quarterly+hysteresis, scales to ~₹500cr); `ema_crossover_forward.py` forward test ARMED + a quarterly VPS→Telegram checkpoint LIVE
+(Renumbered S210→S214 on push contact — origin held 210–213.) The 16BD momentum-band+RSI lane S209 flagged as a parallel sibling — carried to a full verdict. All research ran on the VPS (`.venv-research`; the laptop has only synthetic fixtures). Reconciled by cherry-picking ONLY my 15 disjoint commits onto origin/main (the chart/wolfe local commits left untouched for their owner — no cross-absorption).
+- **The EMA crossover itself produces NOTHING fundable.** MOMENTUM (`momentum_band_rsi`, T=EMA5(HLC) crosses ABOVE U=EMA13(high), with-trend + RSI≥70): event-study **FAIL-null** (Cliff's δ −0.01 vs placebo, 22d median excess −0.90%, worsening by horizon), Cell B net 8.4% (gross 19.4%, cost −11pp), `CELL_B_TREND_STRONG` net R/V 0.71 / CAGR 13.2% / DD −63% ≈ index → **par-with-index BETA, not alpha**, capacity-dead at ₹4.6cr median trade ADV. REVERSAL (`reversal_oversold` REVDD oversold-bounce; + the earlier EMA-band reclaim, 07-13): net **−0.13 / −9.0% / −86%**, worse than its own random control, Gate-1 δ≈0 → REJECTED. Both descriptive-only.
+- **The one fundable output is a SEPARATE low-volatility FACTOR, not a crossover.** `lowvol_sleeve` (monthly, ledger 07-22c) → `lowvol_sleeve_q` (**quarterly + hysteresis**: enter bottom-20% vol, hold until a name leaves bottom-40%, 07-22d): the turnover cut **199%→71%/yr** BOUGHT the capacity — net R/V 1.06 / CAGR 15.0% / DD −20.8%, both halves 1.05/1.08, **corr-to-momentum 0.003**; capacity fence (Almgren `cost_participation.side_costs`) clears the 0.89 hurdle at EVERY AUM **to ₹500cr** (0.90), DD flat ~−21% across AUM, median held ADV ₹51cr — beats the monthly (~₹50–100cr) and C-BLEND (−0.30@₹100cr). The 40/60 blend (mom/low-vol) R/V 1.32 but small-AUM only (momentum's ₹4.6cr names bind it). ⚠ Category discipline: low-vol shares NONE of the T/U/L/RSI/fractal machinery — carried only as the non-crossover COMPARATOR, never a crossover result (D146).
+- **Forward test ARMED — `ema_crossover_forward.py` (the `union_forward` twin):** reporting-only over the 3 sealed engines; integrity+reproduction gate **box-verified** (3/3 seals + 3/3 in-sample anchors to the digit), predictions frozen, FREEZE 2026-07, criteria C1–C5 judged at **≥24 forward months**, CROSSOVER ADJUDICATION among **MOM/REV only** (LOW judged for reference, EXCLUDED via a `role` field). No seal of its own — it verifies the three it reports on.
+- **Quarterly VPS→Telegram checkpoint LIVE:** `scripts/ema_forward_checkpoint.sh` + `hermes-ema-forward.{service,timer}` (oneshot + quarterly OnCalendar 3rd of Jan/Apr/Jul/Oct 03:30 UTC = 09:00 IST; **no `Requires=`** → arming never pulls the job, AUD-95 avoided). Deployed + armed (next fire **2026-10-03**, service verified inactive/never-run); end-to-end tested — the verdict DM was delivered to the owner (`{"ok":true}`). A cloud routine can't do this (isolated sandbox, no VPS SSH key, no real data in the repo) → box-side by design.
+- **Numbers single-sourced in** `docs/strategy-ledger.md` §§ "EMA-crossover family — VERDICT" / "Forward test ARMED (2026-07-23)" / Studies 2026-07-22c & 22d. Research/infra commits used `state:skip`.
 
 ### Session 213 — 2026-07-23 — M5 · TODAY v3 DEPLOYED: /dash/preview IS the orientation home; the beginner walk passed 5/5 on the box; the M5 spec retired on landing
 Lane `v3-preview`, owner go "build M5" on the review-clean spec v1.1. **Shipped:** NEW `src/web/today_v3.py` (+`v3_preview` delegation): mood via the ONE vocabulary (index_signals → `market_mood` → `mood_banner`) · identity sentence + `demo_framing` · **5 count-tiles** (live lenses, visible subtitles, honest zeros on absent tables; breadth = the documented %-exception) · humanized what-changed board (8 rows, sym-linked to the hub) · flagship band (4 provenance cards) · start-here with the shared typeahead ATTACHED (+ suggestions host) · the M0 toggle relocated to the rail, never hidden · nav contract on the landing (Today marked · crumbs · rail).
