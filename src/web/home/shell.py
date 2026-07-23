@@ -50,6 +50,23 @@ _SHELL_CSS = """<style>/* g-shell */
 :root[data-ui-g][data-persona="new"] .new-only{display:revert}
 :root[data-ui-g] .pro-only{display:none}
 :root[data-ui-g][data-persona="pro"] .pro-only{display:revert}
+/* the classic-site directory (top-right dropdown) */
+:root[data-ui-g] .g-classic{position:relative}
+:root[data-ui-g] .g-classic>summary{list-style:none;cursor:pointer}
+:root[data-ui-g] .g-classic>summary::-webkit-details-marker{display:none}
+:root[data-ui-g] .g-classic-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:50;width:min(780px,92vw);
+  max-height:min(70vh,540px);overflow-y:auto;background:linear-gradient(165deg,var(--bg-2),var(--bg-1));
+  border:1px solid var(--line-2);border-radius:14px;box-shadow:0 26px 64px -20px rgba(0,0,0,.7);padding:15px 17px;scrollbar-width:thin}
+:root[data-ui-g] .g-cl-head{font-size:12px;color:var(--ink-3);margin-bottom:13px;line-height:1.55}
+:root[data-ui-g] .g-cl-head b{color:var(--ink)}
+:root[data-ui-g] .g-cl-home{margin-left:6px;color:var(--accent);font-weight:600;white-space:nowrap;text-decoration:none}
+:root[data-ui-g] .g-cl-home:hover{text-decoration:underline}
+:root[data-ui-g] .g-cl-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px 18px}
+:root[data-ui-g] .g-cl-col h4{margin:0 0 6px;font:700 10.5px var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--line);padding-bottom:5px}
+:root[data-ui-g] .g-cl-col a{display:block;font-size:12.5px;color:var(--ink-2);text-decoration:none;padding:3px 0;line-height:1.35}
+:root[data-ui-g] .g-cl-col a:hover{color:var(--accent)}
+:root[data-ui-g] .g-cl-sub{font:600 9px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin:9px 0 3px}
+@media(max-width:560px){:root[data-ui-g] .g-classic-menu{position:fixed;left:2vw;right:2vw;width:96vw}}
 </style>"""
 
 _PERSONA_JS = """<script>(function(){var r=document.documentElement,k="pvgmode";
@@ -69,6 +86,59 @@ try{if(localStorage.getItem(k)==="light")r.setAttribute("data-theme","light");}c
 window.pvgTheme=function(){var l=r.getAttribute("data-theme")==="light";
 if(l)r.removeAttribute("data-theme");else r.setAttribute("data-theme","light");
 try{localStorage.setItem(k,l?"dark":"light");}catch(e){}};})();</script>"""
+
+
+# The whole classic site, bundled into the top-right "Classic site" affordance (owner ask). The
+# list is GENERATED from the canonical lens registry (single source of truth) so it can never drift;
+# rendered in Graphite chrome as one-way links — the classic site itself is byte-untouched. Trust is
+# a right-side utility altitude, appended last as "Trust & help".
+_ALT_LABELS = (("markets", "Markets"), ("screener", "Screener"),
+               ("strategies", "Strategies"), ("tracker", "Tracker"), ("trust", "Trust & help"))
+
+_CLASSIC_FALLBACK = '<a class="g-btn" style="margin:0" href="/dash">Classic site</a>'
+
+
+def _classic_directory() -> str:
+    """A directory of the ENTIRE classic site in a top-right dropdown, generated from lens_registry.
+    Defensive: any failure degrades to the plain classic-home link (never 500s the home). lens_registry
+    imports nothing from the web layer, so reading it does not couple the home to a render module."""
+    try:
+        from src.web import lens_registry as LR
+    except Exception:  # noqa: BLE001
+        return _CLASSIC_FALLBACK
+    cols = ""
+    for alt, alt_label in _ALT_LABELS:
+        try:
+            lenses = LR.subnav(alt)
+        except Exception:  # noqa: BLE001
+            lenses = []
+        if not lenses:
+            continue
+        items, cur_group = "", None
+        for ln in lenses:
+            g = getattr(ln, "group", None)
+            if g and g != cur_group:
+                items += '<div class="g-cl-sub">' + _html.escape(str(g)) + "</div>"
+                cur_group = g
+            elif not g:
+                cur_group = None
+            items += ('<a href="' + _html.escape(ln.route or "/dash") + '">' + _html.escape(ln.label) + "</a>")
+        cols += '<div class="g-cl-col"><h4>' + _html.escape(alt_label) + "</h4>" + items + "</div>"
+    if not cols:
+        return _CLASSIC_FALLBACK
+    return (
+        '<details class="g-classic"><summary class="g-btn" style="margin:0" '
+        'aria-label="Open the classic-site directory">Classic site <span aria-hidden="true">▾</span></summary>'
+        '<div class="g-classic-menu" role="group" aria-label="Classic site — all pages">'
+        '<div class="g-cl-head"><b>The classic site — every page.</b> Opens in the classic experience; '
+        'this preview stays separate. <a class="g-cl-home" href="/dash">Classic home →</a></div>'
+        '<div class="g-cl-cols">' + cols + "</div></div></details>"
+    )
+
+
+_CLASSIC_JS = ('<script>(function(){var d=document.querySelector(".g-classic");if(!d)return;'
+               'document.addEventListener("click",function(e){if(d.open&&!d.contains(e.target))d.open=false;});'
+               'document.addEventListener("keydown",function(e){if(e.key==="Escape"&&d.open)d.open=false;});})();</script>')
 
 
 def _dests(current: str) -> str:
@@ -97,11 +167,11 @@ def shell(title: str, body_html: str, rail_html: str = "", extra_head: str = "",
         '<button id="g-mnew" type="button" aria-pressed="true">✦ New here</button>'
         '<button id="g-mpro" type="button" aria-pressed="false">⚡ Pro</button></span>'
         '<button class="g-btn" style="margin:0" onclick="pvgTheme()" aria-label="Switch light/dark theme">◑ Theme</button>'
-        '<a class="g-btn" style="margin:0" href="/dash">Classic site</a>'
-        "</header>"
+        + _classic_directory()
+        + "</header>"
         '<nav class="g-destbar">' + _dests(current) + "</nav>"
         '<main class="g-wrap">' + C.fence(_FENCE)
         + '<div class="' + grid_cls + '"><div class="g-focus">' + body_html + "</div>" + rail + "</div></main>"
         '<footer class="g-foot">' + _html.escape(_FENCE) + "</footer>"
-        + pat_html + _THEME_JS + _PERSONA_JS + C.assets() + "</body></html>"
+        + pat_html + _THEME_JS + _PERSONA_JS + _CLASSIC_JS + C.assets() + "</body></html>"
     )

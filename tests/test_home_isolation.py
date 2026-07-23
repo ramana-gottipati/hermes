@@ -73,6 +73,20 @@ def test_default_chrome_never_links_the_home():
         assert "/dash/home" not in r.text, path
 
 
+def test_classic_site_directory_bundles_the_whole_registry_one_way():
+    """The top-right 'Classic site' dropdown lists EVERY classic lens, generated from the canonical
+    lens_registry (single source → can't drift), as one-way links. The classic site is untouched;
+    the directory never links back to /dash/home (that would break the never-links-home contract)."""
+    from src.web.home import shell
+    from src.web import lens_registry as LR
+    html = shell.shell("Home", "<p>x</p>")
+    assert 'class="g-classic"' in html and "Classic site" in html
+    missing = [ln.route for ln in LR.LENSES if ln.route and ln.route not in html]
+    assert not missing, ("the classic directory dropped registry routes", missing[:5])
+    # the directory routes come from lens_registry, which has no /dash/home lens → one-way by construction
+    assert not any((ln.route or "") == "/dash/home" for ln in LR.LENSES)
+
+
 def test_home_toggle_is_post_only():
     client = TestClient(_app())
     assert client.get("/dash/home/toggle").status_code == 405
