@@ -59,11 +59,15 @@ def _signed_pct(v) -> tuple[str, str]:
 
 
 # ── containers ──────────────────────────────────────────────────────────────────
-def zone(title: str, prov_text: str, body_html: str, sub: str = "") -> str:
+def zone(title: str, prov_text: str, body_html: str, sub: str = "", sample: bool = False,
+         name: str = None) -> str:
+    """A dashboard card. `sample=True` marks the provenance chip so demo-backed zones read honestly
+    (real-vs-demo line). `data-name` lets the arrange menu label a hidden/pinned card."""
     p = prov_text.split("·", 1)
-    prov = _prov_html(p[0].strip(), (p[1].strip() if len(p) > 1 else ""))
+    prov = _prov_html(p[0].strip(), (p[1].strip() if len(p) > 1 else ""), sample=sample)
     sub_html = f'<span class="g-sub">{esc(sub)}</span>' if sub else ""
-    return ('<section class="g-zone"><div class="g-zone-h"><h2>' + esc(title) + "</h2>"
+    nm = esc(name if name is not None else title)
+    return ('<section class="g-zone" data-name="' + nm + '"><div class="g-zone-h"><h2>' + esc(title) + "</h2>"
             + sub_html + prov + '</div><div class="g-zone-b">' + body_html + "</div></section>")
 
 
@@ -92,14 +96,19 @@ def tile(lab: str, big: str, sub: str = "") -> str:
             + (f'<span class="g-sub">{esc(sub)}</span>' if sub else "") + "</div>")
 
 
-def _prov_html(table: str, fresh: str, stale: bool = False) -> str:
-    cls = "g-prov stale" if stale else "g-prov"
+def _prov_html(table: str, fresh: str, stale: bool = False, sample: bool = False) -> str:
+    cls = "g-prov"
+    if stale:
+        cls += " stale"
+    if sample:
+        cls += " sample"
     tail = f" · {esc(fresh)}" if fresh else ""
-    return f'<span class="{cls}">{esc(table)}{tail}</span>'
+    smp = " · sample" if sample else ""
+    return f'<span class="{cls}">{esc(table)}{tail}{smp}</span>'
 
 
-def prov(table: str, fresh: str, stale: bool = False) -> str:
-    return _prov_html(table, fresh, stale)
+def prov(table: str, fresh: str, stale: bool = False, sample: bool = False) -> str:
+    return _prov_html(table, fresh, stale, sample)
 
 
 def term_chip(label: str, code: str) -> str:
@@ -357,6 +366,297 @@ def ribbon(idx: list, extra: list = None) -> str:
             '<div class="g-rib-scroll">' + chips + "</div></div>")
 
 
+# ── shared helpers for the new builders ──────────────────────────────────────────
+def _sparkdiv(series, cls: str) -> str:
+    """A DOM-safe sparkline: JS reads only the numeric data-series (never interpolated markup)."""
+    vals = [x for x in (series or []) if x is not None]
+    if len(vals) < 2:
+        return ""
+    return '<div class="' + cls + '" data-series="' + ",".join(f"{float(x):.3f}" for x in vals) + '"></div>'
+
+
+def _col(rows, key):
+    return [_d(r).get(key) for r in (rows or [])]
+
+
+def _rupee(v) -> str:
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return "—"
+    if abs(f) >= 1e7:
+        return f"₹{f / 1e7:.2f}Cr"
+    if abs(f) >= 1e5:
+        return f"₹{f / 1e5:.2f}L"
+    return f"₹{f:,.0f}"
+
+
+# ── market pulse: the instrument deck (expanded, click-to-open trends) ────────────
+def _mood_tile(mood_pct, mood: dict) -> str:
+    bp = (f"{float(mood_pct):.0f}% of indices above their 200-DMA" if mood_pct else "medium-term index trend")
+    return ('<div class="g-cell"><span class="g-lab">Market mood</span>'
+            + gauge(mood_pct, "Market mood", (mood or {}).get("word", "No data"))
+            + '<span class="g-sub">' + esc(bp) + "</span></div>")
+
+
+def _breadth_tile(breadth) -> str:
+    b = _d(breadth)
+    if b and b.get("adv") is not None:
+        adv, dec = int(b.get("adv") or 0), int(b.get("dec") or 0)
+        return ('<div class="g-cell"><span class="g-lab">Breadth · today</span>'
+                '<div class="g-split" data-adv="' + str(adv) + '" data-dec="' + str(dec) + '"><span class="g-split-up"></span></div>'
+                '<div class="g-split-lab"><span class="up">' + str(adv) + ' adv</span>'
+                '<span class="dn">' + str(dec) + ' dec</span></div>'
+                '<span class="g-sub">advancers vs decliners</span></div>')
+    return '<div class="g-cell"><span class="g-lab">Breadth · today</span>' + empty("Breadth pending.") + "</div>"
+
+
+def _deck_cell(lab, big, sub, series, exp_id, tone="", hint="trend ›") -> str:
+    return ('<div class="g-cell click" data-exp="' + esc(exp_id) + '" tabindex="0" role="button">'
+            '<span class="g-hint">' + esc(hint) + '</span><span class="g-lab">' + esc(lab) + "</span>"
+            '<span class="g-big g-num ' + tone + '">' + esc(big) + "</span>"
+            + _sparkdiv(series, "g-tspark " + tone) + '<span class="g-sub">' + esc(sub) + "</span></div>")
+
+
+def _deck_static(lab, big, sub, exp_id, tone="") -> str:
+    return ('<div class="g-cell click" data-exp="' + esc(exp_id) + '" tabindex="0" role="button">'
+            '<span class="g-hint">detail ›</span><span class="g-lab">' + esc(lab) + "</span>"
+            '<span class="g-big g-num ' + tone + '">' + esc(big) + "</span>"
+            '<span class="g-sub">' + esc(sub) + "</span></div>")
+
+
+def _exp(exp_id, title, series, tone, text) -> str:
+    return ('<div class="g-expand" id="' + esc(exp_id) + '"><h4>' + esc(title) + "</h4>"
+            + _sparkdiv(series, "g-bigspark " + tone) + "<p>" + esc(text) + "</p></div>")
+
+
+def _sector_tile(sectors) -> str:
+    chips = ""
+    for s in (sectors or [])[:9]:
+        s = _d(s)
+        try:
+            v = float(s.get("rs"))
+        except (TypeError, ValueError):
+            continue
+        nm = esc((s.get("sector") or "").replace("Nifty ", "").strip() or "—")
+        chips += ('<span class="g-sec"><b>' + nm + '</b><span class="' + ("up" if v >= 0 else "dn") + '">'
+                  + ("+" if v >= 0 else "−") + f"{abs(v):.1f}" + "</span></span>")
+    if not chips:
+        return ""
+    return ('<div class="g-cell wide"><span class="g-lab">Sector heat · relative strength today</span>'
+            '<div class="g-heat">' + chips + "</div></div>")
+
+
+def pulse_deck(idx, mood, mood_pct, breadth, series, internals, highs, sectors) -> str:
+    """The market in one glance: a headline index + a deck of internals tiles (breadth · delivery
+    conviction · accumulation · 52w highs · dispersion · sector heat). Each metric tile opens its
+    30-session trend. Every read is bounded; a missing feed just drops its tile."""
+    head = empty("Index signals pending.")
+    if idx:
+        r0 = _d(idx[0])
+        txt, cls = _signed_pct(r0.get("ret_1d_pct"))
+        head = ('<div class="g-pl-head"><span class="g-pl-nm">' + esc(r0.get("index_name")) + "</span>"
+                '<span class="g-pl-lv g-num">' + _num(r0.get("close_value")) + "</span>"
+                '<span class="g-num ' + cls + '" style="font-weight:700">' + txt + "</span>"
+                + _sparkdiv(series, "g-pl-spark") + "</div>")
+    padv, adp = _col(internals, "pct_adv"), _col(internals, "avg_dp")
+    mep, disp = _col(internals, "mep_net"), _col(internals, "disp")
+    tiles = _mood_tile(mood_pct, mood) + _breadth_tile(breadth)
+    if padv and padv[-1] is not None:
+        tiles += _deck_cell("Breadth trend", f"{float(padv[-1]):.0f}%", "advancing · recent sessions", padv, "e-breadth", tone="up")
+    if adp and adp[-1] is not None:
+        tiles += _deck_cell("Delivery conviction", f"{float(adp[-1]):.0f}%", "of turnover delivered", adp, "e-deliv")
+    if mep and mep[-1] is not None:
+        v = float(mep[-1])
+        tiles += _deck_cell("Accumulation tape", ("+" if v >= 0 else "−") + f"{abs(v):.1f}",
+                            "net accumulating · MEP", mep, "e-accum", tone=("up" if v >= 0 else "dn"))
+    hi = _d(highs)
+    if hi and hi.get("highs") is not None:
+        tiles += _deck_static("New 52-wk highs", str(int(hi.get("highs") or 0)),
+                              f"{int(hi.get('near') or 0)} within 2% of high", "e-52w", tone="up")
+    if disp and disp[-1] is not None:
+        tiles += _deck_cell("Dispersion", f"{float(disp[-1]):.2f}", "stock-pickers' spread", disp, "e-disp", hint="what's this ›")
+    tiles += _sector_tile(sectors)
+    exps = ""
+    if padv:
+        exps += _exp("e-breadth", "Breadth trend — % of stocks advancing", padv, "up",
+                     "The share of stocks advancing over recent sessions. A broadening tape means more names "
+                     "participate, not a few index heavyweights carrying the move. Descriptive of the past only.")
+    if adp:
+        exps += _exp("e-deliv", "Delivery conviction — market-wide delivery %", adp, "",
+                     "How much of the day's traded value was actually taken to delivery rather than squared off "
+                     "intraday. A steady, high share is buying that carries holding intent — patearn's signature read.")
+    if mep:
+        exps += _exp("e-accum", "Accumulation tape — net MEP", mep, "up",
+                     "Net accumulation across the market: positive when more stocks show a signed accumulation "
+                     "footprint than distribution. A signed value, so up/down colour is meaningful here.")
+    if hi and hi.get("highs") is not None:
+        exps += _exp("e-52w", "New 52-week highs", None, "up",
+                     "Stocks printing a fresh 52-week high today, with the count within 2% of their high — "
+                     "expanding new-high leadership. When highs dry up while the index rises, that divergence shows here.")
+    if disp:
+        exps += _exp("e-disp", "Dispersion — how spread-out returns are", disp, "",
+                     "Higher dispersion means stocks are moving quite differently from one another — a "
+                     "stock-pickers' market where selection matters more than index direction. Low dispersion: everything moves together.")
+    return ('<div class="g-pl-wrap">' + head
+            + learn("Six instruments read the market's internals — how broad, how convicted, how accumulated the "
+                    "move was, not just where the index closed. Click any tile for its trend and a plain-English read.")
+            + '<div class="g-deck">' + tiles + exps + "</div></div>")
+
+
+# ── the FEATURED card: your pick leads; watchlist · portfolio · index focus ───────
+_TREND_LEAD = ("LEADING", "IMPROVING", "UPTREND", "STRONG_UPTREND")
+_TREND_WEAK = ("WEAKENING", "LAGGING", "DOWNTREND", "STRONG_DOWNTREND")
+
+
+def _wl_rows(rows) -> str:
+    out = ""
+    for r in (rows or [])[:10]:
+        r = _d(r)
+        pct = r.get("pct")
+        txt, cls = _signed_pct(pct) if pct is not None else ("—", "")
+        trend = (r.get("trend") or "").upper().strip()
+        pc = "lead" if trend in _TREND_LEAD else ("weak" if trend in _TREND_WEAK else "")
+        deliv, rank = r.get("deliv"), r.get("rank")
+        tail = (f"Deliv {float(deliv):.0f}%" if deliv is not None
+                else (f"RS #{int(rank)}" if rank is not None else "—"))
+        out += ('<div class="g-wl"><span>' + sym_link(r.get("symbol")) + "</span>"
+                '<span class="g-wl-chg g-num ' + cls + '">' + txt + "</span>"
+                '<span class="g-phase ' + pc + '">' + esc(trend or "—") + "</span>"
+                '<span class="g-wl-ev">' + esc(tail) + "</span></div>")
+    return out
+
+
+def watchlist_block(rows) -> str:
+    body = _wl_rows(rows)
+    if not body:
+        return (empty("Your watchlist is empty.")
+                + '<p class="g-wl-add"><span class="g-sub">Add names in the Tracker or via Telegram to follow them here.</span></p>')
+    return ('<div class="g-watch">' + body + "</div>"
+            '<p class="g-wl-add"><span class="g-sub">Followed names — day move, RS phase, delivery. Manage in the Tracker.</span></p>')
+
+
+def portfolio_block(p) -> str:
+    p = _d(p)
+    rows = p.get("rows") or []
+    if not rows:
+        return empty("No holdings tracked yet — add positions in the Tracker to see your book here.")
+    dp = p.get("day_pct")
+    dtxt, dcls = _signed_pct(dp) if dp is not None else ("—", "")
+    summ = ('<div class="g-pnl"><div class="g-cell"><span class="g-lab">Day P&amp;L</span>'
+            '<span class="g-big g-num ' + dcls + '">' + dtxt + "</span></div>"
+            '<div class="g-cell"><span class="g-lab">Invested</span>'
+            '<span class="g-big g-num">' + _rupee(p.get("invested")) + "</span>"
+            '<span class="g-sub">' + esc(str(p.get("n") or len(rows))) + " holdings</span></div></div>")
+    body = ""
+    for r in rows[:12]:
+        r = _d(r)
+        pct = r.get("pct")
+        txt, cls = _signed_pct(pct) if pct is not None else ("—", "")
+        wt = r.get("weight")
+        wtx = f"{float(wt):.0f}% wt" if wt is not None else "—"
+        since = r.get("since")
+        stx = ""
+        if since is not None:
+            sc = "up" if since >= 0 else "dn"
+            stx = ('<span class="' + sc + '">' + ("+" if since >= 0 else "−")
+                   + f"{abs(float(since)):.0f}% since entry</span>")
+        body += ('<div class="g-wl"><span>' + sym_link(r.get("symbol")) + "</span>"
+                 '<span class="g-wl-chg g-num ' + cls + '">' + txt + "</span>"
+                 '<span class="g-phase">' + esc(wtx) + "</span>"
+                 '<span class="g-wl-ev">' + stx + "</span></div>")
+    return summ + '<div class="g-watch">' + body + "</div>"
+
+
+def index_focus_block(idx, series70) -> str:
+    r0 = _d(idx[0]) if idx else {}
+    lvl = _num(r0.get("close_value")) if r0 else "—"
+    txt, cls = _signed_pct(r0.get("ret_1d_pct")) if r0 else ("—", "")
+    above = r0.get("pct_above_200d_avg")
+
+    def _ret(series, k):
+        s = [x for x in (series or []) if x is not None]
+        if len(s) > k and s[-1] and s[-k - 1]:
+            return (s[-1] - s[-k - 1]) / s[-k - 1] * 100.0
+        return None
+
+    def _stat(lab, val, tone="", sub=""):
+        return ('<div class="g-cell"><span class="g-lab">' + esc(lab) + '</span>'
+                '<span class="g-big g-num ' + tone + '">' + esc(val) + "</span>"
+                + (f'<span class="g-sub">{esc(sub)}</span>' if sub else "") + "</div>")
+
+    def _pstat(lab, v, sub):
+        if v is None:
+            return _stat(lab, "—", "", sub)
+        return _stat(lab, ("+" if v >= 0 else "−") + f"{abs(v):.1f}%", "up" if v >= 0 else "dn", sub)
+
+    ab_yes = "Yes" if (above is not None and above > 0) else ("No" if above is not None else "—")
+    ab_cls = "up" if (above is not None and above > 0) else ("dn" if above is not None else "")
+    stats = (_stat("Above 200-DMA", ab_yes, ab_cls, "medium-term trend")
+             + _pstat("1-month", _ret(series70, 21), "vs ~21 sessions")
+             + _pstat("3-month", _ret(series70, 63), "vs ~63 sessions")
+             + (_pstat("vs 200-DMA", above, "distance to its 200-day avg") if above is not None else _stat("From high", "—")))
+    nm = esc(r0.get("index_name") or "NIFTY 50")
+    head = ('<div class="g-idx-head"><span class="g-pl-nm">' + nm + "</span>"
+            '<span class="g-pl-lv g-num">' + lvl + "</span>"
+            '<span class="g-num ' + cls + '" style="font-weight:700">' + txt + "</span></div>")
+    return head + _sparkdiv(series70, "g-bigspark idx") + '<div class="g-idx-stats">' + stats + "</div>"
+
+
+def featured_card(watch_html, watch_sample, folio_html, folio_sample, index_html) -> str:
+    """The user's chosen lead view. A segmented chooser promotes Watchlist / Portfolio / Index to the
+    top slot (persisted per-browser by the client) — it does NOT hide the rest of the page, which
+    scrolls below. Default = watchlist."""
+    def _prov(sample):
+        return ('<span class="g-prov sample" style="float:right">demo · sample</span>' if sample
+                else '<span class="g-prov" style="float:right">your data · live</span>')
+    return (
+        '<section class="g-zone g-feat" data-name="Featured"><div class="g-feat-h">'
+        '<div class="g-feat-ttl"><span class="g-eyebrow">★ Featured — your pick leads every visit</span>'
+        '<h2 id="g-feat-title">Your watchlist</h2></div>'
+        '<div class="g-featbar" role="group" aria-label="Choose your featured view">'
+        '<button class="g-fb" type="button" data-v="v-watch" data-title="Your watchlist" aria-pressed="true">◈ Watchlist</button>'
+        '<button class="g-fb" type="button" data-v="v-folio" data-title="Your portfolio" aria-pressed="false">Portfolio</button>'
+        '<button class="g-fb" type="button" data-v="v-index" data-title="Index focus" aria-pressed="false">Index</button>'
+        '<button class="g-star" id="g-feat-star" type="button" title="Make the current view your default" aria-label="Set current view as default">★</button>'
+        '</div></div><div class="g-zone-b">'
+        '<div class="g-featv on" id="v-watch">' + _prov(watch_sample) + watch_html + "</div>"
+        '<div class="g-featv" id="v-folio">' + _prov(folio_sample) + folio_html + "</div>"
+        '<div class="g-featv" id="v-index"><span class="g-prov" style="float:right">NSE indices · nightly</span>' + index_html + "</div>"
+        "</div></section>"
+    )
+
+
+# ── the selectable ticker feed (all feeds pre-rendered DOM-safe; JS just toggles) ──
+def rib_chip(name, val, pct, acc: bool = False) -> str:
+    if pct is None:
+        pctspan = ""
+    else:
+        f = float(pct)
+        c = "up" if f >= 0 else "dn"
+        pctspan = '<span class="g-num ' + c + '">' + ("▲" if f >= 0 else "▼") + " " + f"{abs(f):.2f}" + "%</span>"
+    valspan = ('<span class="g-num">' + esc(val) + "</span>") if val is not None else ""
+    b = ('<b class="acc">' + esc(name) + "</b>") if acc else ("<b>" + esc(name) + "</b>")
+    return '<span class="g-rib">' + b + valspan + pctspan + "</span>"
+
+
+def ribbon_feeds(feeds) -> str:
+    """feeds = list of {'key','label','chips','sample'}. First is shown; a <select> toggles."""
+    opts = "".join('<option value="' + esc(f["key"]) + '">' + esc(f["label"]) + "</option>" for f in feeds)
+    groups = ""
+    for i, f in enumerate(feeds):
+        smp = '<span class="g-smp">sample</span>' if f.get("sample") else ""
+        groups += ('<div class="g-rib-scroll" data-feed="' + esc(f["key"]) + '"' + ("" if i == 0 else " hidden") + ">"
+                   + smp + f["chips"] + "</div>")
+    return ('<div class="g-ribbon"><span class="g-rib-live">LIVE</span>'
+            '<select class="g-feedpick" id="g-feedpick" aria-label="Choose ticker feed">' + opts + "</select>"
+            + groups + "</div>")
+
+
+def hidden_tray() -> str:
+    return '<div class="g-hidden-tray" id="g-tray"></div>'
+
+
 # ── the .g-* stylesheet (scoped by data-ui-g on the root, via the token layer) ──
 def css() -> str:
     return """<style>/* g-kit */
@@ -504,6 +804,81 @@ def css() -> str:
 :root[data-ui-g] .g-pl-nm{font:700 12px var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
 :root[data-ui-g] .g-pl-lv{font-size:22px;font-weight:700;text-shadow:0 0 18px var(--glow)}
 :root[data-ui-g] .g-pl-chart .g-spark{height:96px}
+/* ── featured card + chooser ── */
+:root[data-ui-g] .g-feat{border-color:color-mix(in srgb,var(--accent) 40%,var(--line));background:linear-gradient(165deg,color-mix(in srgb,var(--accent) 7%,var(--bg-2)),var(--bg-1) 66%);box-shadow:0 0 34px -18px var(--glow)}
+:root[data-ui-g] .g-feat::before{width:100%;background:linear-gradient(90deg,var(--accent-hi),transparent 60%)}
+:root[data-ui-g] .g-feat-h{display:flex;align-items:center;gap:12px 14px;padding:12px 15px 10px;flex-wrap:wrap}
+:root[data-ui-g] .g-feat-ttl{display:flex;flex-direction:column;gap:2px;margin-right:auto;min-width:0}
+:root[data-ui-g] .g-eyebrow{font:700 9px/1 var(--mono);letter-spacing:.16em;color:var(--accent);text-transform:uppercase}
+:root[data-ui-g] .g-feat-ttl h2{margin:0;font-size:17px;font-weight:800}
+:root[data-ui-g] .g-featbar{display:inline-flex;align-items:center;gap:2px;background:var(--bg-0);border:1px solid var(--line-2);border-radius:var(--r-pill);padding:3px}
+:root[data-ui-g] .g-fb{border:0;background:transparent;color:var(--ink-3);font:700 11.5px var(--font);padding:7px 13px;border-radius:var(--r-pill);cursor:pointer;white-space:nowrap}
+:root[data-ui-g] .g-fb[aria-pressed="true"]{color:var(--on-accent);background:linear-gradient(120deg,var(--accent),var(--accent-hi))}
+:root[data-ui-g] .g-fb:hover:not([aria-pressed="true"]){color:var(--ink)}
+:root[data-ui-g] .g-star{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:15px;line-height:1;padding:5px 7px;border-radius:var(--r-pill)}
+:root[data-ui-g] .g-star.set{color:var(--warn)}
+:root[data-ui-g] .g-featv{display:none}
+:root[data-ui-g] .g-featv.on{display:block}
+:root[data-ui-g] .g-pnl{display:flex;gap:11px;flex-wrap:wrap;margin-bottom:12px}
+:root[data-ui-g] .g-pnl .g-cell{flex:1;min-width:120px}
+/* ── watchlist / portfolio rows ── */
+:root[data-ui-g] .g-watch{display:flex;flex-direction:column;max-height:320px;overflow-y:auto;scrollbar-width:thin}
+:root[data-ui-g] .g-wl{display:grid;grid-template-columns:minmax(78px,96px) 74px 88px 1fr;gap:10px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line);font-size:13px}
+:root[data-ui-g] .g-wl:last-child{border-bottom:0}
+:root[data-ui-g] .g-wl-chg{font-weight:700;text-align:right}
+:root[data-ui-g] .g-phase{font:600 9.5px/1 var(--mono);letter-spacing:.03em;border-radius:var(--r-pill);padding:3px 6px;white-space:nowrap;border:1px solid var(--line-2);color:var(--ink-2);text-align:center}
+:root[data-ui-g] .g-phase.lead{color:var(--up);border-color:color-mix(in srgb,var(--up) 45%,transparent)}
+:root[data-ui-g] .g-phase.weak{color:var(--down);border-color:color-mix(in srgb,var(--down) 45%,transparent)}
+:root[data-ui-g] .g-wl-ev{font-size:11.5px;color:var(--ink-3);text-align:right}
+:root[data-ui-g] .g-wl-add{margin:11px 0 0;padding-top:11px;border-top:1px dashed var(--line-2)}
+/* ── index focus ── */
+:root[data-ui-g] .g-idx-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+:root[data-ui-g] .g-idx-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-top:10px}
+@media(max-width:620px){:root[data-ui-g] .g-idx-stats{grid-template-columns:repeat(2,1fr)}}
+/* ── pulse deck ── */
+:root[data-ui-g] .g-deck{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-top:12px}
+@media(max-width:1150px){:root[data-ui-g] .g-deck{grid-template-columns:repeat(2,minmax(0,1fr))}}
+:root[data-ui-g] .g-cell{background:var(--bg-0);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px;display:flex;flex-direction:column;gap:7px;position:relative;transition:border-color .18s,transform .18s}
+:root[data-ui-g] .g-cell.click{cursor:pointer}
+:root[data-ui-g] .g-cell.click:hover{border-color:var(--accent);transform:translateY(-1px)}
+:root[data-ui-g] .g-cell.wide{grid-column:1/-1}
+:root[data-ui-g] .g-cell .g-big{font-size:26px}
+:root[data-ui-g] .g-cell .g-sub{font-size:11px;color:var(--ink-2)}
+:root[data-ui-g] .g-hint{font:600 8.5px/1 var(--mono);letter-spacing:.08em;color:var(--ink-3);position:absolute;top:11px;right:11px;text-transform:uppercase;opacity:.7}
+:root[data-ui-g] .g-tspark{height:26px;margin-top:2px;color:var(--accent)}
+:root[data-ui-g] .g-bigspark{height:70px;margin:8px 0 4px;color:var(--accent)}
+:root[data-ui-g] .g-pl-spark{flex:1;min-width:120px;height:34px;color:var(--candle-up)}
+:root[data-ui-g] .g-tspark.up,:root[data-ui-g] .g-bigspark.up,:root[data-ui-g] .g-pl-spark.up{color:var(--up)}
+:root[data-ui-g] .g-tspark.dn,:root[data-ui-g] .g-bigspark.dn,:root[data-ui-g] .g-pl-spark.dn{color:var(--down)}
+:root[data-ui-g] .g-tspark svg,:root[data-ui-g] .g-bigspark svg,:root[data-ui-g] .g-pl-spark svg{width:100%;display:block}
+:root[data-ui-g] .g-expand{grid-column:1/-1;background:var(--bg-0);border:1px solid var(--accent);border-radius:var(--r-sm);padding:13px 15px;margin-top:2px;display:none}
+:root[data-ui-g] .g-expand.on{display:block}
+:root[data-ui-g] .g-expand h4{margin:0 0 4px;font-size:13px}
+:root[data-ui-g] .g-expand p{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.55}
+:root[data-ui-g] .g-heat{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+:root[data-ui-g] .g-sec{display:inline-flex;flex-direction:column;gap:2px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);min-width:74px;background:var(--bg-0)}
+:root[data-ui-g] .g-sec b{font-size:11px;font-weight:700}
+:root[data-ui-g] .g-sec span{font:700 12px var(--mono)}
+/* ── ribbon feed picker + sample marks ── */
+:root[data-ui-g] .g-feedpick{background:var(--bg-0);color:var(--ink);border:1px solid var(--line-2);border-radius:var(--r-pill);padding:5px 11px;font:700 11px var(--font);cursor:pointer;flex:none}
+:root[data-ui-g] .g-feedpick:hover{border-color:var(--accent)}
+:root[data-ui-g] .g-rib b.acc{color:var(--accent)}
+:root[data-ui-g] .g-smp{font:600 8.5px/1 var(--mono);letter-spacing:.1em;color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 55%,transparent);border-radius:var(--r-pill);padding:2px 5px;text-transform:uppercase;flex:none;align-self:center}
+:root[data-ui-g] .g-prov.sample{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+:root[data-ui-g] .g-prov.sample::before{background:var(--warn)}
+/* ── arrange (pin / collapse / hide) ── */
+:root[data-ui-g] .g-zone-b.collapsed{display:none}
+:root[data-ui-g] .g-zone.hidden{display:none}
+:root[data-ui-g] .g-arr{position:relative;margin-left:6px}
+:root[data-ui-g] .g-arr-b{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:16px;line-height:1;padding:2px 6px;border-radius:6px}
+:root[data-ui-g] .g-arr-b:hover{color:var(--ink);background:var(--bg-3)}
+:root[data-ui-g] .g-arr-m{position:absolute;right:0;top:26px;z-index:20;background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;padding:5px;min-width:140px;box-shadow:0 12px 32px rgba(0,0,0,.4);display:none}
+:root[data-ui-g] .g-arr-m.on{display:block}
+:root[data-ui-g] .g-arr-m button{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--ink-2);font:600 12px var(--font);padding:7px 9px;border-radius:6px;cursor:pointer}
+:root[data-ui-g] .g-arr-m button:hover{background:var(--bg-0);color:var(--ink)}
+:root[data-ui-g] .g-hidden-tray{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;background:var(--bg-1);border:1px dashed var(--line-2);border-radius:var(--r);margin-bottom:16px;font-size:12px;color:var(--ink-3)}
+:root[data-ui-g] .g-hidden-tray:empty{display:none}
+:root[data-ui-g] .g-restore{background:var(--bg-3);border:1px solid var(--line-2);color:var(--ink-2);border-radius:var(--r-pill);padding:4px 10px;font:600 11px var(--font);cursor:pointer}
 </style>"""
 
 
@@ -538,4 +913,94 @@ document.querySelectorAll(".g-gauge").forEach(function(el){
   if(!fill) return; var L=fill.getTotalLength(); fill.style.strokeDasharray=L; var off=L*(1-v/100);
   if(RM){ fill.style.strokeDashoffset=off; } else { fill.style.strokeDashoffset=L; fill.style.transition="stroke-dashoffset 1.2s cubic-bezier(.2,.7,.2,1)"; requestAnimationFrame(function(){ fill.style.strokeDashoffset=off; }); }
 });
+/* ── deck / featured sparklines (tspark · bigspark · pl-spark) ── */
+function gspark(el){
+  var s=(el.getAttribute("data-series")||"").split(",").map(Number).filter(function(x){return !isNaN(x);});
+  if(s.length<2) return;
+  var big=el.className.indexOf("g-bigspark")>=0, W=300,
+      H=el.className.indexOf("g-tspark")>=0?26:(big?70:34),
+      mn=Math.min.apply(null,s),mx=Math.max.apply(null,s),n=s.length,col=getComputedStyle(el).color;
+  function X(i){return i/(n-1)*W;} function Y(v){return 3+(H-6)*(1-(v-mn)/((mx-mn)||1));}
+  var d=""; for(var i=0;i<n;i++){ d+=(i?"L":"M")+X(i).toFixed(1)+" "+Y(s[i]).toFixed(1)+" "; }
+  var fill=big?('<path d="'+d+'L'+W+' '+H+' L0 '+H+' Z" fill="'+col+'" opacity=".12"/>'):"";
+  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" aria-hidden="true">'+fill
+    +'<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="1.8"/>'
+    +'<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(s[n-1]).toFixed(1)+'" r="2.4" fill="'+col+'"/></svg>';
+}
+document.querySelectorAll(".g-tspark,.g-bigspark,.g-pl-spark").forEach(gspark);
+/* ── breadth split tiles (data on .g-split) ── */
+document.querySelectorAll(".g-split[data-adv]").forEach(function(el){
+  var a=+el.getAttribute("data-adv")||0,d=+el.getAttribute("data-dec")||0,t=a+d,u=el.querySelector(".g-split-up");
+  if(u&&t) w(u,Math.round(a/t*100)+"%");
+});
+/* ── pulse deck: click a tile to open its trend ── */
+document.querySelectorAll(".g-cell.click").forEach(function(c){
+  function tog(){ var id=c.getAttribute("data-exp"),p=id&&document.getElementById(id); if(!p) return;
+    var open=p.classList.contains("on");
+    document.querySelectorAll(".g-expand.on").forEach(function(x){x.classList.remove("on");});
+    if(!open){ p.classList.add("on"); p.querySelectorAll(".g-bigspark").forEach(gspark); } }
+  c.addEventListener("click",tog);
+  c.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); tog(); } });
+});
+/* ── featured chooser: promote your pick (persisted); the rest still scrolls below ── */
+(function(){
+  var fbs=document.querySelectorAll(".g-featbar .g-fb"), title=document.getElementById("g-feat-title"),
+      star=document.getElementById("g-feat-star"); if(!fbs.length) return;
+  var K="pvgfeat", def="v-watch";
+  try{ var sv=localStorage.getItem(K); if(sv) def=sv; }catch(e){}
+  if(!document.getElementById(def)) def="v-watch";
+  function show(v){
+    fbs.forEach(function(b){ b.setAttribute("aria-pressed",b.getAttribute("data-v")===v?"true":"false"); });
+    document.querySelectorAll(".g-featv").forEach(function(p){ p.classList.toggle("on",p.id===v); });
+    var btn=document.querySelector('.g-featbar .g-fb[data-v="'+v+'"]');
+    if(btn&&title) title.textContent=btn.getAttribute("data-title")||title.textContent;
+    var el=document.getElementById(v); if(el) el.querySelectorAll(".g-tspark,.g-bigspark,.g-pl-spark").forEach(gspark);
+    if(star) star.classList.toggle("set",v===def);
+  }
+  fbs.forEach(function(b){ b.addEventListener("click",function(){ show(b.getAttribute("data-v")); }); });
+  if(star) star.addEventListener("click",function(){
+    var cur=document.querySelector('.g-featbar .g-fb[aria-pressed="true"]'); if(!cur) return;
+    def=cur.getAttribute("data-v"); try{ localStorage.setItem(K,def); }catch(e){}
+    star.classList.add("set"); star.title="This is your default";
+  });
+  show(def);
+})();
+/* ── selectable ticker feed (persisted) ── */
+(function(){
+  var sel=document.getElementById("g-feedpick"); if(!sel) return;
+  var K="pvgfeed";
+  function set(k){ document.querySelectorAll(".g-rib-scroll[data-feed]").forEach(function(g){ g.hidden=g.getAttribute("data-feed")!==k; }); }
+  try{ var sv=localStorage.getItem(K); if(sv&&document.querySelector('.g-rib-scroll[data-feed="'+sv+'"]')){ sel.value=sv; set(sv); } }catch(e){}
+  sel.addEventListener("change",function(){ set(sel.value); try{ localStorage.setItem(K,sel.value); }catch(e){} });
+})();
+/* ── arrange: pin / collapse / hide any card (persisted) ── */
+(function(){
+  var tray=document.getElementById("g-tray"); if(!tray) return;
+  var K="pvghidden", hidden={}; try{ hidden=JSON.parse(localStorage.getItem(K)||"{}")||{}; }catch(e){}
+  function persist(){ try{ localStorage.setItem(K,JSON.stringify(hidden)); }catch(e){} }
+  function restoreChip(name,z){
+    var chip=document.createElement("button"); chip.type="button"; chip.className="g-restore"; chip.textContent="+ "+name;
+    chip.addEventListener("click",function(){ z.classList.remove("hidden"); delete hidden[name]; persist();
+      tray.removeChild(chip); if(!tray.querySelector(".g-restore")) tray.innerHTML=""; });
+    if(!tray.querySelector(".g-restore")) tray.innerHTML="<span>Hidden:</span>";
+    tray.appendChild(chip);
+  }
+  document.querySelectorAll(".g-side .g-zone, .g-main .g-zone:not(.g-feat)").forEach(function(z){
+    var h=z.querySelector(".g-zone-h"), name=z.getAttribute("data-name")||"Section"; if(!h) return;
+    var wrap=document.createElement("span"); wrap.className="g-arr";
+    wrap.innerHTML='<button class="g-arr-b" type="button" aria-label="Arrange" title="Pin, collapse or hide">⋮</button>'
+      +'<span class="g-arr-m"><button data-a="pin">↑ Pin to top</button><button data-a="collapse">▾ Collapse</button><button data-a="hide">✕ Hide</button></span>';
+    h.appendChild(wrap);
+    var b=wrap.querySelector(".g-arr-b"), m=wrap.querySelector(".g-arr-m"), body=z.querySelector(".g-zone-b");
+    b.addEventListener("click",function(e){ e.stopPropagation();
+      document.querySelectorAll(".g-arr-m.on").forEach(function(x){ if(x!==m) x.classList.remove("on"); }); m.classList.toggle("on"); });
+    m.querySelector('[data-a="pin"]').addEventListener("click",function(){ z.parentNode.prepend(z); m.classList.remove("on"); });
+    m.querySelector('[data-a="collapse"]').addEventListener("click",function(ev){ if(body) body.classList.toggle("collapsed");
+      ev.target.textContent=(body&&body.classList.contains("collapsed"))?"▸ Expand":"▾ Collapse"; m.classList.remove("on"); });
+    m.querySelector('[data-a="hide"]').addEventListener("click",function(){ z.classList.add("hidden"); hidden[name]=1; persist();
+      m.classList.remove("on"); restoreChip(name,z); });
+    if(hidden[name]){ z.classList.add("hidden"); restoreChip(name,z); }
+  });
+  document.addEventListener("click",function(){ document.querySelectorAll(".g-arr-m.on").forEach(function(x){ x.classList.remove("on"); }); });
+})();
 })();</script>"""

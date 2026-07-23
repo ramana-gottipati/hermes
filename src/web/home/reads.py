@@ -190,3 +190,150 @@ def delivery_leaders(conn, limit: int = 6) -> list:
     return _rows(conn, "SELECT symbol, power_dvpt_3m FROM stock_signals "
                        "WHERE trade_date=? AND power_dvpt_3m IS NOT NULL "
                        "ORDER BY power_dvpt_3m DESC LIMIT ?", (d, limit))
+
+
+# ── market-pulse instrument deck: internals history + 52w highs + sector heat ──────
+def internals_series(conn, n: int = 30) -> list:
+    """Chronological market-internals rows for the pulse trend tiles (breadth · delivery %
+    · accumulation MEP · dispersion). [] if the table/data is absent."""
+    if not _has(conn, "market_internals_daily"):
+        return []
+    rows = _rows(conn, "SELECT d, adv, dec, pct_adv, avg_dp, mep_net, disp FROM market_internals_daily "
+                       "WHERE pct_adv IS NOT NULL ORDER BY d DESC LIMIT ?", (int(n),))
+    return rows[::-1]  # oldest→newest for the sparklines
+
+
+def new_highs(conn) -> dict:
+    """Fresh 52-week highs today + names within 2% of their high (real leadership breadth).
+    {} if stock_signals is absent. There is no 52w-LOW flag, so we never fabricate one."""
+    if not _has(conn, "stock_signals"):
+        return {}
+    d = _latest_date(conn, "stock_signals", "trade_date")
+    if not d:
+        return {}
+    try:
+        hi = conn.execute("SELECT COUNT(*) FROM stock_signals WHERE trade_date=? "
+                          "AND rs_vs_broad_new_52w_high=1", (d,)).fetchone()
+        near = conn.execute("SELECT COUNT(*) FROM stock_signals WHERE trade_date=? "
+                            "AND pct_from_52w_high IS NOT NULL AND pct_from_52w_high>=-2", (d,)).fetchone()
+        return {"highs": int(hi[0]) if hi and hi[0] is not None else 0,
+                "near": int(near[0]) if near and near[0] is not None else 0}
+    except sqlite3.Error:
+        return {}
+
+
+def sector_heat(conn, limit: int = 9) -> list:
+    """Per-sector average relative strength today (leaders → laggards), a SIGNED read
+    (rs_vs_broad_today is a % vs the broad index). [] if absent. Sectors with <3 names dropped."""
+    if not _has(conn, "stock_signals"):
+        return []
+    d = _latest_date(conn, "stock_signals", "trade_date")
+    if not d:
+        return []
+    return _rows(conn,
+                 "SELECT primary_sector AS sector, AVG(rs_vs_broad_today) AS rs, COUNT(*) AS n "
+                 "FROM stock_signals WHERE trade_date=? AND primary_sector IS NOT NULL "
+                 "AND rs_vs_broad_today IS NOT NULL GROUP BY primary_sector "
+                 "HAVING n>=3 ORDER BY rs DESC LIMIT ?", (d, int(limit)))
+
+
+# ── per-symbol enrichment (day change from bhav copy · RS phase from signals) ──────
+def _day_change(conn, symbols) -> dict:
+    """{symbol: {'pct','deliv','close'}} from the latest EQ/BE bhav-copy row. {} if absent."""
+    if not symbols or not _has(conn, "bhavcopy_rows"):
+        return {}
+    d = _latest_date(conn, "bhavcopy_rows", "trade_date")
+    if not d:
+        return {}
+    qs = ",".join("?" * len(symbols))
+    out = {}
+    for r in _rows(conn, f"SELECT symbol, close, prev_close, deliv_per FROM bhavcopy_rows "
+                         f"WHERE trade_date=? AND series IN ('EQ','BE') AND symbol IN ({qs})",
+                   (d, *symbols)):
+        cl, pc = r.get("close"), r.get("prev_close")
+        try:
+            pct = ((cl - pc) / pc * 100.0) if (cl is not None and pc) else None
+        except (TypeError, ZeroDivisionError):
+            pct = None
+        out[r["symbol"]] = {"pct": pct, "deliv": r.get("deliv_per"), "close": cl}
+    return out
+
+
+def _rs_of(conn, symbols) -> dict:
+    """{symbol: {'rank','trend'}} from the latest stock_signals row. {} if absent."""
+    if not symbols or not _has(conn, "stock_signals"):
+        return {}
+    d = _latest_date(conn, "stock_signals", "trade_date")
+    if not d:
+        return {}
+    qs = ",".join("?" * len(symbols))
+    out = {}
+    for r in _rows(conn, f"SELECT symbol, rs_rank, rs_vs_broad_trend_state FROM stock_signals "
+                         f"WHERE trade_date=? AND symbol IN ({qs})", (d, *symbols)):
+        out[r["symbol"]] = {"rank": r.get("rs_rank"), "trend": r.get("rs_vs_broad_trend_state")}
+    return out
+
+
+# ── featured card: watchlist · portfolio · movers · ticker feeds ───────────────────
+def watchlist_rows(conn, limit: int = 10) -> list:
+    """The user's followed names (the light `watchlist` table) enriched with day change +
+    RS phase. [] if the table is empty — the caller falls back to demo (marked sample)."""
+    if not _has(conn, "watchlist"):
+        return []
+    syms = [r["symbol"] for r in _rows(conn, "SELECT symbol FROM watchlist ORDER BY added_at DESC LIMIT ?", (int(limit),))]
+    if not syms:
+        return []
+    chg, rs = _day_change(conn, syms), _rs_of(conn, syms)
+    out = []
+    for s in syms:
+        c, r = chg.get(s, {}), rs.get(s, {})
+        out.append({"symbol": s, "pct": c.get("pct"), "deliv": c.get("deliv"),
+                    "rank": r.get("rank"), "trend": r.get("trend")})
+    return out
+
+
+def portfolio(conn) -> dict:
+    """Holdings from the lifecycle tracker (`stocks_in_play`, status open/watch) marked to today's
+    bhav close: rows + day P&L% + invested + count. {} if no holdings (caller shows demo/sample)."""
+    if not _has(conn, "stocks_in_play"):
+        return {}
+    holds = _rows(conn, "SELECT symbol, qty, entry_price, book FROM stocks_in_play "
+                        "WHERE status IN ('open','watch')")
+    if not holds:
+        return {}
+    syms = [h["symbol"] for h in holds]
+    chg = _day_change(conn, syms)
+    rows, invested, day_pnl = [], 0.0, 0.0
+    for h in holds:
+        c = chg.get(h["symbol"], {})
+        px, pct, qty, ep = c.get("close"), c.get("pct"), (h.get("qty") or 0), h.get("entry_price")
+        mv = (px * qty) if (px is not None and qty) else None
+        if mv:
+            invested += mv
+            if pct is not None:
+                day_pnl += mv * pct / 100.0
+        since = ((px - ep) / ep * 100.0) if (px is not None and ep) else None
+        rows.append({"symbol": h["symbol"], "pct": pct, "mv": mv, "since": since, "book": h.get("book")})
+    for r in rows:
+        r["weight"] = (r["mv"] / invested * 100.0) if (invested and r.get("mv")) else None
+    return {"rows": rows, "invested": invested, "day_pnl": day_pnl,
+            "day_pct": (day_pnl / invested * 100.0) if invested else None, "n": len(rows)}
+
+
+def movers(conn, limit: int = 6) -> dict:
+    """Today's biggest gainers/losers by day change (EQ/BE bhav copy). {} if absent."""
+    if not _has(conn, "bhavcopy_rows"):
+        return {}
+    d = _latest_date(conn, "bhavcopy_rows", "trade_date")
+    if not d:
+        return {}
+    rows = []
+    for r in _rows(conn, "SELECT symbol, close, prev_close FROM bhavcopy_rows "
+                         "WHERE trade_date=? AND series IN ('EQ','BE') AND close IS NOT NULL AND prev_close>0", (d,)):
+        try:
+            r["pct"] = (r["close"] - r["prev_close"]) / r["prev_close"] * 100.0
+            rows.append(r)
+        except (TypeError, ZeroDivisionError):
+            continue
+    rows.sort(key=lambda x: x["pct"], reverse=True)
+    return {"gainers": rows[:limit], "losers": rows[-limit:][::-1]} if rows else {}

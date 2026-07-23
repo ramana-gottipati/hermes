@@ -91,6 +91,43 @@ def test_signal_alert_state_columns():
         assert col in have, ("signal_alert_state dropped a column the home reads", col)
 
 
+# ── the scroll-stack additions: pulse deck · featured card · ticker feeds ─────────
+def test_market_internals_pulse_deck_columns():
+    from src.automation.market_internals import _SCHEMA
+    have = _cols(_mem(_SCHEMA), "market_internals_daily")
+    for col in ("avg_dp", "mep_net", "disp"):
+        assert col in have, ("market_internals_daily dropped a pulse-deck column the home reads", col)
+
+
+def test_stock_signals_pulse_and_featured_columns():
+    """The RS / 52w-high / sector columns are migration-added (`_ensure_column`), not in SCHEMA_BASE.
+    Pin them at the db.py schema source so a rename by the signals lane trips this gate early (same
+    source-inspection discipline this file uses for the 'FII/FPI' category literal). The reads are
+    also defensive — a missing column degrades a tile to its demo fallback rather than crashing."""
+    import src.core.db as db
+    src = inspect.getsource(db)
+    for col in ("rs_vs_broad_new_52w_high", "pct_from_52w_high", "primary_sector", "rs_rank",
+                "rs_vs_broad_trend_state", "rs_vs_broad_today"):
+        assert ('"stock_signals", "' + col + '"') in src or (col + " ") in src, \
+            ("a stock_signals column the home reads is gone from db.py's schema/migrations", col)
+
+
+def test_bhavcopy_rows_day_change_columns():
+    from src.core.db import SCHEMA_BASE
+    have = _cols(_mem(SCHEMA_BASE), "bhavcopy_rows")
+    for col in ("symbol", "trade_date", "series", "close", "prev_close", "deliv_per"):
+        assert col in have, ("bhavcopy_rows dropped a column the home's day-change/movers read uses", col)
+
+
+def test_watchlist_and_holdings_columns():
+    from src.core.db import SCHEMA_BASE
+    m = _mem(SCHEMA_BASE)
+    for col in ("symbol", "added_at"):
+        assert col in _cols(m, "watchlist"), ("watchlist dropped a column the home reads", col)
+    for col in ("symbol", "qty", "entry_price", "status", "book"):
+        assert col in _cols(m, "stocks_in_play"), ("stocks_in_play dropped a column the home's portfolio read uses", col)
+
+
 # ── shared, non-preview read helpers: signatures + return shapes ─────────────────
 def test_corp_actions_upcoming_returns_rows_asof_tuple():
     from src.core.db import SCHEMA_BASE
@@ -139,3 +176,10 @@ def test_home_reads_execute_against_the_real_schemas():
     assert reads.index_series(c) == []
     assert reads.delivery_leaders(c) == []
     assert reads.upcoming_ca(c, days=21) == []
+    # the scroll-stack reads also degrade to empty (never raise) against the real schemas
+    assert reads.internals_series(c) == []
+    assert reads.new_highs(c) == {}
+    assert reads.sector_heat(c) == []
+    assert reads.watchlist_rows(c) == []
+    assert reads.portfolio(c) == {}
+    assert reads.movers(c) == {}

@@ -61,3 +61,45 @@ DELIVERY = [
     {"symbol": "INFY", "power_dvpt_3m": 2.1},
     {"symbol": "HDFCBANK", "power_dvpt_3m": 1.6},
 ]
+
+# ── the market-pulse instrument deck ──────────────────────────────────────────────
+# ~30 sessions of internals for the trend sparklines (breadth · delivery% · MEP · dispersion)
+INTERNALS = [
+    {"pct_adv": p, "avg_dp": d, "mep_net": m, "disp": s}
+    for p, d, m, s in [
+        (44, 52, 9.1, 2.10), (62, 53, 11.0, 2.20), (58, 55, 10.2, 2.15), (41, 54, 12.8, 2.30),
+        (55, 56, 14.6, 2.25), (67, 55, 13.9, 2.20), (74, 57, 15.7, 2.26), (71, 56, 16.6, 2.20),
+        (66, 54, 16.1, 2.28), (70, 55, 16.9, 2.25), (79, 56, 17.2, 2.24), (74, 56, 16.9, 2.26),
+    ]
+]
+NEW_HIGHS = {"highs": 84, "near": 213}
+SECTOR_HEAT = [
+    {"sector": "Nifty IT", "rs": 1.2}, {"sector": "Nifty Auto", "rs": 0.9},
+    {"sector": "Nifty Metal", "rs": 0.6}, {"sector": "Nifty Energy", "rs": 0.3},
+    {"sector": "Nifty FMCG", "rs": -0.2}, {"sector": "Nifty Pharma", "rs": -0.5},
+    {"sector": "Nifty Realty", "rs": -1.1},
+]
+
+# ── featured card: watchlist · portfolio · movers ────────────────────────────────
+WATCHLIST = [
+    {"symbol": "RELIANCE", "pct": 1.24, "trend": "LEADING", "rank": 88, "deliv": 61},
+    {"symbol": "TATASTEEL", "pct": 2.03, "trend": "IMPROVING", "rank": 74, "deliv": 58},
+    {"symbol": "INFY", "pct": -0.42, "trend": "INSIDE", "rank": 52, "deliv": 47},
+    {"symbol": "HDFCBANK", "pct": 0.38, "trend": "INSIDE", "rank": 55, "deliv": 49},
+    {"symbol": "MARUTI", "pct": -0.91, "trend": "WEAKENING", "rank": 33, "deliv": 44},
+]
+PORTFOLIO = {
+    "rows": [
+        {"symbol": "RELIANCE", "pct": 1.24, "weight": 18.0, "since": 24.0},
+        {"symbol": "HDFCBANK", "pct": 0.38, "weight": 14.0, "since": 11.0},
+        {"symbol": "INFY", "pct": -0.42, "weight": 11.0, "since": -3.0},
+        {"symbol": "TCS", "pct": 0.22, "weight": 9.0, "since": 31.0},
+    ],
+    "invested": 23_400_000.0, "day_pnl": 142_000.0, "day_pct": 0.61, "n": 14,
+}
+MOVERS = {
+    "gainers": [{"symbol": "HUDCO", "pct": 9.2}, {"symbol": "IDEA", "pct": 7.1},
+                {"symbol": "YESBANK", "pct": 5.4}, {"symbol": "IRFC", "pct": 4.6}],
+    "losers": [{"symbol": "PAYTM", "pct": -5.3}, {"symbol": "ZOMATO", "pct": -4.1},
+               {"symbol": "IDFCFIRSTB", "pct": -3.8}, {"symbol": "BANDHANBNK", "pct": -3.1}],
+}

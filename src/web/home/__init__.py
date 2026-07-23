@@ -64,48 +64,108 @@ def kit(request: Request) -> HTMLResponse:
     return HTMLResponse(shell.shell("Component kit", body))
 
 
+def _pick(live, demo_val):
+    """Return (data, is_demo): the live read, or the demo fallback flagged so the zone can mark
+    itself 'sample' (the real-vs-demo honesty line — a preview must look full but never pass fake
+    data as primary)."""
+    return (live, False) if live else (demo_val, True)
+
+
+def _feeds(conn, idx, wl, wl_demo, pf, pf_demo):
+    """Assemble the selectable ticker feeds (indices · watchlist · portfolio · model · movers). The
+    globals-strip (Dow/Gold) is deliberately omitted — no real source exists, so it is not shown as
+    live in the always-on ticker (honesty). Model is illustrative until wired to the books estate."""
+    from src.web.home import demo
+    ich = "".join(C.rib_chip(C._d(r).get("index_name"), C._num(C._d(r).get("close_value"), 0),
+                             C._d(r).get("ret_1d_pct")) for r in (idx or [])[:6])
+    feeds = [{"key": "indices", "label": "Indices", "chips": ich, "sample": False}]
+
+    wch = C.rib_chip("Watchlist", None, None, acc=True) + "".join(
+        C.rib_chip(C._d(r).get("symbol"), None, C._d(r).get("pct")) for r in (wl or [])[:8])
+    feeds.append({"key": "watch", "label": "My watchlist", "chips": wch, "sample": wl_demo})
+
+    prows = C._d(pf).get("rows") or []
+    pch = C.rib_chip("Portfolio · day", None, None, acc=True) + "".join(
+        C.rib_chip(C._d(r).get("symbol"),
+                   (f"{float(C._d(r)['weight']):.0f}% wt" if C._d(r).get("weight") is not None else None),
+                   C._d(r).get("pct")) for r in prows[:8])
+    feeds.append({"key": "folio", "label": "My portfolio", "chips": pch, "sample": pf_demo})
+
+    model = [("NESTLEIND", 0.34), ("HINDUNILVR", 0.51), ("ITC", -0.15), ("BRITANNIA", 0.88), ("DABUR", 0.27)]
+    mch = C.rib_chip("Model · LowVol-Mom", None, None, acc=True) + "".join(C.rib_chip(n, None, p) for n, p in model)
+    feeds.append({"key": "model", "label": "Model · LowVol-Mom", "chips": mch, "sample": True})
+
+    mv = reads.movers(conn)
+    mv, mv_demo = (mv, False) if mv else (demo.MOVERS, True)
+    mv = C._d(mv)
+    mch2 = C.rib_chip("Top movers", None, None, acc=True) + "".join(
+        C.rib_chip(C._d(r).get("symbol"), None, C._d(r).get("pct"))
+        for r in ((mv.get("gainers") or [])[:4] + (mv.get("losers") or [])[:4]))
+    feeds.append({"key": "movers", "label": "Top movers", "chips": mch2, "sample": mv_demo})
+    return feeds
+
+
 def _compose(conn, on: bool) -> str:
-    """The owner-approved 2-region dashboard: a top market ribbon, a MAIN column (market pulse +
-    the news hero), and a SIDEBAR of fixed-size, internally-scrolling widgets (triggers · FII/DII ·
-    corporate actions · results · the preview toggle). Each list box scrolls inside itself — never
-    a flat page. Every zone is a live read with a demo fallback when empty."""
+    """The owner-approved SCROLL-STACK dashboard: a selectable ticker, a MAIN column (a FEATURED card
+    you choose — watchlist · portfolio · index — then the always-visible Market-pulse deck · What-
+    changed · News), and a RAIL (FII/DII · corporate actions · results · a go-deeper drawer · the
+    preview toggle). Every card is visible as you scroll; ⋮ pins/collapses/hides. Each zone is a live
+    read with a demo fallback that marks itself 'sample'."""
     from src.web.market_mood import market_mood
     from src.web.home import demo
-    idx = reads.index_pulse(conn) or demo.INDEX
+
+    idx, idx_demo = _pick(reads.index_pulse(conn), demo.INDEX)
     b_in, nifty_up = reads.mood_inputs(conn)
     if b_in is None and nifty_up is None:
         b_in, nifty_up = demo.MOOD_INPUTS
-    breadth = reads.breadth_latest(conn) or demo.BREADTH
-    series = reads.index_series(conn, "NIFTY 50", 30) or demo.SERIES
+    breadth, _bd = _pick(reads.breadth_latest(conn), demo.BREADTH)
+    series70 = reads.index_series(conn, "NIFTY 50", 70) or demo.SERIES
+    internals, _id = _pick(reads.internals_series(conn, 30), demo.INTERNALS)
+    highs = reads.new_highs(conn) or demo.NEW_HIGHS
+    sectors = reads.sector_heat(conn) or demo.SECTOR_HEAT
     sev = reads.severity_counts(conn)
     if not sev.get("total"):
         sev = demo.SEVERITY
+    mood = market_mood(b_in, nifty_up)
 
-    # ── MAIN column: market pulse + the news hero ──
-    pulse = C.zone("Market pulse", "NSE indices · nightly",
-                   C.pulse_block(idx, market_mood(b_in, nifty_up), (b_in if b_in is not None else 0), breadth, series),
-                   sub="the market in one glance")
-    news = C.zone("Market news", "Newswire · 2× daily",
-                  C.wire(reads.recent_news(conn, limit=20) or demo.NEWS),
-                  sub="headlines, symbol-tagged")
-    main = '<div class="g-main">' + pulse + news + "</div>"
+    # ── the FEATURED card + the selectable ticker ──
+    wl, wl_demo = _pick(reads.watchlist_rows(conn), demo.WATCHLIST)
+    pf, pf_demo = _pick(reads.portfolio(conn), demo.PORTFOLIO)
+    featured = C.featured_card(C.watchlist_block(wl), wl_demo,
+                               C.portfolio_block(pf), pf_demo,
+                               C.index_focus_block(idx, series70))
+    ribbon = C.ribbon_feeds(_feeds(conn, idx, wl, wl_demo, pf, pf_demo))
 
-    # ── SIDEBAR: fixed-size scrollable widgets ──
+    # ── MAIN column: featured · pulse deck · what-changed · news (all visible) ──
+    pulse = C.zone("Market pulse", "market internals · nightly",
+                   C.pulse_deck(idx, mood, (b_in if b_in is not None else 0), breadth,
+                                series70[-30:], internals, highs, sectors),
+                   sub="the market in one glance", sample=idx_demo)
     trig = C.zone("What changed today", "Signal engine · nightly",
                   C.count_band(sev) + C.changed_rows(reads.what_changed(conn) or demo.WHATCHANGED)
                   + C.learn("Signals that flipped state since yesterday — described from the tape, never a prediction."),
                   sub="signals that flipped")
-    flows = C.zone("FII / DII flows", "FII/DII cash · post-close",
-                   C.flows_block(reads.fii_dii_recent(conn) or demo.FII_DII), sub="foreign vs domestic")
-    ca = C.zone("Going ex — corporate actions", "NSE filings · daily",
-                C.ca_agenda(reads.upcoming_ca(conn, days=21) or demo.CA), sub="dividends · splits · bonuses")
-    res = C.zone("Results calendar", "Board meetings · daily",
-                 C.results_agenda(reads.upcoming_results(days=30) or demo.RESULTS), sub="who reports next")
+    news_rows, news_demo = _pick(reads.recent_news(conn, limit=20), demo.NEWS)
+    news = C.zone("Market news", "Newswire · 2× daily", C.wire(news_rows),
+                  sub="headlines, symbol-tagged", sample=news_demo)
+    main = '<div class="g-main">' + featured + pulse + trig + news + "</div>"
+
+    # ── RAIL: flows · calendars · go-deeper · toggle ──
+    fd, fd_demo = _pick(reads.fii_dii_recent(conn), demo.FII_DII)
+    flows = C.zone("FII / DII flows", "FII/DII cash · post-close", C.flows_block(fd),
+                   sub="foreign vs domestic", sample=fd_demo)
+    ca_rows, ca_demo = _pick(reads.upcoming_ca(conn, days=21), demo.CA)
+    ca = C.zone("Going ex — corporate actions", "NSE filings · daily", C.ca_agenda(ca_rows),
+                sub="dividends · splits · bonuses", sample=ca_demo, name="Going ex")
+    res_rows, res_demo = _pick(reads.upcoming_results(days=30), demo.RESULTS)
+    res = C.zone("Results calendar", "Board meetings · daily", C.results_agenda(res_rows),
+                 sub="who reports next", sample=res_demo)
+    drawer = C.delivery_drawer(reads.delivery_leaders(conn) or demo.DELIVERY)
     toggle = "Leave the preview" if on else "Enter the Graphite preview"
     toggle_card = C.card("The Graphite preview",
                          '<p style="font-size:12px;color:var(--ink-3);margin:0 0 8px">Opt-in · isolated from the '
                          "classic site.</p><form method=\"post\" action=\"/dash/home/toggle\">"
                          "<button class=\"g-btn\" type=\"submit\">" + toggle + "</button></form>")
-    side = '<div class="g-side">' + trig + flows + ca + res + toggle_card + "</div>"
+    side = '<div class="g-side">' + flows + ca + res + drawer + toggle_card + "</div>"
 
-    return C.ribbon(idx, demo.GLOBAL) + '<div class="g-dash">' + main + side + "</div>"
+    return ribbon + C.hidden_tray() + '<div class="g-dash">' + main + side + "</div>"
