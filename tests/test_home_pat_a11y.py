@@ -42,5 +42,15 @@ def test_pat_answers_and_bubbles_are_data_bound():
     assert "What is DVPT?" in html and "buying?" in html
 
 
+def test_pat_answers_calibrate_terse_title_plus_detail_on_demand():
+    """Response-format calibration: every answer leads with a one-line TITLE; explain-answers carry
+    a 'more' expander (detail on demand); the typed box classifies the question and can deep-link a
+    symbol instead of always echoing the same canned block."""
+    html = pat_dock.dock_html(_conn())
+    assert "g-pat-a-title" in html and 'class="g-pat-more"' in html
+    for tok in ("function classify(", "function symToken(", "/dash/stock?sym="):
+        assert tok in html, tok
+
+
 def test_pat_renders_defensively_on_empty_db():
     assert pat_dock.dock_html(_conn())                       # never raises; renders a fallback

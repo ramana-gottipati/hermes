@@ -2204,6 +2204,13 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
 - **New reads (`reads.py`, all defensive):** `internals_series · new_highs · sector_heat · watchlist_rows · portfolio · movers` (+ `_day_change` from `bhavcopy_rows`, `_rs_of` from `stock_signals`). Watchlist = the `watchlist` table; portfolio = `stocks_in_play` (open/watch) marked-to-market on today's bhav close.
 - **Real-vs-demo honesty:** `_pick(live, demo)` → each zone marks its provenance chip **"sample"** when on demo (`zone(..., sample=True)`); no fake-as-live.
 - **Gates:** all 6 isolation/AA/pat-a11y/dom-safety/reduced-motion/persona green + read-contract **extended** (new `market_internals`/`stock_signals`/`bhavcopy_rows`/`watchlist`/`stocks_in_play` columns pinned; RS/52w columns pinned at their `_ensure_column` migration source) + new `tests/test_home_featured.py`. **Full suite 827 pass / 1 skip** — the only red is the pre-existing research-lane `test_rule_lab` (not this lane). `pulse_block` kept (a gate calls it). Deferred (honest): the index sub-picker (v1 = Nifty focus) + per-watchlist-row sparks (no cheap per-symbol series). Deploy + owner pixel-review via `?v=N` (Browser pane down this session). Working handoff: `docs/graphite-home-carryforward.md`.
+- **Pat response-format calibration (item #5, `pat_dock.py`):** every answer now = a terse one-line
+  TITLE + optional detail behind a 'more' expander (`<details>`), calibrated by question type —
+  status/lookup ("what changed", "who's buying") stay terse; explain ("what is DVPT", "how do I read
+  this") lead with one sentence + depth-on-demand. The typed ask box is no longer a stub: it
+  classifies the question (keyword route) or DOM-safely deep-links a symbol token to `/dash/stock`.
+  a11y/inert/Escape/focus + DOM-safety gates stay green; the "chat" scope = Pat's ask box on the home
+  (the Telegram assistant is a separate lane, untouched). All 5 owner DO-NEXT items now shipped.
 
 ### Session 214 — 2026-07-23 — EMA-CROSSOVER FAMILY carried to a VERDICT: both crossover strategies FAIL (momentum = par/beta, reversal = dead); the only fundable output is a SEPARATE low-vol factor (quarterly+hysteresis, scales to ~₹500cr); `ema_crossover_forward.py` forward test ARMED + a quarterly VPS→Telegram checkpoint LIVE
 (Renumbered S210→S214 on push contact — origin held 210–213.) The 16BD momentum-band+RSI lane S209 flagged as a parallel sibling — carried to a full verdict. All research ran on the VPS (`.venv-research`; the laptop has only synthetic fixtures). Reconciled by cherry-picking ONLY my 15 disjoint commits onto origin/main (the chart/wolfe local commits left untouched for their owner — no cross-absorption).

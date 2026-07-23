@@ -42,21 +42,31 @@ def _fii_dii_line(conn) -> str:
 
 
 def _answers(conn) -> dict:
+    """Response-format calibration: each answer is (title, detail). The TITLE is a terse one-liner,
+    always shown; DETAIL (may be "") is revealed on demand behind a 'more' expander. Lookup/status
+    questions ("what changed", "who's buying") stay terse (title-only or an inline chip row); explain
+    questions ("what is X", "how do I read this") lead with ONE sentence + the depth on demand.
+    Crisp by default, fuller only when the question needs it — never a wall for a simple ask."""
     out = {}
-    ch = reads.what_changed(conn, days=7, limit=3)
-    if ch:
-        chips = "".join(C.term_chip(C._d(r).get("symbol") or "", (C._d(r).get("lens") or "").upper()) for r in ch)
-        out["changed"] = '<div class="g-pchips">' + chips + "</div>"
+    all_ch = reads.what_changed(conn, days=7, limit=50)
+    if all_ch:
+        n = len(all_ch)
+        chips = "".join(C.term_chip(C._d(r).get("symbol") or "", (C._d(r).get("lens") or "").upper()) for r in all_ch[:3])
+        title = (C.esc(f"{n} name{'s' if n != 1 else ''} changed state this week — most recent:")
+                 + '<div class="g-pchips">' + chips + "</div>")
+        out["changed"] = (title, "")                          # terse: a count + the newest chips, no expander
     else:
-        out["changed"] = '<p class="g-note" style="margin:0">Nothing notable changed in the last week.</p>'
+        out["changed"] = ("Nothing notable changed in the last week.", "")
     fd = _fii_dii_line(conn)
-    out["flows"] = ('<p class="g-note" style="margin:0">' + (C.esc(fd) + ". Cash segment, provisional — descriptive only."
-                    if fd else "FII/DII flows haven't landed for today yet.") + "</p>")
-    out["dvpt"] = ('<p class="g-note" style="margin:0"><b>DVPT</b> is the share of a day\'s volume actually '
-                   "<b>delivered</b> to buyers (not flipped intraday). A high, rising share = real conviction "
-                   "behind a move — described, never a recommendation.</p>")
-    out["read"] = ('<p class="g-note" style="margin:0">The top zones are the whole market in one glance; each '
-                   "shows where its data comes from. Open a drawer to go deeper, or ask me. Nothing here is advice.</p>")
+    out["flows"] = (((C.esc(fd) + ' <span class="g-pat-tag">cash · provisional</span>') if fd
+                     else "FII/DII flows haven't landed for today yet."),
+                    "Net cash-segment flow — who is net buying vs selling on the day. Provisional, descriptive only.")
+    out["dvpt"] = ("<b>DVPT</b> is the share of a day's volume actually <b>delivered</b> to buyers, not flipped intraday.",
+                   "A high, rising delivery share means real conviction is behind a move — accumulation, not churn. "
+                   "It is described from the tape, never a recommendation.")
+    out["read"] = ("The cards up top are the whole market at a glance — scroll for your watchlist, flows, calendars and news.",
+                   "Every number shows its source and links to the evidence; click a Market-pulse tile for its 30-session "
+                   "trend, open a drawer to go deeper, or type a stock, sector or signal above. Nothing here is advice.")
     return out
 
 
@@ -85,8 +95,14 @@ _SUGG = [("changed", "What changed today?"), ("flows", "Who's buying?"),
 
 def dock_html(conn) -> str:
     answers = _answers(conn)
-    ans = "".join('<div class="g-pat-ans-block" data-key="' + k + '" hidden>' + v + "</div>"
-                  for k, v in answers.items())
+
+    def _block(k, title, detail):
+        more = (('<details class="g-pat-more"><summary>more</summary>'
+                 '<div class="g-pat-more-b">' + detail + "</div></details>") if detail else "")
+        return ('<div class="g-pat-ans-block" data-key="' + k + '" hidden>'
+                '<div class="g-pat-a-title">' + title + "</div>" + more + "</div>")
+
+    ans = "".join(_block(k, t, d) for k, (t, d) in answers.items())
     sug = "".join('<button type="button" class="g-pat-sug" data-key="' + k + '">' + C.esc(lbl) + "</button>"
                   for k, lbl in _SUGG)
     bubs = "".join("<li>" + x + "</li>" for x in _bubbles(conn))
@@ -155,6 +171,15 @@ _CSS = """<style>/* g-pat */
 @keyframes g-halo{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.85;transform:scale(1.05)}}
 @keyframes g-blink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}
 @keyframes g-look{0%,40%,100%{transform:translateX(0)}55%,80%{transform:translateX(2.4px)}}
+:root[data-ui-g] .g-pat-a-title{font-size:13.5px;color:var(--ink);line-height:1.5}
+:root[data-ui-g] .g-pat-a-title b{color:var(--accent)}
+:root[data-ui-g] .g-pat-tag{font:600 9px/1 var(--mono);color:var(--ink-3);border:1px solid var(--line-2);border-radius:var(--r-pill);padding:2px 6px;margin-left:4px;text-transform:uppercase;white-space:nowrap}
+:root[data-ui-g] .g-pat-more{margin-top:9px}
+:root[data-ui-g] .g-pat-more summary{list-style:none;cursor:pointer;font:600 11.5px var(--font);color:var(--accent)}
+:root[data-ui-g] .g-pat-more summary::-webkit-details-marker{display:none}
+:root[data-ui-g] .g-pat-more summary::after{content:" ›";display:inline-block;transition:transform .2s}
+:root[data-ui-g] .g-pat-more[open] summary::after{transform:rotate(90deg)}
+:root[data-ui-g] .g-pat-more-b{font-size:12.5px;color:var(--ink-2);line-height:1.55;margin-top:6px}
 </style>"""
 
 _JS = """<script>(function(){
@@ -171,6 +196,20 @@ function showAns(key){
   if(!src) return;
   var card=document.createElement("div"); card.className="g-card2"; card.innerHTML=src.innerHTML; ans.appendChild(card);
 }
+/* response-format calibration for the typed box: route the question, or deep-link a symbol */
+function classify(q){ var t=(q||"").toLowerCase().trim();
+  if(/chang|flip|state|today|new high|newly/.test(t)) return "changed";
+  if(/buy|bought|sold|sell|fii|dii|flow|institution/.test(t)) return "flows";
+  if(/dvpt|deliver/.test(t)) return "dvpt";
+  return "read"; }
+function symToken(q){ var raw=(q||"").trim(); if(!raw||/\s/.test(raw)) return "";
+  var s=raw.toUpperCase().replace(/[^A-Z0-9&]/g,""); return /^[A-Z][A-Z0-9&]{1,14}$/.test(s)?s:""; }
+function symAns(tok){ ans.innerHTML="";
+  var card=document.createElement("div"); card.className="g-card2";
+  var t=document.createElement("div"); t.className="g-pat-a-title"; t.appendChild(document.createTextNode("Open "));
+  var a=document.createElement("a"); a.setAttribute("href","/dash/stock?sym="+encodeURIComponent(tok)); a.textContent=tok+" ›"; t.appendChild(a);
+  var p=document.createElement("div"); p.className="g-pat-more-b"; p.style.marginTop="6px";
+  p.textContent="I'll take you to its evidence page — descriptive only."; card.appendChild(t); card.appendChild(p); ans.appendChild(card); }
 function open(o){
   pat.classList.toggle("open",o); fab.setAttribute("aria-expanded",o?"true":"false");
   if(o){ panel.removeAttribute("inert"); pat.classList.remove("bub"); bub.hidden=true; ans.innerHTML=""; type(msg,GREET);
@@ -180,7 +219,10 @@ function open(o){
 fab.addEventListener("click",function(){ open(!pat.classList.contains("open")); });
 document.getElementById("g-pat-close").addEventListener("click",function(){ open(false); });
 panel.querySelectorAll(".g-pat-sug").forEach(function(b){ b.addEventListener("click",function(){ showAns(b.getAttribute("data-key")); }); });
-document.getElementById("g-pat-form").addEventListener("submit",function(e){ e.preventDefault(); showAns("read"); });
+document.getElementById("g-pat-form").addEventListener("submit",function(e){ e.preventDefault();
+  var q=input?input.value:"", tok=symToken(q);
+  if(tok){ symAns(tok); } else { showAns(classify(q)); }
+  if(input){ input.value=""; } });
 bub.addEventListener("click",function(){ open(true); });
 document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&pat.classList.contains("open")) open(false);
   if((e.key==="p"||e.key==="P")&&!/input|textarea/i.test((e.target.tagName||""))) open(!pat.classList.contains("open")); });

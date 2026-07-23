@@ -91,8 +91,10 @@ Market-Pulse expanded (7-tile deck) · ③ watchlist + portfolio (featured card,
 **STILL OPEN:**
 1. **Owner PIXEL-review** — the Browser pane was down this session, so structure+gates were verified,
    not pixels. Hand a `?v=N` link (`https://srv1704897.hstgr.cloud/dash/home?v=N`); iterate on finish.
-2. **Response-format calibration** (item #5, NOT built) — decide terse-title vs fuller answer per
-   context, for Pat's answers and chat replies.
+2. ✅ **Response-format calibration** (item #5) — BUILT this session in `pat_dock.py`: answers = terse
+   title + detail-on-demand (`<details>` 'more'), calibrated by question type; the typed ask box
+   classifies + DOM-safely deep-links a symbol. "chat" scope = Pat's ask box (Telegram = separate
+   lane). All 5 owner DO-NEXT items are now shipped.
 3. **Deferred, honest:** the Index featured view has NO sub-picker yet (v1 = NIFTY 50 focus) · no
    per-watchlist-row sparks (no cheap per-symbol series) · the **model** ticker feed is demo/sample
    until wired to the model-books estate · movers uses `bhavcopy_rows` day-change (confirm density).
