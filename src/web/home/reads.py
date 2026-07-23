@@ -9,6 +9,7 @@ returns an empty result, never an exception (a busy/edge DB must never 500 the h
 """
 from __future__ import annotations
 
+import re
 import sqlite3
 from typing import Optional
 
@@ -96,10 +97,21 @@ def fii_dii_recent(conn, limit: int = 10) -> list:
 
 # ── zone 6: news wire ───────────────────────────────────────────────────────────
 def recent_news(conn, limit: int = 8) -> list:
+    """Recent headlines, near-duplicates collapsed (same story from two sources → one row)."""
     if not _has(conn, "sent_news"):
         return []
-    return _rows(conn, "SELECT source, url, title, sent_at FROM sent_news "
-                       "ORDER BY sent_at DESC LIMIT ?", (limit,))
+    rows = _rows(conn, "SELECT source, url, title, sent_at FROM sent_news "
+                       "ORDER BY sent_at DESC LIMIT ?", (limit * 3,))
+    seen, out = set(), []
+    for r in rows:
+        key = " ".join(re.sub(r"[^a-z0-9 ]", " ", (r.get("title") or "").lower()).split()[:4])
+        if key and key in seen:
+            continue
+        seen.add(key)
+        out.append(r)
+        if len(out) >= limit:
+            break
+    return out
 
 
 # ── zones 4/5/2/7: thin wrappers over shared, non-preview reads ─────────────────

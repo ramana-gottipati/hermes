@@ -312,15 +312,15 @@ def gauge(value, label: str = "", word: str = "") -> str:
 
 def pulse_block(idx: list, mood: dict, mood_pct, breadth, series: list = None) -> str:
     # LEFT: compact index cards + a sparkline
-    cards = ""
-    for r in (idx or [])[:4]:
-        txt, cls = _signed_pct(r.get("ret_1d_pct"))
-        cards += ('<div class="g-icard"><div class="g-nm">' + esc(r.get("index_name")) + "</div>"
-                  '<div class="g-lv g-num">' + _num(r.get("close_value")) + "</div>"
-                  '<div class="g-ch g-num ' + cls + '">' + txt + "</div></div>")
-    if not cards:
-        cards = empty("Index signals pending.")
-    left = ('<div class="g-pl-l"><div class="g-icards">' + cards + "</div>" + spark(series or []) + "</div>")
+    # the ribbon already carries every index value — the pulse shows ONE headline chart, not a repeat
+    head = empty("Index signals pending.")
+    if idx:
+        r0 = idx[0]
+        txt, cls = _signed_pct(r0.get("ret_1d_pct"))
+        head = ('<div class="g-pl-head"><span class="g-pl-nm">' + esc(r0.get("index_name")) + "</span>"
+                '<span class="g-pl-lv g-num">' + _num(r0.get("close_value")) + "</span>"
+                '<span class="g-num ' + cls + '" style="font-weight:700">' + txt + "</span></div>")
+    left = '<div class="g-pl-l g-pl-chart">' + head + spark(series or []) + "</div>"
     # RIGHT: the restored semicircle mood gauge + breadth (verdict-free mood; signed breadth)
     _bp = (f"{float(mood_pct):.0f}% of indices above their 200-DMA" if mood_pct else "medium-term index trend")
     gtile = ('<div class="g-mtile"><span class="g-lab">Market mood</span>'
@@ -500,6 +500,10 @@ def css() -> str:
 :root[data-ui-g] .g-main .g-wire{max-height:440px}
 :root[data-ui-g] .g-syma{color:inherit;text-decoration:none}
 :root[data-ui-g] .g-syma:hover{color:var(--accent);text-decoration:underline}
+:root[data-ui-g] .g-pl-head{display:flex;align-items:baseline;gap:10px}
+:root[data-ui-g] .g-pl-nm{font:700 12px var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+:root[data-ui-g] .g-pl-lv{font-size:22px;font-weight:700;text-shadow:0 0 18px var(--glow)}
+:root[data-ui-g] .g-pl-chart .g-spark{height:96px}
 </style>"""
 
 
