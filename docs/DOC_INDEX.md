@@ -93,7 +93,6 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/redesign-coordination.md` | Redesign approval + communication record — verdict grammar, Codex/Gemini verdicts + dispositions, module status. THE single source for redesign-program approvals. |
 | `docs/metric-verdicts.md` | Term-chip sidecar: per-metric Verdict · How-it-could-improve · Origin lines (parsed only by `src/web/term_chip.py`; definitions stay in `docs/metrics-glossary.md`). |
 | `docs/codex-review/REDESIGN-M0M2-CODEX.md` | Codex channel record: redesign plan review verdict (M0–M2 focus), verbatim. |
-| `docs/redesign-m5-today-spec.md` | M5 Today-v3 module spec (orientation home + adopted count-tile band). TRANSIENT — build only on owner go; folds into the coordination record on landing. |
 | `docs/redesign-m4-stock-hub-spec.md` | M4 stock-hub module spec (evidence-scroll per the ratified contracts). TRANSIENT — build only on owner go; folds into the coordination record on landing. |
 | `docs/codex-review/M4-STOCK-HUB-CODEX.md` | Codex channel record: M4 stock-hub spec review verdict, verbatim (1 BLOCKING + 6 ADVISORY, dispositioned in redesign-coordination.md §3b). |
 | `docs/codex-review/REDESIGN-M4SPEC-CODEX.md` | Codex channel record: the parallel M4 spec pre-build verdict (OBJECT → v1.1 fixes), verbatim — the two passes are reconciled in the spec's status block. |
