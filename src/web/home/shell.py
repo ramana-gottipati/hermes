@@ -29,10 +29,13 @@ _SHELL_CSS = """<style>/* g-shell */
 :root[data-ui-g] .g-brand small{font-weight:500;color:var(--ink-3);font-size:11px;margin-left:9px}
 :root[data-ui-g] .g-badge{font:600 9.5px/1 var(--mono);letter-spacing:.14em;color:var(--accent);
   background:var(--acc-dim);border:1px solid var(--accent);border-radius:var(--r-pill);padding:4px 9px}
-:root[data-ui-g] .g-dests{display:flex;gap:3px;margin-left:6px;overflow-x:auto}
-:root[data-ui-g] .g-dests a{font:600 11px/1 var(--font);letter-spacing:.16em;text-transform:uppercase;
-  color:var(--ink-2);padding:8px 10px;white-space:nowrap;border-bottom:2px solid transparent;text-decoration:none}
+:root[data-ui-g] .g-destbar{display:flex;padding:0 22px;background:var(--bg-1);border-bottom:1px solid var(--line);position:sticky;top:52px;z-index:39;overflow-x:auto;scrollbar-width:none}
+:root[data-ui-g] .g-destbar::-webkit-scrollbar{display:none}
+:root[data-ui-g] .g-dests{display:flex;gap:2px}
+:root[data-ui-g] .g-dests a{font:600 11px/1 var(--font);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-2);padding:10px 12px;white-space:nowrap;border-bottom:2px solid transparent;text-decoration:none}
 :root[data-ui-g] .g-dests a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+:root[data-ui-g] .g-dests a:hover{color:var(--ink)}
 :root[data-ui-g] .g-sp{flex:1}
 :root[data-ui-g] .g-wrap{max-width:1300px;margin:0 auto;padding:20px 22px 90px}
 :root[data-ui-g] .g-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
@@ -89,13 +92,14 @@ def shell(title: str, body_html: str, rail_html: str = "", extra_head: str = "",
         "<title>" + t + " — patearn</title>"
         + tokens_css() + C.css() + _SHELL_CSS + extra_head + "</head><body>"
         '<header class="g-top"><span class="g-brand">patearn<small>Indian-equity evidence</small></span>'
-        '<span class="g-badge">PREVIEW</span>' + _dests(current) + '<span class="g-sp"></span>'
+        '<span class="g-badge">PREVIEW</span><span class="g-sp"></span>'
         '<span class="g-seg" role="group" aria-label="Experience mode">'
         '<button id="g-mnew" type="button" aria-pressed="true">✦ New here</button>'
         '<button id="g-mpro" type="button" aria-pressed="false">⚡ Pro</button></span>'
         '<button class="g-btn" style="margin:0" onclick="pvgTheme()" aria-label="Switch light/dark theme">◑ Theme</button>'
         '<a class="g-btn" style="margin:0" href="/dash">Classic site</a>'
         "</header>"
+        '<nav class="g-destbar">' + _dests(current) + "</nav>"
         '<main class="g-wrap">' + C.fence(_FENCE)
         + '<div class="' + grid_cls + '"><div class="g-focus">' + body_html + "</div>" + rail + "</div></main>"
         '<footer class="g-foot">' + _html.escape(_FENCE) + "</footer>"

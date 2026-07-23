@@ -35,6 +35,12 @@ def safe_url(url: str) -> str:
     return "#"
 
 
+def sym_link(symbol) -> str:
+    """A symbol that deep-links to its stock detail (one-way home -> classic /dash/stock)."""
+    s = esc(symbol)
+    return '<a class="g-syma" href="/dash/stock?sym=' + s + '">' + s + "</a>"
+
+
 def _num(v, dp: int = 2) -> str:
     try:
         return f"{float(v):,.{dp}f}"
@@ -133,7 +139,7 @@ def changed_rows(rows: list) -> str:
         fr, to = (r.get("from_state") or ""), (r.get("to_state") or "")
         chg = (esc(lbl) + ": " + esc(fr) + " → " + esc(to)) if (fr or to) else esc(lbl)
         code = ('<b class="g-code g-num">' + esc(lens.upper()) + "</b>") if lens else ""
-        out += ('<div class="g-chrow"><span class="g-sym g-num">' + esc(r.get("symbol")) + "</span>"
+        out += ('<div class="g-chrow"><span class="g-sym g-num">' + sym_link(r.get("symbol")) + "</span>"
                 '<span class="g-what">' + chg + " " + code + "</span>"
                 '<span class="g-when g-num">' + esc(r.get("as_of") or "") + "</span></div>")
     return '<div class="g-changed">' + out + "</div>"
@@ -203,7 +209,7 @@ def agenda(items: list) -> str:
         chip = _date_chip(date_iso) if d != prev else '<span class="g-date g-date-cont"></span>'
         prev = d
         out += ('<div class="g-ag">' + chip
-                + '<span class="g-ag-b"><b class="g-ag-s g-num">' + esc(sym) + "</b> "
+                + '<span class="g-ag-b"><b class="g-ag-s g-num">' + sym_link(sym) + "</b> "
                 '<span class="g-ag-d">' + desc + "</span></span></div>")
     return '<div class="g-agenda">' + out + "</div>"
 
@@ -491,6 +497,8 @@ def css() -> str:
 :root[data-ui-g] .g-main,:root[data-ui-g] .g-side{display:flex;flex-direction:column;gap:16px;min-width:0}
 :root[data-ui-g] .g-main>.g-zone,:root[data-ui-g] .g-side>.g-zone{margin-bottom:0}
 :root[data-ui-g] .g-main .g-wire{max-height:440px}
+:root[data-ui-g] .g-syma{color:inherit;text-decoration:none}
+:root[data-ui-g] .g-syma:hover{color:var(--accent);text-decoration:underline}
 </style>"""
 
 

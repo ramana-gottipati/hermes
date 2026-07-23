@@ -82,24 +82,24 @@ def _compose(conn, on: bool) -> str:
         sev = demo.SEVERITY
 
     # ── MAIN column: market pulse + the news hero ──
-    pulse = C.zone("Market pulse", "index_signals · nightly",
+    pulse = C.zone("Market pulse", "NSE indices · nightly",
                    C.pulse_block(idx, market_mood(b_in, nifty_up), (b_in if b_in is not None else 0), breadth, series),
                    sub="the market in one glance")
-    news = C.zone("Market news", "sent_news · 03:30 & 11:30",
+    news = C.zone("Market news", "Newswire · 2× daily",
                   C.wire(reads.recent_news(conn, limit=20) or demo.NEWS),
                   sub="headlines, symbol-tagged")
     main = '<div class="g-main">' + pulse + news + "</div>"
 
     # ── SIDEBAR: fixed-size scrollable widgets ──
-    trig = C.zone("What changed today", "signal_events · nightly",
+    trig = C.zone("What changed today", "Signal engine · nightly",
                   C.count_band(sev) + C.changed_rows(reads.what_changed(conn) or demo.WHATCHANGED)
                   + C.learn("Signals that flipped state since yesterday — described from the tape, never a prediction."),
                   sub="signals that flipped")
-    flows = C.zone("FII / DII flows", "fii_dii_flows · 14:30 & 16:30",
+    flows = C.zone("FII / DII flows", "FII/DII cash · post-close",
                    C.flows_block(reads.fii_dii_recent(conn) or demo.FII_DII), sub="foreign vs domestic")
-    ca = C.zone("Going ex — corporate actions", "corporate_actions · 02:20",
+    ca = C.zone("Going ex — corporate actions", "NSE filings · daily",
                 C.ca_agenda(reads.upcoming_ca(conn, days=21) or demo.CA), sub="dividends · splits · bonuses")
-    res = C.zone("Results calendar", "board_meetings · 02:00",
+    res = C.zone("Results calendar", "Board meetings · daily",
                  C.results_agenda(reads.upcoming_results(days=30) or demo.RESULTS), sub="who reports next")
     toggle = "Leave the preview" if on else "Enter the Graphite preview"
     toggle_card = C.card("The Graphite preview",
