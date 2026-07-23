@@ -82,4 +82,16 @@ def _compose(conn) -> str:
     z3 = C.zone("FII / DII flows", "fii_dii_flows · 14:30 & 16:30",
                 C.flows_block(reads.fii_dii_recent(conn)),
                 sub="who's buying — foreign vs domestic institutions")
-    return z1 + z2 + z3
+    z4 = C.zone("Going ex — corporate actions", "corporate_actions · 02:20",
+                C.ca_agenda(reads.upcoming_ca(conn, days=21)),
+                sub="dividends, splits & bonuses coming up")
+    z5 = C.zone("Results calendar", "board_meetings · 02:00",
+                C.results_agenda(reads.upcoming_results(days=30)),
+                sub="who reports next")
+    z6 = C.zone("News wire", "sent_news · 03:30 & 11:30",
+                C.wire(reads.recent_news(conn, limit=6)),
+                sub="the latest market headlines")
+    eyebrow = ('<div style="margin:26px 0 10px;font:600 11px/1 var(--font);letter-spacing:.2em;'
+               'text-transform:uppercase;color:var(--ink-3)">Dig deeper — open only what you need</div>')
+    z7 = eyebrow + C.delivery_drawer(reads.delivery_leaders(conn))
+    return z1 + z2 + z3 + z4 + z5 + z6 + z7

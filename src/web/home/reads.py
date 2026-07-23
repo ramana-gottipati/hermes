@@ -104,9 +104,11 @@ def recent_news(conn, limit: int = 8) -> list:
 
 # ── zones 4/5/2/7: thin wrappers over shared, non-preview reads ─────────────────
 def upcoming_ca(conn, days: int = 21) -> list:
+    """corp_actions.upcoming returns a (rows, as_of) tuple — unpack it and hand back the rows."""
     try:
         from src.automation.corp_actions import upcoming
-        return list(upcoming(conn, days=days)) or []
+        rows, _as_of = upcoming(conn, days=days)
+        return rows or []
     except Exception:  # noqa: BLE001
         return []
 

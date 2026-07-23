@@ -69,3 +69,33 @@ def test_zone_builders_escape_untrusted_data_and_leak_no_markers():
     for html in (ch, C.count_band({"critical": 1}), C.flows_block(
             [{"trade_date": "2026-07-23", "category": "FII/FPI", "net_value": -5}])):
         assert "pv3" not in html and "data-ui-v3" not in html and "uk-sub" not in html
+
+
+def test_calendars_news_and_drawer_render_from_data():
+    c = _conn()
+    # corporate_actions — also verifies reads.upcoming_ca unpacks corp_actions.upcoming's (rows, as_of) tuple
+    c.execute("CREATE TABLE corporate_actions(symbol TEXT,action_type TEXT,ex_date TEXT,record_date TEXT,"
+              "ratio_from TEXT,ratio_to TEXT,details TEXT,fetched_at TEXT)")
+    c.execute("INSERT INTO corporate_actions(symbol,action_type,ex_date,ratio_from,ratio_to,details,fetched_at) "
+              "VALUES ('RELIANCE','Bonus',date('now','+5 day'),'1','1','',datetime('now')),"
+              "('TCS','Dividend',date('now','+3 day'),NULL,NULL,'Rs 27',datetime('now'))")
+    ca = reads.upcoming_ca(c, days=21)
+    assert isinstance(ca, list) and len(ca) == 2 and ca[0].get("symbol"), ca
+    ag = C.ca_agenda(ca)
+    assert "RELIANCE" in ag and "Bonus" in ag and "g-date" in ag
+    ra = C.results_agenda([{"symbol": "HDFCBANK", "company": "HDFC Bank",
+                            "meeting_date": "2026-07-24", "purpose": "Q1 Results"}])
+    assert "HDFCBANK" in ra and "g-kind" in ra
+    wr = C.wire([{"source": "Mint", "url": "https://x.com/a", "title": "RBI holds rate",
+                  "sent_at": "2026-07-23 09:00"}])
+    assert "RBI holds rate" in wr and 'href="https://x.com/a"' in wr and "Mint" in wr
+    dd = C.delivery_drawer([{"symbol": "RELIANCE", "power_dvpt_3m": 3.4},
+                            {"symbol": "TCS", "power_dvpt_3m": 1.8}])
+    assert "RELIANCE" in dd and "g-rb-f" in dd and "<details" in dd
+
+
+def test_calendars_news_and_drawer_defensive_empty():
+    assert "g-empty" in C.ca_agenda([])
+    assert "g-empty" in C.results_agenda([])
+    assert "g-empty" in C.wire([])
+    assert "g-empty" in C.delivery_drawer([])

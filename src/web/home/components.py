@@ -6,7 +6,20 @@ the client-side SVG/viz reads only numeric data-* attributes (never interpolated
 """
 from __future__ import annotations
 
+import datetime as _dt
 import html as _html
+
+_WD = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+
+def _d(r):
+    """Coerce a sqlite3.Row or dict to a plain dict; {} on anything else."""
+    if isinstance(r, dict):
+        return r
+    try:
+        return dict(r)
+    except (TypeError, ValueError):
+        return {}
 
 
 def esc(s) -> str:
@@ -163,6 +176,112 @@ def spark(series: list, cls: str = "accent") -> str:
     return '<div class="g-spark ' + tone + '" data-series="' + data + '"></div>'
 
 
+# ── zones 4/5: calendars (agenda strips) ────────────────────────────────────────
+def _date_chip(iso) -> str:
+    s = ("" if iso is None else str(iso))[:10]
+    try:
+        d = _dt.date.fromisoformat(s)
+        return '<span class="g-date">' + d.strftime("%d %b") + "<small>" + _WD[d.weekday()] + "</small></span>"
+    except (ValueError, TypeError):
+        return '<span class="g-date">' + esc(s or "—") + "</span>"
+
+
+def agenda(items: list) -> str:
+    """items = list of (date_iso, symbol, desc, tail_html)."""
+    if not items:
+        return empty("Nothing on the calendar in this window.")
+    out = ""
+    for date_iso, sym, desc, tail in items:
+        out += ('<div class="g-ag">' + _date_chip(date_iso)
+                + '<span class="g-ag-b"><span class="g-ag-s g-num">' + esc(sym) + "</span> "
+                '<span class="g-ag-d">' + esc(desc) + "</span></span>"
+                '<span class="g-ag-t">' + tail + "</span></div>")
+    return '<div class="g-agenda">' + out + "</div>"
+
+
+def ca_agenda(rows: list) -> str:
+    items = []
+    for r in (rows or [])[:8]:
+        r = _d(r)
+        rf, rt = r.get("ratio_from"), r.get("ratio_to")
+        if rf and rt:
+            tail = esc(str(rf)) + " : " + esc(str(rt))
+        else:
+            tail = esc((r.get("details") or "")[:18])
+        items.append((r.get("ex_date"), r.get("symbol"), (r.get("action_type") or "Corporate action"),
+                      ('<span class="g-kind">' + tail + "</span>") if tail else ""))
+    return agenda(items)
+
+
+def results_agenda(rows: list) -> str:
+    items = []
+    for r in (rows or [])[:8]:
+        r = _d(r)
+        items.append((r.get("meeting_date"), r.get("symbol"),
+                      (r.get("purpose") or "Results")[:40], '<span class="g-kind">Results</span>'))
+    return agenda(items)
+
+
+# ── zone 6: news wire (every href passes safe_url — Codex #9) ────────────────────
+def wire(rows: list) -> str:
+    if not rows:
+        return empty("No headlines have landed yet.")
+    out = ""
+    for r in (rows or [])[:6]:
+        r = _d(r)
+        href = safe_url(r.get("url"))
+        title = esc(r.get("title"))
+        title_html = (('<a href="' + href + '" target="_blank" rel="noopener noreferrer">' + title + "</a>")
+                      if href != "#" else title)
+        out += ('<div class="g-wrow"><div class="g-wh">' + title_html + "</div>"
+                '<div class="g-wm"><span class="g-wsrc">' + esc(r.get("source")) + "</span>"
+                "<span>· " + esc((r.get("sent_at") or "")[:16]) + "</span></div></div>")
+    return '<div class="g-wire">' + out + "</div>"
+
+
+# ── zone 7: go-deeper drawers (progressive disclosure) ──────────────────────────
+def drawer(title: str, code: str, summary: str, body_html: str, is_open: bool = False) -> str:
+    op = " open" if is_open else ""
+    codechip = ('<span class="g-code g-num">' + esc(code) + "</span>") if code else ""
+    return ('<details class="g-drawer"' + op + "><summary>"
+            '<span class="g-dw-t">' + esc(title) + " " + codechip + "</span>"
+            '<span class="g-dw-s">' + esc(summary) + "</span>"
+            '<svg class="g-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+            'aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>'
+            '<div class="g-dw-b">' + body_html + "</div></details>")
+
+
+def rowbars(items: list) -> str:
+    """items = list of (label, pct 0-100, value_text)."""
+    if not items:
+        return empty("No data for this drawer yet.")
+    out = ""
+    for label, pct, val in items:
+        try:
+            p = max(0.0, min(100.0, float(pct)))
+        except (TypeError, ValueError):
+            p = 0.0
+        out += ('<div class="g-rowbar"><span class="g-rb-n g-num">' + esc(label) + "</span>"
+                '<span class="g-rb-t"><span class="g-rb-f" data-w="' + f"{p:.0f}" + '"></span></span>'
+                '<span class="g-rb-v g-num">' + esc(val) + "</span></div>")
+    return '<div class="g-rowbars">' + out + "</div>"
+
+
+def delivery_drawer(leaders: list) -> str:
+    ld = [_d(r) for r in (leaders or [])]
+    vals = [float(r["power_dvpt_3m"]) for r in ld if r.get("power_dvpt_3m") is not None]
+    if not vals:
+        body = empty("No delivery-conviction leaders today.")
+    else:
+        mx = max(vals) or 1.0
+        items = [(r.get("symbol") or "", float(r["power_dvpt_3m"]) / mx * 100, f"{float(r['power_dvpt_3m']):.1f}×")
+                 for r in ld if r.get("power_dvpt_3m") is not None]
+        body = (rowbars(items) + '<p class="g-note">Delivery-weighted “power” (3-month) — how much of '
+                "the tape was actually delivered, scaled to the day's leader. States are neutral; colour "
+                "stays reserved for signed price change.</p>")
+    return drawer("Delivery & flow", "DVPT", "today's conviction leaders", body, is_open=True)
+
+
 # ── zone 1 body: market pulse ───────────────────────────────────────────────────
 def pulse_block(idx: list, mood: dict, breadth, series: list = None) -> str:
     if idx:
@@ -267,6 +386,36 @@ def css() -> str:
 :root[data-ui-g] .g-spark.up{color:var(--up)}
 :root[data-ui-g] .g-spark.dn{color:var(--down)}
 :root[data-ui-g] .g-spark svg{width:100%;height:38px;display:block}
+:root[data-ui-g] .g-agenda{display:flex;flex-direction:column}
+:root[data-ui-g] .g-ag{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line)}
+:root[data-ui-g] .g-ag:last-child{border-bottom:0}
+:root[data-ui-g] .g-date{font:700 11px/1.25 var(--mono);color:var(--ink);background:var(--bg-0);border:1px solid var(--line-2);border-radius:7px;padding:5px 8px;text-align:center;min-width:54px}
+:root[data-ui-g] .g-date small{display:block;font-size:9px;color:var(--ink-3);font-weight:500}
+:root[data-ui-g] .g-ag-b{min-width:0;font-size:13px}
+:root[data-ui-g] .g-ag-s{font-weight:700;font-size:12.5px}
+:root[data-ui-g] .g-ag-d{color:var(--ink-2)}
+:root[data-ui-g] .g-kind{font:600 10px/1 var(--mono);color:var(--ink-3);border:1px solid var(--line-2);border-radius:var(--r-pill);padding:3px 8px;white-space:nowrap}
+:root[data-ui-g] .g-wire{display:flex;flex-direction:column}
+:root[data-ui-g] .g-wrow{padding:10px 2px;border-bottom:1px solid var(--line)}
+:root[data-ui-g] .g-wrow:last-child{border-bottom:0}
+:root[data-ui-g] .g-wh{font-size:13px;color:var(--ink);line-height:1.4}
+:root[data-ui-g] .g-wm{display:flex;gap:8px;margin-top:5px;font-size:11px;color:var(--ink-3);flex-wrap:wrap}
+:root[data-ui-g] .g-wsrc{font-weight:600;color:var(--ink-2)}
+:root[data-ui-g] .g-drawer{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:12px}
+:root[data-ui-g] .g-drawer summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:13px 16px}
+:root[data-ui-g] .g-drawer summary::-webkit-details-marker{display:none}
+:root[data-ui-g] .g-dw-t{font-weight:700;font-size:14px}
+:root[data-ui-g] .g-dw-s{font-size:12px;color:var(--ink-3)}
+:root[data-ui-g] .g-chev{margin-left:auto;width:20px;height:20px;color:var(--ink-3);transition:transform .2s ease}
+:root[data-ui-g] .g-drawer[open] .g-chev{transform:rotate(180deg)}
+:root[data-ui-g] .g-dw-b{padding:2px 16px 16px;border-top:1px solid var(--line)}
+:root[data-ui-g] .g-rowbars{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+:root[data-ui-g] .g-rowbar{display:grid;grid-template-columns:104px 1fr 56px;gap:12px;align-items:center;font-size:12.5px}
+:root[data-ui-g] .g-rb-n{font-weight:600;color:var(--ink-2)}
+:root[data-ui-g] .g-rb-t{height:9px;background:var(--bg-3);border-radius:var(--r-pill);overflow:hidden}
+:root[data-ui-g] .g-rb-f{display:block;height:100%;width:0;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--accent),var(--accent-hi));transition:width 1s cubic-bezier(.2,.7,.2,1)}
+:root[data-ui-g] .g-rb-v{font-family:var(--mono);text-align:right;color:var(--ink-2)}
+:root[data-ui-g] .g-note{font-size:12px;color:var(--ink-3);margin-top:12px;line-height:1.5}
 </style>"""
 
 
@@ -295,4 +444,5 @@ document.querySelectorAll(".g-spark").forEach(function(el){
     +'<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="1.7"/>'
     +'<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(s[n-1]).toFixed(1)+'" r="2.5" fill="'+col+'"/></svg>';
 });
+document.querySelectorAll(".g-rb-f").forEach(function(el){ w(el, (+el.getAttribute("data-w")||0)+"%"); });
 })();</script>"""
