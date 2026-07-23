@@ -31,10 +31,13 @@ def is_on(request: Request) -> bool:
 def home(request: Request) -> HTMLResponse:
     from src.core.db import get_conn
     on = is_on(request)
+    body, pat = "", ""
     try:
         with get_conn() as conn:
             conn.row_factory = __import__("sqlite3").Row
             body = _compose(conn)
+            from src.web.home import pat_dock
+            pat = pat_dock.dock_html(conn)
     except Exception:  # noqa: BLE001 — a busy/edge DB must never 500 the home
         body = C.zone("Market pulse", "index_signals", C.empty("Today's signals haven't landed yet."))
     toggle = ("Leave the preview" if on else "Enter the Graphite preview")
@@ -43,7 +46,7 @@ def home(request: Request) -> HTMLResponse:
                    "isolated from the classic site, which is unchanged.</p>"
                    "<form method=\"post\" action=\"/dash/home/toggle\">"
                    "<button class=\"g-btn\" type=\"submit\">" + toggle + "</button></form>"))
-    return HTMLResponse(shell.shell("Home", body, rail_html=rail))
+    return HTMLResponse(shell.shell("Home", body, rail_html=rail, pat_html=pat))
 
 
 @router.post("/dash/home/toggle", include_in_schema=False)
@@ -77,10 +80,14 @@ def _compose(conn) -> str:
                               reads.breadth_latest(conn), reads.index_series(conn, "NIFTY 50", 30)),
                 sub="where the whole market stands today")
     z2 = C.zone("Today — what changed", "signal_events · nightly",
-                C.count_band(reads.severity_counts(conn)) + C.changed_rows(reads.what_changed(conn)),
+                C.count_band(reads.severity_counts(conn)) + C.changed_rows(reads.what_changed(conn))
+                + C.learn("These are signals that flipped state since yesterday — a delivery band crossed, "
+                          "relative strength turned, a quality gate passed. Described from the tape, never a prediction."),
                 sub="the signals that flipped since yesterday")
     z3 = C.zone("FII / DII flows", "fii_dii_flows · 14:30 & 16:30",
-                C.flows_block(reads.fii_dii_recent(conn)),
+                C.flows_block(reads.fii_dii_recent(conn))
+                + C.learn("FII = foreign institutions; DII = domestic (mutual funds, insurers). A green bar to the "
+                          "right is net buying, red to the left is net selling — a signed rupee value."),
                 sub="who's buying — foreign vs domestic institutions")
     z4 = C.zone("Going ex — corporate actions", "corporate_actions · 02:20",
                 C.ca_agenda(reads.upcoming_ca(conn, days=21)),

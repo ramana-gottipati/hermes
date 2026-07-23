@@ -74,6 +74,11 @@ def fence(text: str) -> str:
     return '<p class="g-fence-top">' + esc(text) + "</p>"
 
 
+def learn(text: str) -> str:
+    """A beginner explainer — shown only in the 'New here' persona (Codex #3 depth)."""
+    return '<p class="g-learn new-only">' + esc(text) + "</p>"
+
+
 # ── atoms ─────────────────────────────────────────────────────────────────────
 def tile(lab: str, big: str, sub: str = "") -> str:
     return ('<div class="g-tile"><span class="g-lab">' + esc(lab) + '</span>'
@@ -416,6 +421,8 @@ def css() -> str:
 :root[data-ui-g] .g-rb-f{display:block;height:100%;width:0;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--accent),var(--accent-hi));transition:width 1s cubic-bezier(.2,.7,.2,1)}
 :root[data-ui-g] .g-rb-v{font-family:var(--mono);text-align:right;color:var(--ink-2)}
 :root[data-ui-g] .g-note{font-size:12px;color:var(--ink-3);margin-top:12px;line-height:1.5}
+:root[data-ui-g] .g-learn{font-size:12.5px;color:var(--ink-2);margin-top:12px;line-height:1.55;padding:10px 12px;background:var(--acc-dim);border-left:2px solid var(--accent);border-radius:0 8px 8px 0}
+:root[data-ui-g] .g-learn b{color:var(--ink)}
 </style>"""
 
 

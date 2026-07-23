@@ -40,7 +40,26 @@ _SHELL_CSS = """<style>/* g-shell */
 :root[data-ui-g] .g-rail{display:flex;flex-direction:column;gap:14px}
 :root[data-ui-g] .g-foot{max-width:1300px;margin:0 auto;padding:16px 22px;border-top:1px solid var(--line);
   color:var(--ink-3);font-size:11.5px;text-align:center}
+:root[data-ui-g] .g-seg{display:inline-flex;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-pill);padding:3px;gap:2px}
+:root[data-ui-g] .g-seg button{border:0;background:transparent;color:var(--ink-3);font:700 11.5px var(--font);padding:6px 12px;border-radius:var(--r-pill);cursor:pointer}
+:root[data-ui-g] .g-seg button[aria-pressed="true"]{color:var(--on-accent);background:linear-gradient(120deg,var(--accent),var(--accent-hi))}
+:root[data-ui-g] .new-only{display:none}
+:root[data-ui-g][data-persona="new"] .new-only{display:revert}
+:root[data-ui-g] .pro-only{display:none}
+:root[data-ui-g][data-persona="pro"] .pro-only{display:revert}
 </style>"""
+
+_PERSONA_JS = """<script>(function(){var r=document.documentElement,k="pvgmode";
+try{if(localStorage.getItem(k)==="pro")r.setAttribute("data-persona","pro");}catch(e){}
+function set(m){r.setAttribute("data-persona",m);
+var n=document.getElementById("g-mnew"),p=document.getElementById("g-mpro");
+if(n)n.setAttribute("aria-pressed",m==="new");if(p)p.setAttribute("aria-pressed",m==="pro");
+try{localStorage.setItem(k,m);}catch(e){}}
+document.addEventListener("DOMContentLoaded",function(){
+var n=document.getElementById("g-mnew"),p=document.getElementById("g-mpro");
+if(n)n.addEventListener("click",function(){set("new");});
+if(p)p.addEventListener("click",function(){set("pro");});
+set(r.getAttribute("data-persona")||"new");});})();</script>"""
 
 _THEME_JS = """<script>(function(){var r=document.documentElement,k="pvgtheme";
 try{if(localStorage.getItem(k)==="light")r.setAttribute("data-theme","light");}catch(e){}
@@ -59,23 +78,26 @@ def _dests(current: str) -> str:
 
 
 def shell(title: str, body_html: str, rail_html: str = "", extra_head: str = "",
-          current: str = "Today") -> str:
+          current: str = "Today", pat_html: str = "") -> str:
     t = _html.escape(str(title))
     grid_cls = "g-grid has-rail" if rail_html else "g-grid"
     rail = ('<aside class="g-rail" aria-label="Context">' + rail_html + "</aside>") if rail_html else ""
     return (
-        '<!doctype html><html lang="en" data-ui-g><head><meta charset="utf-8">'
+        '<!doctype html><html lang="en" data-ui-g data-persona="new"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         '<meta name="robots" content="noindex">'
         "<title>" + t + " — patearn</title>"
         + tokens_css() + C.css() + _SHELL_CSS + extra_head + "</head><body>"
         '<header class="g-top"><span class="g-brand">patearn<small>Indian-equity evidence</small></span>'
         '<span class="g-badge">PREVIEW</span>' + _dests(current) + '<span class="g-sp"></span>'
+        '<span class="g-seg" role="group" aria-label="Experience mode">'
+        '<button id="g-mnew" type="button" aria-pressed="true">✦ New here</button>'
+        '<button id="g-mpro" type="button" aria-pressed="false">⚡ Pro</button></span>'
         '<button class="g-btn" style="margin:0" onclick="pvgTheme()" aria-label="Switch light/dark theme">◑ Theme</button>'
         '<a class="g-btn" style="margin:0" href="/dash">Classic site</a>'
         "</header>"
         '<main class="g-wrap">' + C.fence(_FENCE)
         + '<div class="' + grid_cls + '"><div class="g-focus">' + body_html + "</div>" + rail + "</div></main>"
         '<footer class="g-foot">' + _html.escape(_FENCE) + "</footer>"
-        + _THEME_JS + C.assets() + "</body></html>"
+        + pat_html + _THEME_JS + _PERSONA_JS + C.assets() + "</body></html>"
     )
