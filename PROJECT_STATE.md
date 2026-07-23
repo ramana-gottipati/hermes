@@ -2209,8 +2209,12 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   status/lookup ("what changed", "who's buying") stay terse; explain ("what is DVPT", "how do I read
   this") lead with one sentence + depth-on-demand. The typed ask box is no longer a stub: it
   classifies the question (keyword route) or DOM-safely deep-links a symbol token to `/dash/stock`.
-  a11y/inert/Escape/focus + DOM-safety gates stay green; the "chat" scope = Pat's ask box on the home
-  (the Telegram assistant is a separate lane, untouched). All 5 owner DO-NEXT items now shipped.
+  a11y/inert/Escape/focus + DOM-safety gates stay green. All 5 owner DO-NEXT items now shipped.
+- **Telegram assistant calibration (owner follow-up):** the same crisp-by-default / detail-on-demand
+  rule folded into `src/assistant/chat.py` `HERMES_SYSTEM_PROMPT` (a RESPONSE FORMAT block — one-line
+  for lookups/status, one-sentence + a short "want the detail?" offer for explain-questions, phone-chat
+  tuned). Prompt edit only — NO model/cost change (still `fast_model`/Haiku). `chat` is loaded by
+  `hermes-telegram` AND the `/chat` endpoint on `hermes-api`, so both restart to pick it up.
 
 ### Session 214 — 2026-07-23 — EMA-CROSSOVER FAMILY carried to a VERDICT: both crossover strategies FAIL (momentum = par/beta, reversal = dead); the only fundable output is a SEPARATE low-vol factor (quarterly+hysteresis, scales to ~₹500cr); `ema_crossover_forward.py` forward test ARMED + a quarterly VPS→Telegram checkpoint LIVE
 (Renumbered S210→S214 on push contact — origin held 210–213.) The 16BD momentum-band+RSI lane S209 flagged as a parallel sibling — carried to a full verdict. All research ran on the VPS (`.venv-research`; the laptop has only synthetic fixtures). Reconciled by cherry-picking ONLY my 15 disjoint commits onto origin/main (the chart/wolfe local commits left untouched for their owner — no cross-absorption).
