@@ -1999,6 +1999,22 @@ product** — net R/V ~1.0, matches/beats the index, DD ~−21% vs index −30%,
 holds to ₹250-500cr. The blend is a small-AUM return-per-vol booster only. Descriptive; NEXT = a
 forward/paper test (freeze the spec, watch quarterly) before any capital.
 
+### Forward test ARMED (2026-07-23) — `ema_crossover_forward.py` (the `union_forward` twin)
+
+One command, REPORTING-ONLY over three sealed engines — the whole EMA-crossover family judged together:
+MOM (momentum_band_rsi CELL_B_TREND_STRONG, seal `0e90bf2c`, in-sample R/V 0.71/13.2%/−63%),
+REV (reversal_oversold REVDD, seal `4d932089`, −0.13/−9.0%/−86%, worse than its random control),
+LOW (lowvol_sleeve_q, seal `b8c1dec4`, 1.06/15.0%/−21%, the fundable product). It prints an
+INTEGRITY+REPRODUCTION gate (3/3 seals + 3/3 in-sample anchors reproduce to the digit —
+**box-verified 2026-07-23**), the REGISTERED PREDICTIONS frozen up front (**LOW graduates / MOM reveals
+as beta → fails C2 / REV stays dead**), the forward window sliced at FREEZE=2026-07, and frozen criteria
+C1 beat-index / C2 alpha>0 (beta>1.1 & no-alpha = beta-not-skill FAIL) / C3 DD-not-worse / C4 no month
+>60% of excess / C5 (LOW only) net R/V>0.89 — judged mechanically only at **≥24 forward months (8 qtrs)**;
+INTERIM before, FAMILY ADJUDICATION (highest forward alpha graduates) at ≥24. `--rebuild` refreshes the
+three books from current data first; `--asof YYYY-MM` caps the window. First checkpoint 2026-10 (quarter
+-end, aligns with LOW's quarterly rebalance). One-pager `out/ema_crossover_forward.json`. No seal of its
+own — it verifies the three it reports on. Descriptive until the forward window judges.
+
 ---
 
 ## Study 2026-07-22b — REVERSAL, CLEAN oversold-bounce (deep drawdown + RSI-30 turn; NON-band, NON-momentum) (DONE — pre-registered FAIL at BOTH gates; reversal falsified at the CONCEPT level, not just the band mechanics)
