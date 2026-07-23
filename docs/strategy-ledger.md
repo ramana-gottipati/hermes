@@ -2015,6 +2015,36 @@ shares NONE of the T/U/L/RSI/fractal machinery). It is carried in the forward te
 non-crossover **COMPARATOR / "book to beat"** — reported beside MOM/REV but **EXCLUDED from the
 crossover adjudication**. Do not read it as a crossover result.
 
+### EMA-crossover family — PROGRESS SUMMARY (metrics at a glance, 2026-07-23)
+
+The arc from the failing crossover to the fundable low-vol book, net-of-cost, verified this session
+(R/V = annualised mean/sd, no rf — D142 basis; hurdle = Nifty 500 buy-hold 0.89; seals verify 3/3
+post-reconcile: `0e90bf2c` / `4d932089` / `b8c1dec4`).
+
+| Book | Type | Net R/V | CAGR | Max DD | Capacity | Verdict |
+|---|---|--:|--:|--:|---|---|
+| Momentum — trend + RSI≥70 (`CELL_B_TREND_STRONG`) | EMA crossover | 0.71 | 13.2% | −63% | ₹4.6cr names | par = beta → FAIL |
+| Momentum — Cell B (all) | EMA crossover | — | 8.4% (gross 19.4%) | −58% | — | FAIL |
+| Reversal — oversold (`REVDD`) | EMA-arc | −0.13 | −9.0% | −86% | — | dead → REJECT |
+| Low-vol v1 (monthly) | factor (NOT a crossover) | 1.14 | 15.9% | −21% | ~₹50–100cr | fundable, turnover-capped |
+| **Low-vol v2 (quarterly + hysteresis)** | factor (NOT a crossover) | **1.06** | **15.0%** | **−21%** | **to ₹500cr** | **GRADUATE** |
+| Nifty 500 (benchmark) | index | 0.85 | 13.4% | −30% | — | hurdle 0.89 |
+
+Low-vol v2 capacity curve (the turnover cut 199→71%/yr bought the scale; Almgren participation via
+`cost_participation.side_costs`):
+
+| AUM | Net R/V | CAGR | Max DD |
+|---|--:|--:|--:|
+| Frictionless | 1.07 | 15.2% | −21% |
+| ₹50cr | 1.02 | 14.3% | −21% |
+| ₹100cr | 0.99 | 13.9% | −21% |
+| ₹250cr | 0.95 | 13.2% | −21% |
+| ₹500cr | 0.90 | 12.4% | −22% |
+
+**Bottom line:** the EMA crossover returns the index (13.2%) at **double the drawdown** (−63% vs −30%)
+with no scalability; the fundable low-vol book **beats the index** (15.0% vs 13.4%) at **~⅓ the
+drawdown** (−21% vs −30%) and holds that edge to ₹500cr.
+
 ### Forward test ARMED (2026-07-23) — `ema_crossover_forward.py` (the `union_forward` twin)
 
 One command, REPORTING-ONLY over three sealed engines — the whole EMA-crossover family judged together:
