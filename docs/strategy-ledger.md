@@ -1999,6 +1999,22 @@ product** — net R/V ~1.0, matches/beats the index, DD ~−21% vs index −30%,
 holds to ₹250-500cr. The blend is a small-AUM return-per-vol booster only. Descriptive; NEXT = a
 forward/paper test (freeze the spec, watch quarterly) before any capital.
 
+### EMA-crossover family — VERDICT (2026-07-23, explicit)
+
+**The EMA CROSSOVER ITSELF PRODUCES NOTHING FUNDABLE.** Both crossover strategies fail:
+- **MOMENTUM** (`momentum_band_rsi`, T=EMA5(HLC) crosses ABOVE U=EMA13(high), with-trend + RSI≥70):
+  no selection edge (22d event Cliff's δ −0.01, median excess −0.90%), net R/V 0.71 / CAGR 13.2% /
+  DD −63%, capacity-dead at ₹4.6cr median trade ADV → par-with-index **BETA, not alpha**. FAIL (as
+  pre-registered).
+- **REVERSAL** (`reversal_oversold` REVDD oversold-bounce; and the earlier EMA-band reclaim, 07-13):
+  net-NEGATIVE / worse-than-random (R/V −0.13 / CAGR −9.0% / DD −86%; Gate-1 δ≈0). REJECTED, dead.
+
+The **ONLY fundable output** of the arc is `lowvol_sleeve_q` — a SEPARATE **low-VOLATILITY FACTOR,
+NOT an EMA crossover** (ranks names by trailing 126-day vol, holds the calmest, quarterly+hysteresis;
+shares NONE of the T/U/L/RSI/fractal machinery). It is carried in the forward test purely as the
+non-crossover **COMPARATOR / "book to beat"** — reported beside MOM/REV but **EXCLUDED from the
+crossover adjudication**. Do not read it as a crossover result.
+
 ### Forward test ARMED (2026-07-23) — `ema_crossover_forward.py` (the `union_forward` twin)
 
 One command, REPORTING-ONLY over three sealed engines — the whole EMA-crossover family judged together:

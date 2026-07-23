@@ -6,13 +6,16 @@ no new selection logic, no new levers, no spec change. It reads each book's stor
 from research.db (built by the sealed modules), gates the in-sample prefix for reproduction, slices
 the post-freeze forward window, and judges each book against its own frozen criteria.
 
-THE FAMILY (both EMA-crossover strategies + the fundable product this arc produced):
+THE FAMILY.
+  EMA-CROSSOVER strategies (the two this test actually JUDGES + ADJUDICATES):
   MOM  = momentum_band_rsi, book CELL_B_TREND_STRONG (net) — 5-EMA(HLC) breaks the 13-EMA(high) band,
          with-trend, RSI>=70. Seal 0e90bf2c.
-  REV  = reversal_oversold, book REVDD (net) — the early 5-EMA(HLC)-below-15-EMA(low) reversal probe.
-         Seal 4d932089.
-  LOW  = lowvol_sleeve_q, book lowvolq (net) — the quarterly + hysteresis low-vol sleeve (07-22d),
-         the one corner of this exploration that survived the capacity fence. Seal b8c1dec4.
+  REV  = reversal_oversold, book REVDD (net) — the oversold-bounce reversal probe. Seal 4d932089.
+  NON-CROSSOVER COMPARATOR (reported BESIDE, but EXCLUDED from the crossover adjudication):
+  LOW  = lowvol_sleeve_q, book lowvolq (net) — a low-VOLATILITY FACTOR (rank names by trailing vol,
+         hold the calmest, quarterly + hysteresis). This is NOT an EMA crossover — it shares NONE of
+         the T/U/L/RSI/fractal machinery. It is carried here only as THE BOOK TO BEAT: the fundable
+         ALTERNATIVE the arc turned up when both crossover books failed. Seal b8c1dec4.
 
 THE REGISTERED PREDICTIONS (the honest in-sample priors — what forward must live up to, stated BEFORE
 any forward data so nobody re-writes the expectation later):
@@ -24,8 +27,9 @@ any forward data so nobody re-writes the expectation later):
   LOW  in-sample R/V 1.06 / CAGR 15.0% / DD -20.8%, beats the index, holds net R/V>0.89 to ~Rs500cr,
        corr-to-MOM 0.003. Prediction: THE GRADUATE — beats the index with ~1/3 less drawdown.
 
-THE BET, in one line: we expect LOW to graduate, MOM to reveal itself as beta (fail C2), REV to stay
-dead. The forward test adjudicates it mechanically — not our opinion.
+THE READ, in one line: we expect BOTH crossover books to fail forward — MOM revealed as beta (fail
+C2), REV dead — i.e. the EMA crossover itself produces NOTHING fundable; and we expect the
+non-crossover LOW comparator to keep beating the index. The forward test settles it mechanically.
 
 BOUNDARY (encoded once). FREEZE = 2026-07 (the last in-sample month; the books are built through it).
 The forward window = every completed month STRICTLY AFTER 2026-07, accruing automatically as the VPS
@@ -41,8 +45,10 @@ WHAT IT PRINTS, in order:
      annualized (>=4 legs); alpha / beta vs Nifty 500 (>=6 legs); MaxDD; all on the post-freeze cut.
   3. FROZEN CRITERIA per book (C1 beat index, C2 alpha>0 [beta>1.1 & no-alpha = beta-not-skill FAIL],
      C3 MaxDD not worse than the index, C4 no single month > 60% of total excess; LOW also carries its
-     fence hurdle C5 net R/V > 0.89). INTERIM until MIN_M; at >= MIN_M the FAMILY ADJUDICATION fires:
-     among sealed passers the highest forward alpha graduates, the rest retire to descriptive-only.
+     fence hurdle C5 net R/V > 0.89). INTERIM until MIN_M; at >= MIN_M the CROSSOVER ADJUDICATION fires
+     among the two crossover books ONLY (MOM/REV): a passer graduates, else both stay descriptive-only.
+     LOW is judged on the same criteria and printed for reference, but as the non-crossover comparator
+     it is EXCLUDED from the crossover verdict.
 
 Run (VPS research venv; reads research.db + hermes.db):
   PYTHONPATH=/opt/hermes:/opt/hermes/research /opt/hermes/.venv-research/bin/python \\
@@ -73,17 +79,18 @@ SEALS = {
     "lowvol_sleeve_q":   "b8c1dec488b96fde6fb7372ad3e726b9b8eea69163d8b473aef2b3913112f2e3",
 }
 
-# name -> (label, SQL for monthly (month,ret) net series, recorded in-sample anchor (R/V,CAGR%,DD%), prediction)
+# (name, label, SQL for monthly (month,ret) net series, in-sample anchor (R/V,CAGR%,DD%), prediction, role)
+# role = "crossover" (judged + adjudicated) | "comparator" (non-crossover, reported beside, NOT adjudicated)
 FAMILY = [
-    ("MOM", "momentum (CELL_B_TREND_STRONG)",
+    ("MOM", "momentum (CELL_B_TREND_STRONG) — EMA crossover",
      "SELECT month,mret FROM mbr_book WHERE key='CELL_B_TREND_STRONG' AND gross_net='net' ORDER BY month",
-     (0.71, 13.2, -63.2), "par with index; excess is BETA -> C2 expected FAIL"),
-    ("REV", "reversal (REVDD)",
+     (0.71, 13.2, -63.2), "par with index; excess is BETA -> C2 expected FAIL", "crossover"),
+    ("REV", "reversal (REVDD) — EMA-crossover-arc probe",
      "SELECT month,mret FROM rev_book WHERE key='REVDD' AND gross_net='net' ORDER BY month",
-     (-0.13, -9.0, -86.2), "dead (worse than random control); stays descriptive-only"),
-    ("LOW", "low-vol v2 (lowvolq, quarterly+hysteresis)",
+     (-0.13, -9.0, -86.2), "dead (worse than random control); stays descriptive-only", "crossover"),
+    ("LOW", "low-vol v2 (lowvolq) — NON-CROSSOVER low-volatility factor",
      "SELECT month,net FROM lowvolq_book ORDER BY month",
-     (1.06, 15.0, -20.8), "THE GRADUATE — beats index with ~1/3 the drawdown, scales to ~Rs500cr"),
+     (1.06, 15.0, -20.8), "the fundable ALTERNATIVE (NOT a crossover) — beats index ~1/3 the DD, scales ~Rs500cr", "comparator"),
 ]
 
 
@@ -154,7 +161,7 @@ def main(asof=None, rebuild=False):
 
     books = {}
     print("  reproduction (in-sample <= %s, gated to anchor):" % FREEZE)
-    for name, label, sql, anchor, pred in FAMILY:
+    for name, label, sql, anchor, pred, role in FAMILY:
         s = _series(rc, sql)
         books[name] = s
         insample = [s[m] for m in sorted(s) if m <= FREEZE]
@@ -171,9 +178,12 @@ def main(asof=None, rebuild=False):
     # ---- registered predictions ----
     print("")
     print("### REGISTERED PREDICTIONS (frozen priors — what forward must live up to)")
-    for name, label, sql, anchor, pred in FAMILY:
-        print(f"  {name:<4} {pred}")
-    print("  THE BET: LOW graduates, MOM reveals as beta (fails C2), REV stays dead. Adjudicated mechanically.")
+    for name, label, sql, anchor, pred, role in FAMILY:
+        tag = "" if role == "crossover" else "   [non-crossover comparator — the book to beat]"
+        print(f"  {name:<4} {pred}{tag}")
+    print("  READ: both CROSSOVER books expected to fail (MOM=beta -> C2 FAIL, REV dead) — the EMA")
+    print("        crossover produces nothing fundable; the non-crossover LOW comparator expected to")
+    print("        keep beating the index. Settled mechanically, not by opinion.")
 
     # ---- 2. forward window ----
     cap = asof or "9999"
@@ -197,7 +207,7 @@ def main(asof=None, rebuild=False):
         print("")
         bcum, bdd = _cum(br), _dd(br)
         print("  book summaries (%d month(s)):" % len(fmonths))
-        for name, label, sql, anchor, pred in FAMILY:
+        for name, label, sql, anchor, pred, role in FAMILY:
             r = [books[name][m] for m in fmonths]
             a, b = _ab(r, br)
             line = "    %-4s cum %+7.2f%%" % (name, _cum(r) * 100)
@@ -215,11 +225,13 @@ def main(asof=None, rebuild=False):
     print("")
     print("### 3. FROZEN CRITERIA (%d/%d forward months -> %s)"
           % (len(fmonths), MIN_M, "JUDGMENT" if len(fmonths) >= MIN_M else "INTERIM — no verdict before %d" % MIN_M))
+    print("  (MOM/REV = the EMA-crossover books, judged + adjudicated; LOW = non-crossover comparator,")
+    print("   judged on the same bar for reference only — never in the crossover verdict)")
     passers = []
     if fmonths:
         br = [bench[m] for m in fmonths]
-    for name, label, sql, anchor, pred in FAMILY:
-        rec = {"prediction": pred, "anchor": anchor}
+    for name, label, sql, anchor, pred, role in FAMILY:
+        rec = {"prediction": pred, "anchor": anchor, "role": role}
         if fmonths:
             r = [books[name][m] for m in fmonths]
             a, b = _ab(r, br)
@@ -237,28 +249,31 @@ def main(asof=None, rebuild=False):
                 verdict = "PASS" if (c1 and c2 and c3 and c5) else "FAIL"
                 if c1 and c2 and c3 and c5 and not c4:
                     verdict = "INCONCLUSIVE (C4) — extend window"
-                if verdict == "PASS":
+                if verdict == "PASS" and role == "crossover":
                     passers.append((a or -9, name))
             else:
                 moot = a is None
                 verdict = "on track" if (c1 and c3 and (c2 or moot) and c5) else "behind"
-            print("  %-4s C1 beat-idx %-5s C2 alpha>0 %-5s C3 dd-ok %-5s C4 conc %-5s%s -> %s%s"
+            rtag = "" if role == "crossover" else "   [comparator — not a crossover, excluded from verdict]"
+            print("  %-4s C1 beat-idx %-5s C2 alpha>0 %-5s C3 dd-ok %-5s C4 conc %-5s%s -> %s%s%s"
                   % (name, c1, ("n/a" if a is None else bool(c2)), c3, c4,
-                     "" if name != "LOW" else " C5 R/V>0.89 %-5s" % c5, verdict, beta_note))
+                     "" if name != "LOW" else " C5 R/V>0.89 %-5s" % c5, verdict, beta_note, rtag))
             rec.update(forward=_st(r), cum=round(_cum(r) * 100, 2), alpha=None if a is None else round(a * 100, 2),
                        beta=None if b is None else round(b, 2), verdict=verdict)
         else:
-            print("  %-4s INTERIM 0/%d — clock armed, no leg yet" % (name, MIN_M))
+            rtag = "" if role == "crossover" else "   [comparator — not a crossover]"
+            print("  %-4s INTERIM 0/%d — clock armed, no leg yet%s" % (name, MIN_M, rtag))
             rec.update(forward=None, verdict="INTERIM 0/%d" % MIN_M)
         out["books"][name] = rec
     if len(fmonths) >= MIN_M:
         if passers:
             passers.sort(reverse=True)
-            print("  FAMILY ADJUDICATION (frozen): GRADUATE = %s (highest forward alpha among passers); the rest retire to reference."
+            print("  CROSSOVER ADJUDICATION (frozen, MOM/REV only): GRADUATE = %s (highest forward alpha among crossover passers)."
                   % passers[0][1])
             out["graduate"] = passers[0][1]
         else:
-            print("  FAMILY ADJUDICATION (frozen): no sealed book passed — ALL DESCRIPTIVE-ONLY, never deployed.")
+            print("  CROSSOVER ADJUDICATION (frozen, MOM/REV only): no crossover book passed — the EMA crossover")
+            print("  produces nothing fundable; both DESCRIPTIVE-ONLY. (LOW, the non-crossover comparator, judged above.)")
             out["graduate"] = None
     rc.close()
 

@@ -16,7 +16,7 @@ printf '\n===== %s =====\n%s\n' "$TS" "$OUT" >> "$LOG"
 # integrity gate: any seal BROKEN or in-sample anchor DRIFT means the code/archive was edited
 if printf '%s' "$OUT" | grep -qE 'BROKEN|DRIFT'; then GATE="FAIL — STOP (seal/anchor moved)"; else GATE="OK"; fi
 KEY=$(printf '%s' "$OUT" | grep -E 'FORWARD WINDOW|C1 beat|INTERIM [0-9]|GRADUATE|DESCRIPTIVE-ONLY|cum |ann ' | head -24)
-MSG=$(printf '<b>EMA-crossover forward checkpoint</b>  %s\nintegrity gate: <b>%s</b>\n\n<pre>%s</pre>\n\n<i>the bet: LOW graduates, MOM reveals as beta, REV stays dead</i>' "$TS" "$GATE" "$KEY")
+MSG=$(printf '<b>EMA-crossover forward checkpoint</b>  %s\nintegrity gate: <b>%s</b>\n\n<pre>%s</pre>\n\n<i>read: the crossover (MOM+REV) is expected to produce nothing fundable; LOW = non-crossover book-to-beat</i>' "$TS" "$GATE" "$KEY")
 
 # send to the owner (first allowed user id) via the Hermes bot — same Bot API as digest.py
 TOKEN=$(grep -E '^TELEGRAM_BOT_TOKEN=' /opt/hermes/.env | head -1 | cut -d= -f2-)
