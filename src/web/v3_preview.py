@@ -37,30 +37,25 @@ def preview_landing(request: Request, ch: str = "wire", sym: str = "") -> HTMLRe
     state = ("ON — v3-aware pages will render the new look for this browser."
              if on else "OFF — the classic site is untouched everywhere.")
     btn = "Leave the preview" if on else "Enter the preview"
-    focus = (
-        C.card("The Patearn v3 preview",
-               "<p>An opt-in, additive preview of the redesigned experience "
-               "(plan: approved modules only — the theme layer and the self-teaching term "
-               "chips are live here today). Nothing about the classic site changes unless "
-               "you opt in, and leaving restores it instantly.</p>"
-               "<p>Preview is <b>" + state + "</b></p>"
-               "<form method=\"post\" action=\"/dash/preview/toggle\">"
-               "<button class=\"pv3-btn\" type=\"submit\">" + btn + "</button></form>"
-               + C.fence("not_advice"))
-        + C.section("In this preview")
-        + C.card("", "<p><a href=\"/dash/_ui3\">The v3 design system + term chips →</a><br>"
-                 "Try a chip: " + term_chip.chip("dvpt") + " · " + term_chip.chip("conviction")
-                 + "</p>")
-    )
-    rail = C.card("Status", "<p>Approved: M0 preview gate · M1 theme layer · M2 term chips · "
-                  "M3 news/flow dock (below).<br>"
-                  "Pending owner approval: the recomposed stock page, Today, "
-                  "the guided journey.</p>"
-                  "<p>" + C.evidence_link("/dash", "Back to the classic site") + "</p>")
+    # M5 (spec §1): Today v3 IS the landing focus; the M0 toggle card moves to the rail.
+    from src.web import today_v3
+    focus = today_v3.body() + C.fence("not_advice")
+    toggle_card = C.card("The preview",
+                         "<p>Opt-in and additive — the classic site is untouched. "
+                         "Preview is <b>" + state + "</b></p>"
+                         "<form method=\"post\" action=\"/dash/preview/toggle\">"
+                         "<button class=\"pv3-btn\" type=\"submit\">" + btn + "</button></form>")
+    rail = toggle_card + today_v3.rail()
     from src.web import news_dock
     dock = news_dock.dock_html(ch=ch, sym=sym, base="/dash/preview")
     head = C.css() + term_chip.assets() + news_dock.css()
-    return HTMLResponse(shell_v3.shell("Preview", focus, rail, extra_head=head, dock_html=dock))
+    return HTMLResponse(shell_v3.shell("Today", focus, rail, extra_head=head, dock_html=dock,
+                                       dest="today",
+                                       crumbs=[("Home", "/dash/preview"), ("Today", "")],
+                                       nav_title="Today",
+                                       nav_items=[("Today", "/dash/preview", True),
+                                                  ("Stock hub", "/dash/preview/stock", False),
+                                                  ("Design system", "/dash/_ui3", False)]))
 
 
 @router.post("/dash/preview/toggle", include_in_schema=False)
