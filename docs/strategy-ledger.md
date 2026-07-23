@@ -2054,6 +2054,32 @@ plain trend filter for this job — measure, don't assume.** India VIX may still
 feature (position sizing / mean-reversion timing), not as a de-risk overlay — a separate test. (AMFI NAVAll
 reachable = fund NAVs only; stock-level MF flow needs AMC-portfolio parsing — a real build, not a quick pull.)
 
+### Study 2026-07-23 — INSTITUTIONAL FLOW: the FIRST orthogonal-data signal is REAL but weak/relative — long-short, not a fundable long-only book (REJECTED)
+
+The first study to mine OWNERSHIP not price. Data ALREADY on the box: `research.db.shareholding_history` —
+quarterly DII+FII holding %, PIT by `report_date`, 2019-2026, 1546 syms, primary NSE-XBRL (no scrape
+needed). Signal = QoQ Δ(DII+FII) accumulation, cross-sectional quintiles per quarter, entry at report_date
+(PIT). Module `research/explosive_moves/inst_flow.py` (prereg `d582445`). Prior: CAUTIOUS-OPTIMISTIC.
+
+**RESULT — a REAL selection signal, but FAILS the fundability gate.**
+- Gate-1: **Cliff's δ(Q5 accumulation vs Q1 distribution) = +0.071** — positive and ABOVE the +0.05 bar
+  (G3 PASS). **This is the ONLY positive cross-sectional selection δ in the whole arc** (momentum −0.01,
+  reversal ≈0, weekly reclaim −0.02) — ownership data carries information price/volume did not. BUT G2
+  FAILS: both quintiles have NEGATIVE median excess (Q5 126d med −4.6%, Q1 −8.3%) — accumulation
+  under-performs the index LESS, it does not out-perform it. G4 fails — edge only in 2023+ (half2), not
+  2019-22. → **FAIL-null.**
+- Gate-2 book: Q5 net R/V **0.51**/CAGR 9.1%/DD −18% beats Q1 (0.31/5.0/−23) but far below the 0.89
+  hurdle → NOT FUNDABLE long-only (only 9 usable book quarters — short history).
+
+**READ:** institutional flow carries REAL, orthogonal cross-sectional information (unlike the price
+crossovers), but here it is a **long-SHORT / ranking signal, not a long-only alpha** — Q5 beats Q1, yet Q5
+still lags the index (positive skew: a few winners carry the mean, median negative). India long-short is
+constrained, so a long-only book off it doesn't clear the bar. DISPOSITION: REJECTED as a standalone book,
+descriptive-only — **BUT it directionally VALIDATES the thesis that orthogonal (ownership) data is where
+selection edge lives.** NEXT (not built): use Δinst as a CONDITIONER/tilt inside the low-vol book; get the
+pure-MF breakout (vs DII aggregate); more history. Caveats: DII = MF-dominated domestic institutions (not
+pure MF); ~28 quarters 2019+.
+
 ### EMA-crossover family — VERDICT (2026-07-23, explicit)
 
 **The EMA CROSSOVER ITSELF PRODUCES NOTHING FUNDABLE.** Both crossover strategies fail:
