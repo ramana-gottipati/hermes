@@ -35,6 +35,11 @@ _CSS = """<style>""" + TOKENS_V3_MARKER + """
   --up:#3fd486; --down:#ff6a7a; --warn:#f6b73c;
   --up-rgb:63,212,134; --down-rgb:255,106,122; --warn-rgb:246,183,60;
   --series-1:#39c5cf; --series-2:#f0883e; --series-3:#a371f7; --series-4:#56d364;
+  /* ── the PROPRIETARY chart identity (owner directive 2026-07-22): rising = the patearn
+     blue, falling = a vibrant slate-gray (never black), crisp outlines. CHART-ONLY tokens —
+     signed TEXT values keep the --up/--down contract untouched. ── */
+  --candle-up:#4d9dff; --candle-up-line:#a9d0ff;
+  --candle-dn:#8496ad; --candle-dn-line:#c6d1e2;
   /* ── type: 6 steps, numbers first-class ── */
   --t-xs:11.5px; --t-sm:13px; --t-md:15px; --t-lg:17px; --t-xl:21px; --t-2xl:27px;
   --lh:1.55; --lh-tight:1.25;
@@ -53,6 +58,8 @@ _CSS = """<style>""" + TOKENS_V3_MARKER + """
   --accent:#1668cc; --accent-dim:rgba(22,104,204,.10); --on-accent:#ffffff;
   --up:#0e8a4d; --down:#c92a3c; --warn:#a06a00;
   --up-rgb:14,138,77; --down-rgb:201,42,60; --warn-rgb:160,106,0;
+  --candle-up:#1668cc; --candle-up-line:#0d4fa8;
+  --candle-dn:#93a2b8; --candle-dn-line:#66788f;
   --e-1:0 1px 2px rgba(16,32,48,.08); --e-2:0 8px 24px rgba(16,32,48,.10);
 }
 /* ── base (scoped: only a data-ui-v3 document is ever styled) ── */

@@ -211,6 +211,24 @@ def test_chart_section_embeds_the_fork_on_real_symbol():
     assert len(r.content) < 1_000_000, len(r.content)      # budget holds WITH the island
 
 
+# ── the proprietary chart identity (owner directive 2026-07-22) ───────────────────────
+
+def test_chart_uses_proprietary_candle_tokens_with_outlines():
+    """Rising = patearn blue, falling = vibrant gray, outlines on — CHART-scoped tokens only;
+    the --up/--down text contract is never redefined by the chart."""
+    from pathlib import Path
+    fork = Path("src/web/stock_chart_v3.py").read_text(encoding="utf-8")
+    for tok in ("--candle-up", "--candle-dn", "--candle-up-line", "--candle-dn-line"):
+        assert tok in fork, tok
+    assert "borderUpColor:C.cupL" in fork and "borderDownColor:C.cdnL" in fork  # outlines on
+    assert "upColor:C.cup,downColor:C.cdn" in fork                              # bodies blue/gray
+    from src.web.ui_tokens_v3 import tokens_css_v3
+    css = tokens_css_v3()
+    assert "--candle-up:#4d9dff" in css and "--candle-dn:#8496ad" in css        # dark identity
+    assert "--candle-up:#1668cc" in css and "--candle-dn:#93a2b8" in css        # light identity
+    assert css.count("--up:#3fd486") == 1                                       # text contract intact
+
+
 # ── isolation holds with the new module mounted ───────────────────────────────────────
 
 def test_legacy_pages_still_carry_no_hub_markers():

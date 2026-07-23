@@ -197,7 +197,7 @@ SNIPPET = """<script>
   // indicator identities map to tokens holding their exact shipped value (no recolour).
   var _cs=getComputedStyle(document.documentElement);
   function _t(n,fb){ var v=_cs.getPropertyValue(n); return (v&&v.trim())||fb; }
-  var C={up:_t('--up','#3fd486'),down:_t('--down','#ff6a7a'),line:_t('--chart-line','#1f6feb'),dvpt:_t('--chart-dvpt','#d29922'),dvptIdle:_t('--chart-idle','#30506b'),
+  var C={up:_t('--up','#3fd486'),down:_t('--down','#ff6a7a'),cup:_t('--candle-up','#4d9dff'),cdn:_t('--candle-dn','#8496ad'),cupL:_t('--candle-up-line','#a9d0ff'),cdnL:_t('--candle-dn-line','#c6d1e2'),line:_t('--chart-line','#1f6feb'),dvpt:_t('--chart-dvpt','#d29922'),dvptIdle:_t('--chart-idle','#30506b'),
     deliv:_t('--chart-blue','#58a6ff'),tval:_t('--line-2','#30363d'),dval:_t('--chart-dval','#2ea043'),vwap:_t('--accent-orange','#f0883e'),avwap:_t('--series-5','#db61a2'),
     rs:_t('--series-1','#39c5cf'),wolfe:_t('--chart-blue','#58a6ff'),harm:_t('--series-8','#f778ba'),bb:_t('--series-3','#a371f7'),atr:_t('--series-4','#56d364'),
     vol:_t('--chart-vol','#3b5168'),rsi:_t('--chart-rsi','#d2a8ff'),macd:_t('--chart-blue','#58a6ff'),macdSig:_t('--accent-orange','#f0883e'),cmp:_t('--series-1','#39c5cf'),
@@ -256,7 +256,7 @@ SNIPPET = """<script>
       crosshair:{mode:0}, handleScroll:true, handleScale:true };
     var pc=LightweightCharts.createChart(host, Object.assign({height:host.clientHeight||480}, common));
     window.__wfpc=pc;
-    var candle=pc.addCandlestickSeries({upColor:C.up,downColor:C.down,wickUpColor:C.up,wickDownColor:C.down,borderVisible:false});
+    var candle=pc.addCandlestickSeries({upColor:C.cup,downColor:C.cdn,wickUpColor:C.cupL,wickDownColor:C.cdnL,borderVisible:true,borderUpColor:C.cupL,borderDownColor:C.cdnL});
     window.__wfcandle=candle;
     var pline=pc.addLineSeries({color:C.line,lineWidth:2,priceLineVisible:false,lastValueVisible:false}); pline.applyOptions({visible:false});
     var parea=pc.addAreaSeries({lineColor:C.line,topColor:'rgba(31,111,235,0.25)',bottomColor:'rgba(31,111,235,0.02)',lineWidth:2,priceLineVisible:false,lastValueVisible:false}); parea.applyOptions({visible:false});
@@ -402,7 +402,7 @@ SNIPPET = """<script>
       else if(ctype==='renko'){ var rk=renko(RT);
         candle.setData(rk.map(function(d){return {time:d.time,open:d.open,high:d.high,low:d.low,close:d.close};}));
         // colour each brick by direction (up/down) regardless of open<close ordering
-        candle.applyOptions({upColor:C.up,downColor:C.down,borderVisible:true,borderUpColor:C.up,borderDownColor:C.down,wickUpColor:'rgba(0,0,0,0)',wickDownColor:'rgba(0,0,0,0)'});
+        candle.applyOptions({upColor:C.cup,downColor:C.cdn,borderVisible:true,borderUpColor:C.cupL,borderDownColor:C.cdnL,wickUpColor:'rgba(0,0,0,0)',wickDownColor:'rgba(0,0,0,0)'});
         pline.setData([]); parea.setData([]); if(kagiL)kagiL.setData([]); return; }
       else data=RT.map(rawOHLC);
       candle.setData(data.concat(FUT));   // whitespace tail = the future projection space
@@ -509,8 +509,8 @@ SNIPPET = """<script>
       var isLine=(t==='line'), isArea=(t==='area'), isKagi=(t==='kagi');
       var isC=(!isLine&&!isArea&&!isKagi);   // candle series carries candle/hollow/heikin/renko
       candle.applyOptions({visible:isC}); pline.applyOptions({visible:isLine}); parea.applyOptions({visible:isArea}); kagiL.applyOptions({visible:isKagi});
-      if(t==='hollow') candle.applyOptions({upColor:'rgba(0,0,0,0)',borderVisible:true,borderUpColor:C.up,borderDownColor:C.down,wickUpColor:C.up,wickDownColor:C.down});
-      else if(t==='candle'||t==='heikin') candle.applyOptions({upColor:C.up,downColor:C.down,borderVisible:false,wickUpColor:C.up,wickDownColor:C.down});
+      if(t==='hollow') candle.applyOptions({upColor:'rgba(0,0,0,0)',borderVisible:true,borderUpColor:C.cup,borderDownColor:C.cdn,wickUpColor:C.cup,wickDownColor:C.cdn});
+      else if(t==='candle'||t==='heikin') candle.applyOptions({upColor:C.cup,downColor:C.cdn,borderVisible:true,borderUpColor:C.cupL,borderDownColor:C.cdnL,wickUpColor:C.cupL,wickDownColor:C.cdnL});
       // renko sets its own brick options inside paintPrice
       paintPrice();
     }
@@ -832,7 +832,7 @@ SNIPPET = """<script>
     function harmDrawOne(){
       harmClear(); if(!harmData||!harmData.length) return;
       var p=harmData[harmIdx]; if(!p) return;
-      var bull=p.dir==='BULL', col=bull?C.up:C.down, dashed=p.state==='FORMING';
+      var bull=p.dir==='BULL', col=bull?C.cup:C.cdn, dashed=p.state==='FORMING';
       var seen={},clean=[];
       p.points.forEach(function(q){ var t=snapT(q.t); if(!seen[t]){ seen[t]=1; clean.push({time:t,value:q.price}); } });
       if(clean.length>=2){

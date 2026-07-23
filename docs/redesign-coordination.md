@@ -68,6 +68,8 @@ Rules (binding for every redesign module):
 
 | 2026-07-22 | Claude | **THE BOLD SKIN SHIPPED + DEPLOYED (same day as ratification):** `src/web/ui_skin_bold.py` — double-scoped `[data-ui-v3][data-skin="bold"]` override layer (chamfered plates · aurora fields · glass rail/dock · instrument numerals · glow destinations · gradient hub h1); shell_v3 renders it as the preview DEFAULT with a one-tap Skin toggle back to Quiet (localStorage). Selftest asserts double-scoping + that `--up/--down` are never restyled. Suite 763 · deployed (backup `.bak-skin`, restart in a clear window, health 200) · walk: skin marker live on `/dash/preview` + `/dash/preview/stock` + `/dash/_ui3` · 0 legacy leak · public 200. The classic site and quiet tokens untouched. |
 
+| 2026-07-22 | Ramana | **CHART-IDENTITY DIRECTIVE: proprietary candle palette.** Rising = the patearn blue (replacing green) · falling = a vibrant GRAY, never black · crisp outlines on bodies. Scope = CHARTS ONLY: new `--candle-up/-dn(+-line)` tokens (dark #4d9dff/#8496ad · light #1668cc/#93a2b8) consumed by the v3 chart fork (candles, hollow, type-switches, in-chart pattern graphics — 6 sites); the signed-TEXT value contract (--up/--down green/red) is UNTOUCHED by construction and test. |
+
 ## 3. Codex findings → dispositions (all 5 BLOCKING accepted)
 
 | # | Finding (short) | Disposition → build requirement |
