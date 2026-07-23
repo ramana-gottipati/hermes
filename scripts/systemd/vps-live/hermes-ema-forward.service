@@ -1,0 +1,9 @@
+[Unit]
+Description=Hermes - EMA-crossover forward-test quarterly checkpoint (reporting-only; DMs verdict)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+ExecStart=/opt/hermes/scripts/ema_forward_checkpoint.sh
+StandardOutput=append:/var/log/hermes-ema-forward.log
+StandardError=append:/var/log/hermes-ema-forward.log

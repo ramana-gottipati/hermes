@@ -1,0 +1,11 @@
+[Unit]
+Description=Hermes EMA-crossover forward checkpoint (quarterly: 3rd of Jan/Apr/Jul/Oct, 09:00 IST)
+
+[Timer]
+# 03:30 UTC = 09:00 IST, on the 3rd of Jan/Apr/Jul/Oct. No Requires= on the service, so arming this
+# timer never pulls the job (AUD-95 hazard avoided); the service fires only at the OnCalendar mark.
+OnCalendar=*-01,04,07,10-03 03:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
