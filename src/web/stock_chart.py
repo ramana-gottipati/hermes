@@ -589,6 +589,8 @@ SNIPPET = """<script>
         cbar.innerHTML=(open?'\\u25be':'\\u25b8')+' Drawings'; layoutFs(); }
       cbar.onclick=function(){ setDrawer(rail.classList.contains('rail-collapsed')); };
       rail.insertBefore(cbar, rail.firstChild);
+      // fullscreen: when a drawing tool is picked, tuck the toolbar away so the FULL chart is drawable
+      window.__cfsToolPicked=function(){ if(host.classList.contains('cfs')&&!rail.classList.contains('rail-collapsed')) setDrawer(false); };
       // fullscreen toggle
       var fb=E('div','position:absolute;top:8px;right:8px;z-index:12;cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid '+C.border+';border-radius:6px;background:rgba(13,17,23,.72);color:'+C.txt+';font-size:13px','\\u2922');
       fb.title='Fullscreen (Shift+F)';
@@ -1053,7 +1055,8 @@ SNIPPET = """<script>
 
     function toolCol(t){ return {trend:'#58a6ff',rect:'#58a6ff',fib:'#d29922',fibext:'#a371f7',measure:'#39c5cf'}[t]||'#58a6ff'; }
     function setTool(t){ tool=(tool===t)?null:t; cap.style.pointerEvents=(tool||editing)?'auto':'none';
-      pc.applyOptions({handleScroll:!tool,handleScale:!tool}); paintTools(); }
+      pc.applyOptions({handleScroll:!tool,handleScale:!tool}); paintTools();
+      if(tool&&window.__cfsToolPicked) window.__cfsToolPicked(); }   // fullscreen: picking a tool auto-collapses the toolbar → full chart to draw on
     var editing=false;
     function setEdit(){ editing=!editing; tool=null; cap.style.pointerEvents=editing?'auto':'none';
       pc.applyOptions({handleScroll:!editing,handleScale:!editing}); paintTools(); }
