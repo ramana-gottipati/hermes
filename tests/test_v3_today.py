@@ -91,6 +91,26 @@ def test_today_count_tiles_render_honest_zeros():
         assert any(must in s for s in subs), must
 
 
+def test_today_breadth_tile_reads_the_real_schema():
+    """The box schema is d/n_eq/pct_adv (verified 2026-07-23) — the tile must render against
+    it; guessed column names caused a silent-missing tile once."""
+    import sqlite3
+    from unittest.mock import patch
+    import contextlib
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("CREATE TABLE market_internals_daily(d TEXT, n_eq INT, adv INT, dec INT, "
+                 "unch INT, pct_adv REAL)")
+    conn.execute("INSERT INTO market_internals_daily VALUES('2026-07-23',2340,1428,800,112,61.0)")
+    @contextlib.contextmanager
+    def fake_conn():
+        yield conn
+    from src.web import today_v3
+    with patch.object(today_v3, "get_conn", fake_conn):
+        subs = today_v3._counts()
+    assert any("stocks advanced today" in c[2] and c[0] == "61%" for c in subs)
+
+
 def test_today_mood_uses_the_one_vocabulary():
     """If the mood renders (index data present), it must come from market_mood's banner —
     no second regime vocabulary on the page."""

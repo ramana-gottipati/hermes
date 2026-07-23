@@ -65,8 +65,9 @@ def _counts() -> list[tuple[str, str, str, str]]:
             pass
         out.append((total, sev, "state-changes on the signal bus this week", "/dash/attention"))
         try:
-            r = conn.execute("SELECT pct_advancing p, n_traded n FROM market_internals_daily "
-                             "ORDER BY trade_date DESC LIMIT 1").fetchone()
+            # real schema (box-verified 2026-07-23): d · n_eq · adv/dec/unch · pct_adv
+            r = conn.execute("SELECT pct_adv p, n_eq n FROM market_internals_daily "
+                             "ORDER BY d DESC LIMIT 1").fetchone()
             if r and r["p"] is not None:
                 out.append((format(r["p"], ".0f") + "%", "",
                             "of " + format(r["n"] or 0, ",") + " stocks advanced today",
