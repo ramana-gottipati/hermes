@@ -68,13 +68,18 @@ def kit(request: Request) -> HTMLResponse:
 
 
 def _compose(conn) -> str:
-    """Increment (i): the market-pulse zone over real reads proves the foundation end-to-end.
-    Zones 2-7 land in increments (ii)-(iii); the shell + kit + reads + gates are the foundation."""
-    idx = reads.index_pulse(conn)
-    breadth = reads.breadth_latest(conn)
-    b_in, nifty_up = reads.mood_inputs(conn)
+    """Increment (ii): zones 1-3 over real, self-contained reads (market pulse · today ·
+    FII/DII flows). Zones 4-7 (calendars/news/drawers) + the alive Pat land in (iii)-(iv)."""
     from src.web.market_mood import market_mood
-    mood = market_mood(b_in, nifty_up)
-    return C.zone("Market pulse", "index_signals · nightly",
-                  C.pulse_block(idx, mood, breadth),
-                  sub="where the whole market stands today")
+    b_in, nifty_up = reads.mood_inputs(conn)
+    z1 = C.zone("Market pulse", "index_signals · nightly",
+                C.pulse_block(reads.index_pulse(conn), market_mood(b_in, nifty_up),
+                              reads.breadth_latest(conn), reads.index_series(conn, "NIFTY 50", 30)),
+                sub="where the whole market stands today")
+    z2 = C.zone("Today — what changed", "signal_events · nightly",
+                C.count_band(reads.severity_counts(conn)) + C.changed_rows(reads.what_changed(conn)),
+                sub="the signals that flipped since yesterday")
+    z3 = C.zone("FII / DII flows", "fii_dii_flows · 14:30 & 16:30",
+                C.flows_block(reads.fii_dii_recent(conn)),
+                sub="who's buying — foreign vs domestic institutions")
+    return z1 + z2 + z3

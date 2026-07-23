@@ -127,6 +127,45 @@ def what_changed(conn, days: int = 7, limit: int = 12) -> list:
         return []
 
 
+def severity_counts(conn, days: int = 7) -> dict:
+    """Counts over the curated alert rail (signal_alert_state) — descriptive, verdict-free.
+    severity is 'critical'|'high'; valence is 'risk'|'opportunity'|'neutral'."""
+    out = {"critical": 0, "high": 0, "opportunity": 0, "risk": 0, "total": 0}
+    if not _has(conn, "signal_alert_state"):
+        return out
+    try:
+        rows = conn.execute(
+            "SELECT severity, valence, COUNT(*) FROM signal_alert_state "
+            "WHERE as_of >= date('now', ?) GROUP BY severity, valence",
+            (f"-{int(days)} day",)).fetchall()
+    except sqlite3.Error:
+        return out
+    for sev, val, c in rows:
+        out["total"] += c
+        if sev == "critical":
+            out["critical"] += c
+        elif sev == "high":
+            out["high"] += c
+        if val == "opportunity":
+            out["opportunity"] += c
+        elif val == "risk":
+            out["risk"] += c
+    return out
+
+
+def index_series(conn, name: str = "NIFTY 50", n: int = 30) -> list:
+    """Chronological close series for one index — for the pulse sparkline. [] on any gap."""
+    if not _has(conn, "index_signals"):
+        return []
+    try:
+        rows = conn.execute(
+            "SELECT close_value FROM index_signals WHERE index_name=? AND close_value IS NOT NULL "
+            "ORDER BY trade_date DESC LIMIT ?", (name, n)).fetchall()
+        return [float(r[0]) for r in rows][::-1]
+    except (sqlite3.Error, TypeError, ValueError):
+        return []
+
+
 def delivery_leaders(conn, limit: int = 6) -> list:
     """Delivery-conviction leaders — the REAL column is power_dvpt_3m (there is no bare power_dvpt)."""
     if not _has(conn, "stock_signals"):

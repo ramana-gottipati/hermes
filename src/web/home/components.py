@@ -89,8 +89,82 @@ def count_tile(n, label: str, warn: bool = False) -> str:
             '<div class="g-k">' + dot + esc(label) + "</div></div>")
 
 
+# ── zone 2: today / what changed ────────────────────────────────────────────────
+LENS_LABELS = {
+    "mep": "Delivery accumulation", "rs": "Relative strength", "dvpt": "Delivery size",
+    "cci": "Concall credibility", "oi": "F&O positioning", "deal": "Bulk / block deal",
+    "quality": "Quality gate", "cpr": "CPR structure",
+}
+
+
+def count_band(c: dict) -> str:
+    return ('<div class="g-count-band">'
+            + count_tile(c.get("critical", 0), "Critical", warn=True)
+            + count_tile(c.get("high", 0), "High")
+            + count_tile(c.get("opportunity", 0), "Opportunity")
+            + count_tile(c.get("risk", 0), "Risk", warn=True) + "</div>")
+
+
+def changed_rows(rows: list) -> str:
+    if not rows:
+        return empty("No notable state-changes fired in the last week.")
+    out = ""
+    for r in rows[:8]:
+        lens = (r.get("lens") or "").strip()
+        lbl = LENS_LABELS.get(lens, lens.upper() or "signal")
+        fr, to = (r.get("from_state") or ""), (r.get("to_state") or "")
+        chg = (esc(lbl) + ": " + esc(fr) + " → " + esc(to)) if (fr or to) else esc(lbl)
+        code = ('<b class="g-code g-num">' + esc(lens.upper()) + "</b>") if lens else ""
+        out += ('<div class="g-chrow"><span class="g-sym g-num">' + esc(r.get("symbol")) + "</span>"
+                '<span class="g-what">' + chg + " " + code + "</span>"
+                '<span class="g-when g-num">' + esc(r.get("as_of") or "") + "</span></div>")
+    return '<div class="g-changed">' + out + "</div>"
+
+
+# ── zone 3: FII/DII flows (net flow is a SIGNED value -> up/down colour is correct) ──
+def flows_block(rows: list) -> str:
+    if not rows:
+        return empty("FII/DII flows haven't landed for today yet.")
+    latest, asof = {}, ""
+    for r in rows:
+        cat = r.get("category")
+        if cat not in latest and r.get("net_value") is not None:
+            latest[cat] = r.get("net_value")
+            asof = asof or (r.get("trade_date") or "")
+    items = [("FII", latest.get("FII/FPI")), ("DII", latest.get("DII"))]
+    vals = [abs(float(v)) for _, v in items if v is not None] or [1.0]
+    mx = max(vals) * 1.1 or 1.0
+    bars = ""
+    for nm, v in items:
+        if v is None:
+            continue
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            continue
+        pos = f >= 0
+        val_txt = ("+" if pos else "−") + "₹" + f"{abs(f):,.0f}" + " cr"
+        bars += ('<div class="g-frow"><span class="g-fnm">' + esc(nm) + "</span>"
+                 '<div class="g-divtrack" data-net="' + f"{f:.1f}" + '" data-max="' + f"{mx:.1f}" + '">'
+                 '<span class="g-mid"></span><span class="g-fbar ' + ("up" if pos else "dn") + '"></span></div>'
+                 '<span class="g-fval g-num ' + ("up" if pos else "dn") + '">' + val_txt + "</span></div>")
+    foot = ('<div class="g-flow-foot"><span>← net sell · net buy →</span>'
+            '<span>₹ crore · cash segment · provisional · as of ' + esc(asof) + "</span></div>")
+    return '<div class="g-flow">' + bars + foot + "</div>"
+
+
+def spark(series: list, cls: str = "accent") -> str:
+    """A sparkline container — the JS reads the numeric data-series (DOM-safe). Default tone is
+    the neutral accent (a price line is not a signed delta); pass 'up'/'dn' only for signed series."""
+    if not series or len(series) < 2:
+        return ""
+    data = ",".join(f"{float(x):.2f}" for x in series)
+    tone = cls if cls in ("accent", "up", "dn") else "accent"
+    return '<div class="g-spark ' + tone + '" data-series="' + data + '"></div>'
+
+
 # ── zone 1 body: market pulse ───────────────────────────────────────────────────
-def pulse_block(idx: list, mood: dict, breadth) -> str:
+def pulse_block(idx: list, mood: dict, breadth, series: list = None) -> str:
     if idx:
         cards = ""
         for r in idx[:4]:
@@ -115,7 +189,8 @@ def pulse_block(idx: list, mood: dict, breadth) -> str:
                         '<div class="g-as">as of ' + esc(breadth.get("d", "")) + "</div></div>")
     else:
         breadth_html = empty("Breadth internals haven't refreshed yet.")
-    return '<div class="g-pulse">' + cards + mood_html + breadth_html + "</div>"
+    sp = spark(series or [])
+    return '<div class="g-pulse">' + cards + sp + mood_html + breadth_html + "</div>"
 
 
 # ── the .g-* stylesheet (scoped by data-ui-g on the root, via the token layer) ──
@@ -167,6 +242,31 @@ def css() -> str:
 :root[data-ui-g] .g-btn{background:var(--bg-3);border:1px solid var(--line-2);color:var(--ink);border-radius:8px;
   padding:8px 14px;font:600 13px var(--font);cursor:pointer;margin-top:8px}
 :root[data-ui-g] .g-btn:hover{border-color:var(--accent)}
+:root[data-ui-g] .g-count-band{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:560px){:root[data-ui-g] .g-count-band{grid-template-columns:repeat(2,1fr)}}
+:root[data-ui-g] .g-changed{display:flex;flex-direction:column;margin-top:14px}
+:root[data-ui-g] .g-chrow{display:grid;grid-template-columns:74px 1fr auto;gap:12px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--line);font-size:13px}
+:root[data-ui-g] .g-chrow:last-child{border-bottom:0}
+:root[data-ui-g] .g-sym{font-weight:700;font-size:12.5px}
+:root[data-ui-g] .g-what{color:var(--ink-2)}
+:root[data-ui-g] .g-code{font:600 9.5px/1 var(--mono);color:var(--accent);background:var(--acc-dim);border-radius:var(--r-pill);padding:2px 6px;margin-left:4px}
+:root[data-ui-g] .g-when{font-size:11px;color:var(--ink-3);text-align:right}
+:root[data-ui-g] .g-flow{display:flex;flex-direction:column;gap:12px;margin-top:4px}
+:root[data-ui-g] .g-frow{display:grid;grid-template-columns:44px 1fr 112px;gap:12px;align-items:center}
+:root[data-ui-g] .g-fnm{font-weight:700;font-size:12.5px;color:var(--ink-2)}
+:root[data-ui-g] .g-divtrack{position:relative;height:18px;background:var(--bg-0);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+:root[data-ui-g] .g-mid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line-2)}
+:root[data-ui-g] .g-fbar{position:absolute;top:2px;bottom:2px;width:0;border-radius:4px;transition:width 1s cubic-bezier(.2,.7,.2,1)}
+:root[data-ui-g] .g-fbar.up{background:var(--up)}
+:root[data-ui-g] .g-fbar.dn{background:var(--down)}
+:root[data-ui-g] .g-fval{font-family:var(--mono);font-weight:700;font-size:12.5px;text-align:right}
+:root[data-ui-g] .g-fval.up{color:var(--up)}
+:root[data-ui-g] .g-fval.dn{color:var(--down)}
+:root[data-ui-g] .g-flow-foot{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--ink-3);margin-top:2px;flex-wrap:wrap}
+:root[data-ui-g] .g-spark{height:38px;margin-top:2px;color:var(--accent)}
+:root[data-ui-g] .g-spark.up{color:var(--up)}
+:root[data-ui-g] .g-spark.dn{color:var(--down)}
+:root[data-ui-g] .g-spark svg{width:100%;height:38px;display:block}
 </style>"""
 
 
@@ -174,10 +274,25 @@ def assets() -> str:
     """The client viz bundle — reads numeric data-* attrs only (DOM-safe), reduced-motion aware."""
     return """<script>(function(){
 var RM=matchMedia("(prefers-reduced-motion:reduce)").matches;
+function w(el,v){ if(RM){ el.style.width=v; } else { requestAnimationFrame(function(){ el.style.width=v; }); } }
 document.querySelectorAll(".g-breadth").forEach(function(el){
   var adv=+el.getAttribute("data-adv")||0, dec=+el.getAttribute("data-dec")||0, tot=adv+dec;
   var up=el.querySelector(".g-split-up"); if(!up||!tot) return;
-  var pct=Math.round(adv/tot*100)+"%";
-  if(RM){ up.style.width=pct; } else { requestAnimationFrame(function(){ up.style.width=pct; }); }
+  w(up, Math.round(adv/tot*100)+"%");
+});
+document.querySelectorAll(".g-divtrack").forEach(function(el){
+  var net=+el.getAttribute("data-net")||0, max=+el.getAttribute("data-max")||1, bar=el.querySelector(".g-fbar");
+  if(!bar||!max) return; bar.style[net>=0?"left":"right"]="50%";
+  w(bar, Math.min(50,Math.abs(net)/max*50)+"%");
+});
+document.querySelectorAll(".g-spark").forEach(function(el){
+  var s=(el.getAttribute("data-series")||"").split(",").map(Number).filter(function(x){return !isNaN(x);});
+  if(s.length<2) return;
+  var W=300,H=38,mn=Math.min.apply(null,s),mx=Math.max.apply(null,s),n=s.length,col=getComputedStyle(el).color;
+  function X(i){return i/(n-1)*W;} function Y(v){return 4+(H-8)*(1-(v-mn)/((mx-mn)||1));}
+  var d=""; for(var i=0;i<n;i++){ d+=(i?"L":"M")+X(i).toFixed(1)+" "+Y(s[i]).toFixed(1)+" "; }
+  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" aria-hidden="true">'
+    +'<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="1.7"/>'
+    +'<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(s[n-1]).toFixed(1)+'" r="2.5" fill="'+col+'"/></svg>';
 });
 })();</script>"""
