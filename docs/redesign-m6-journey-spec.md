@@ -54,10 +54,10 @@ tour markers ever appear) · no Pat changes · no new data · no cut-over.
 | File | Contents |
 |---|---|
 | `src/web/journey_v3.py` (NEW) | the nudge: `assets()` (CSS + the one-shot localStorage JS) + `nudge_html(anchor_selector)`; pure presentation, zero DB |
-| `src/web/ui_components_v3.py` (edit, v3-owned) | `empty(message, href="", label="")` — the teaching-empty-state component |
+| `src/web/ui_components_v3.py` (edit, v3-owned) | `empty(why, href, label)` — ALL arguments mandatory (the component enforces the teaching contract) |
 | `src/web/shell_v3.py` (edit, v3-owned) | the "New here? How to read →" control in the fixed top-bar slot |
 | `src/web/stock_hub_v3.py` (edit, v3-owned) | includes `journey_v3.assets()` + the nudge after the digest |
-| v3 empty-state call sites (edits, all v3-owned) | migrate to `C.empty` (dock channels · hub `_collapsed`/miss · Today warm-up) |
+| v3 empty-state call sites (edits, all v3-owned) | migrate to `C.empty` per the §1.3 corrected inventory (dock channels · hub section-empties/miss/context-rail · Today warm-up + what-changed · chart no-tape) — `_collapsed` excluded |
 | `tests/test_v3_journey.py` (NEW) | nudge present on hub + one-shot mechanics in markup · absent from legacy AND from Today · help control same slot on Today/hub/showcase · the C.empty contract (source-level: every call passes why+href+label; render-level: no bare empties) · **structural tour-ban (Codex A3): no backdrop/dimming element, no focus trap, no body-scroll lock, no multi-step state beyond `pv3nudge=done`, no "next" control** + the string markers (`data-tour`, `step 1 of`, `Next →`) · per-persona exits incl. Tracker reachable ≤1 click from Today + hub |
 
 ## 3. Verification
