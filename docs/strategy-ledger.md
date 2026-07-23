@@ -1973,6 +1973,32 @@ reversal hybrid — low-vol is a third, defensive factor (Ramana's separate-line
   estate-wide). VERDICT: **low-vol = a real ~₹50cr-capacity fundable factor whose DD edge survives
   cost**; the momentum-band book fails capacity too (junior partner on liquidity as well as drawdown).
 
+### Study 2026-07-22d — LOW-VOL SLEEVE v2 (quarterly + hysteresis): the turnover cut BUYS the capacity
+
+Refinement of 07-22c driven by its own fence (199%/yr turnover was the cost driver). Module
+`research/explosive_moves/lowvol_sleeve_q.py` (prereg `b8c1dec4`, registered 07-23): ENTER the
+bottom-20% vol names, HOLD until a name leaves the wider bottom-40% band (**hysteresis**), re-select
+**QUARTERLY**. Turnover **199%/yr → 71%/yr** (2.8× cut). Standalone net (flat 0.15%/side on quarterly
+turnover): full R/V 1.06 / CAGR 15.0% / DD −20.8%; h1 1.05/13.2/−15.4; h2 1.08/16.6/−20.8;
+**corr vs momentum-stack 0.003**. Slightly below the monthly sleeve's frictionless edge (wider band
+dilutes) but DD tighter and both halves balanced.
+
+CAPACITY (the point) — net R/V · CAGR · MaxDD by AUM, monthly (07-22c) → quarterly+hysteresis (07-22d):
+frictionless 1.18/16.6/−21 → 1.07/15.2/−21 · ₹50cr 0.98/13.4/−23 → 1.02/14.3/−21 ·
+₹100cr 0.89/12.0/−24 → **0.99/13.9/−21** · ₹250cr 0.74/9.6/−27 → **0.95/13.2/−21** ·
+₹500cr 0.57/7.2/−30 → **0.90/12.4/−22**. Index 0.85/13.4/−30. **Capacity ceiling ~₹50cr → beyond
+₹500cr**: net R/V clears the 0.89 hurdle at EVERY AUM to ₹500cr, beats the index on return to ~₹250cr,
+and the DD stays FLAT ~−21% across all AUM (monthly bled to −30%). Median held ADV ₹50.8cr,
+soft-capacity ₹622cr. The turnover cut directly bought ~5× capacity + DD stability — **this IS the
+LOWVOL_MOM fundable corner the ledger flagged.**
+
+Blend 40/60 (mom / low-vol-q): R/V 1.25 / CAGR 15.2% / DD −34.1% (corr 0.003) — a touch below the
+monthly blend (1.32) and DD dragged by momentum; and the blend STILL can't scale (momentum's ₹4.6cr
+ADV binds it). **VERDICT: run the quarterly+hysteresis low-vol sleeve STANDALONE as the fundable
+product** — net R/V ~1.0, matches/beats the index, DD ~−21% vs index −30%, uncorrelated to momentum,
+holds to ₹250-500cr. The blend is a small-AUM return-per-vol booster only. Descriptive; NEXT = a
+forward/paper test (freeze the spec, watch quarterly) before any capital.
+
 ---
 
 ## Study 2026-07-22b — REVERSAL, CLEAN oversold-bounce (deep drawdown + RSI-30 turn; NON-band, NON-momentum) (DONE — pre-registered FAIL at BOTH gates; reversal falsified at the CONCEPT level, not just the band mechanics)
