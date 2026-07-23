@@ -1,4 +1,4 @@
-# Graphite Home — fresh-and-parallel build spec (v1.1, pre-build)
+# Graphite Home — fresh-and-parallel build spec (v1.2, REVIEW-CLEAN, pre-build)
 
 **Class: SPEC (pre-build).** The engineering contract for the new v3 home section. Build is gated
 on the owner's explicit go + Codex review of THIS spec (redesign-coordination §1.4). The *look* is
@@ -85,9 +85,9 @@ non-preview, read-only automation helpers, and reimplements the rest as bounded 
 
 | # | Zone | Read (exact) | Source | Isolation note |
 |---|---|---|---|---|
-| 1 | Market pulse | `reads.index_pulse(conn)` (SELECT from `index_signals`+`index_rows`) · `reads.breadth_latest(conn)` (latest `market_internals_daily` row `d,adv,dec,pct_adv`) · `reads.mood(conn)` (reimplement the pure market_mood calc from `index_signals` — NOT imported from `today_v3`) | `index_signals`, `index_rows`, `market_internals_daily` | breadth carries an honest as-of stamp (no timer in v1, §9) |
+| 1 | Market pulse | `reads.index_pulse(conn)` (SELECT from `index_signals`+`index_rows`) · `reads.breadth_latest(conn)` (latest `market_internals_daily` row `d,adv,dec,pct_adv`) · mood via **`src.web.market_mood.market_mood`** (canonical, non-preview, carries the kill-switch — import it, render fresh `.g-*`; do NOT import `today_v3._mood_html`) | `index_signals`, `index_rows`, `market_internals_daily` | breadth carries an honest as-of stamp (no timer in v1, §9); mood uses the ONE canonical vocabulary (no drift) |
 | 2 | Today/what-changed | `whatchanged_flow.changes(...)` (real read, `src/pat/whatchanged_flow.py:62-77` — `src/pat/` is NOT a preview module) + `reads.severity_counts(conn)` over `signal_alert_state` | `signal_alert_state`, `signal_events` | reuse the pure read; render fresh in `.g-*` |
-| 3 | **FII/DII flows** | `reads.fii_dii_recent(conn, limit=10)` — `SELECT trade_date,category,net_value FROM fii_dii_flows WHERE category IN('FII','DII') ORDER BY trade_date DESC` (table-guarded, category-normalised, as-of) | `fii_dii_flows` (`deals.py:60`) | new read-only helper; the free win |
+| 3 | **FII/DII flows** | `reads.fii_dii_recent(conn, limit=10)` — `SELECT trade_date,category,net_value FROM fii_dii_flows WHERE category IN('FII/FPI','DII') ORDER BY trade_date DESC` (the REAL stored categories are `'FII/FPI'`\|`'DII'` per `deals.py:60,157` — Codex conv #10; table-guarded, as-of) | `fii_dii_flows` (`deals.py:60`) | new read-only helper; the free win |
 | 4 | Going-ex (CA) | `corp_actions.upcoming(conn, days=21)` (`src/automation/corp_actions.py:492`, read-only) | `corporate_actions` | shared automation read, not preview |
 | 5 | Results calendar | `results_calendar.upcoming_results(days=30)` (`src/automation/results_calendar.py:165`) | `board_meetings` | shared automation read |
 | 6 | News wire | `reads.recent_news(conn, limit=8)` (bounded SELECT from `sent_news`+`news_symbol_tags`, reimplemented — do NOT import `news_view`/`news_dock`) + a **copied pure `_safe_url`** on every href (Codex #9) | `sent_news`, `news_symbol_tags` | href sanitised; regression test §7 |
@@ -172,4 +172,7 @@ Guarded by the classic-site byte-identity gate. Nothing here pre-empts that step
    (ii) zones 1–3; (iii) zones 4–6; (iv) Pat + persona depth + a11y/DOM/RM gates; (v) polish + walk.
    Each: gates green · additive · reversible.
 
-**Next: Codex convergence re-check of v1.1 → owner build-go → increment (i).**
+**Status: Codex convergence on v1.1 = `APPROVE-WITH-CHANGES` (all 7 BLOCKING + 2/3 ADVISORY
+addressed; "no new blocking contradiction found"). The 2 remaining advisories applied → v1.2:
+FII/DII category filter corrected to `'FII/FPI'`; mood imports canonical `market_mood`. The spec is
+now REVIEW-CLEAN. → owner build-go → increment (i).**
