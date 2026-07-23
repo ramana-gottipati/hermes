@@ -474,17 +474,17 @@ SNIPPET = """<script>
     // -- family 4: drawings (built below; engine attaches to drawBar) ---------
     var drawBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:4px');
 
-    var row1=E('div','display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px');
+    var row1=E('div','display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px'); row1.className='hsc-row';
     row1.appendChild(family('Chart type',typeSel)); row1.appendChild(sep());
     row1.appendChild(family('Strategies',stratBar)); row1.appendChild(sep());
     row1.appendChild(family('Indicators',indBar)); row1.appendChild(sep());
     row1.appendChild(family('Lower pane',lpBar)); row1.appendChild(sep());
     row1.appendChild(family('Compare',cmpBar)); row1.appendChild(sep());
-    row1.appendChild(family('Drawings',drawBar));
+    var drawFam=family('Drawings',drawBar); drawFam.className='wfKeep'; row1.appendChild(drawFam);   // wfKeep = kept in the trimmed fullscreen overlay
     rail.appendChild(row1);
 
     // -- compact second line: interval · range · Wolfe status (re-homed) ------
-    var row2=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:8px;border-top:1px solid var(--bg-2);margin-top:2px;padding-top:4px');
+    var row2=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:8px;border-top:1px solid var(--bg-2);margin-top:2px;padding-top:4px'); row2.className='hsc-row';
     var ivBar=document.getElementById('ivBar');
     var rangeBar=document.querySelector('.rangebar');
     var ctBar=document.getElementById('ctBar');
@@ -492,13 +492,13 @@ SNIPPET = """<script>
     var wfRow=document.getElementById('wfChk'); wfRow=wfRow?wfRow.closest('.fbar'):null;
     if(ivBar){ row2.appendChild(family('Interval',ivBar)); }
     if(rangeBar){ row2.appendChild(family('Range',rangeBar)); }
-    if(wfLbl){ var st=E('span','font-size:12px;color:'+C.txt); st.appendChild(wfLbl); row2.appendChild(st); }
+    if(wfLbl){ var st=E('span','font-size:12px;color:'+C.txt); st.className='wfKeep'; st.appendChild(wfLbl); row2.appendChild(st); }   // Wolfe DRAW controls kept in the trimmed fullscreen overlay
     rail.appendChild(row2);
 
     // -- legend / "Read" strip — names what each ACTIVE overlay means so the chart
     //    reads as a workstation, not a wall of lines. Descriptive grammar; updates
     //    on every toggle. Harmonic carries its read-by-side backtest caveat here.
-    var legend=E('div','display:none;flex-wrap:wrap;gap:4px 12px;border-top:1px solid var(--bg-2);margin-top:2px;padding-top:4px;font-size:11px;color:'+C.txt);
+    var legend=E('div','display:none;flex-wrap:wrap;gap:4px 12px;border-top:1px solid var(--bg-2);margin-top:2px;padding-top:4px;font-size:11px;color:'+C.txt); legend.className='hsc-legend';
     rail.appendChild(legend);
     var LEGEND={
       dvpt:[C.dvpt,'DVPT','rupee value traded; amber = institutional (1m+) day'],
@@ -569,13 +569,18 @@ SNIPPET = """<script>
         // .cfs: the chart overlays the viewport (top set by JS so the fixed rail can sit above it).
         // .cfs-rail: the drawing rail becomes a FIXED top bar ABOVE the chart, so its tools stay
         // visible + move with the chart in fullscreen. .rail-collapsed hides the rail body (drawer).
-        st.textContent='.cfs{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;z-index:9999!important;max-width:none!important;margin:0!important;border-radius:0!important;background:'+C.bg+'}'
-          +'.cfs-rail{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:10000!important;margin:0!important;max-height:48vh!important;overflow:auto!important;border-radius:0!important}'
-          +'.rail-collapsed>*:not(.cbar){display:none!important}';
+        st.textContent='.cfs{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;height:auto!important;z-index:9999!important;max-width:none!important;margin:0!important;border-radius:0!important;background:'+C.bg+'}'
+          +'.cfs-rail{position:fixed!important;top:0!important;left:0!important;right:76px!important;z-index:10000!important;margin:0!important;max-height:52vh!important;overflow:auto!important;border-radius:0 0 8px 0!important;box-shadow:0 6px 18px rgba(0,0,0,.55)!important}'
+          +'.rail-collapsed>*:not(.cbar){display:none!important}'
+          +'.cfs-rail .hsc-row>*:not(.wfKeep){display:none!important}'    // fullscreen: trim the overlay to the DRAWING-relevant controls only
+          +'.cfs-rail .hsc-legend{display:none!important}';
         document.head.appendChild(st); }
       function refit(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); }
+      var railCollapsedH=34;   // height of the thin collapsed strip; the chart is offset by THIS only
       function layoutFs(){ var on=host.classList.contains('cfs'); rail.classList.toggle('cfs-rail',on);
-        if(on){ host.style.setProperty('top',(rail.offsetHeight||0)+'px','important'); } else { host.style.removeProperty('top'); }   // chart sits BELOW the rail (never under it); a COLLAPSED rail = a thin strip ⇒ ~full-window chart, controls + buttons all clear
+        if(on){ if(rail.classList.contains('rail-collapsed')) railCollapsedH=rail.offsetHeight||railCollapsedH;
+          host.style.setProperty('top',railCollapsedH+'px','important'); }   // chart offset by the COLLAPSED strip ONLY — an EXPANDED rail OVERLAYS the chart top (never shrinks it), and the ✕/⤓ buttons stay clear (rail right:76)
+        else { host.style.removeProperty('top'); }
         requestAnimationFrame(refit); }
       // collapsible drawing drawer (▾/▸) — works in BOTH normal and fullscreen
       var cbar=E('div','display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:'+C.txt+';user-select:none;padding:1px 2px','\\u25be Drawings');
@@ -584,6 +589,8 @@ SNIPPET = """<script>
         cbar.innerHTML=(open?'\\u25be':'\\u25b8')+' Drawings'; layoutFs(); }
       cbar.onclick=function(){ setDrawer(rail.classList.contains('rail-collapsed')); };
       rail.insertBefore(cbar, rail.firstChild);
+      // fullscreen: when a drawing tool is picked, tuck the toolbar away so the FULL chart is drawable
+      window.__cfsToolPicked=function(){ if(host.classList.contains('cfs')&&!rail.classList.contains('rail-collapsed')) setDrawer(false); };
       // fullscreen toggle
       var fb=E('div','position:absolute;top:8px;right:8px;z-index:12;cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid '+C.border+';border-radius:6px;background:rgba(13,17,23,.72);color:'+C.txt+';font-size:13px','\\u2922');
       fb.title='Fullscreen (Shift+F)';
@@ -619,6 +626,16 @@ SNIPPET = """<script>
         var a=document.createElement('a'); a.href=url; a.download=nm+'-patearn.png'; document.body.appendChild(a); a.click(); setTimeout(function(){ try{a.remove();}catch(e){} },0); }
       sb.onclick=takeShot;
       document.addEventListener('keydown',function(e){ if((e.key==='F'||e.key==='f')&&e.shiftKey){ e.preventDefault(); tog(); } else if(e.key==='Escape'&&host.classList.contains('cfs')) tog(); });
+      // stock NAME (top-left) + a subtle 'patearn' brand mark (bottom-right) — both live INSIDE the
+      // chart host, so they stay visible on the live chart AND in fullscreen (the page's own name
+      // label sits outside the chart and is hidden when fullscreen takes over).
+      var nm=(new URLSearchParams(location.search).get('sym')||'');
+      try{ var _cl=document.querySelector('.chartlbl'); if(_cl){ var _t=(_cl.textContent||'').split(/\\s[\\u2013\\u2014-]\\s/)[0].trim(); if(_t) nm=_t; } }catch(e){}
+      var nameEl=E('div','position:absolute;top:8px;left:12px;z-index:6;pointer-events:none;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;color:rgba(230,237,243,.92);text-shadow:0 1px 4px rgba(0,0,0,.7)',nm);
+      host.appendChild(nameEl);
+      var wm=E('div','position:absolute;right:76px;bottom:30px;z-index:5;pointer-events:none;display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:15px;background:rgba(13,17,23,.85);border:1px solid rgba(88,166,255,.5);box-shadow:0 2px 8px rgba(0,0,0,.5);font:700 13px -apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.3px;color:#e6edf3');
+      wm.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:#58a6ff;display:inline-block;box-shadow:0 0 6px rgba(88,166,255,.8)"></span>patearn';   // proper brand BADGE (accent dot + wordmark), not a faint watermark
+      host.appendChild(wm);
       host.appendChild(fb); host.appendChild(sb);
     })();
 
@@ -808,7 +825,7 @@ SNIPPET = """<script>
     // localStorage = instant + offline cache; the SERVER store (/dash/drawings) is the
     // source of truth when reachable, so drawings follow you across device + browser.
     var items=[]; try{ items=JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){ items=[]; }
-    var tool=null, magnet=true, hidden=false, draft=null, sel=null, dragging=null, conflux=true;
+    var tool=null, magnet=true, hidden=false, draft=null, sel=null, dragging=null, conflux=true, placing=false, downXY=null;   // placing = click-to-place: first point set, awaiting the 2nd click
     var FIB=[0,0.236,0.382,0.5,0.618,0.786,1];
     // Fib EXTENSION defaults — project targets beyond the move (a→b): 0/0.618/1 mark the
     // measured move; 1.272/1.618/2/2.618/4.236 are the default targets. A drawing can
@@ -1004,16 +1021,21 @@ SNIPPET = """<script>
         var ha=hitAnchor(p.x,p.y); if(ha){ sel=ha.d; dragging=ha; redraw(); e.preventDefault(); return; }
         var hb=hitBody(p.x,p.y); sel=hb||null; redraw(); return; }
       var s=snap(p.x,p.y);
+      if(placing && draft){ draft.b=s; commitDraft(); e.preventDefault(); return; }   // click-to-place: this 2nd click sets point B and commits
       if(arity(tool)===1){ if(tool==='text'){ var t=prompt('Text:',''); if(t==null)return; items.push({t:'text',a:s,text:t,col:'#e6edf3'}); }
           else items.push({t:'hline',a:s,col:'#bc8cff'}); save(); sel=items[items.length-1]; finishTool(); redraw(); return; }
-      draft={t:tool,a:s,b:s,col:toolCol(tool)}; e.preventDefault(); }
+      draft={t:tool,a:s,b:s,col:toolCol(tool)}; downXY={x:p.x,y:p.y}; e.preventDefault(); }   // start: a drag commits on release; a click arms click-to-place
+    function commitDraft(){ var pa=px(draft.a),pb=px(draft.b);
+      if(pa&&pb&&(Math.abs(pb.x-pa.x)>3||Math.abs(pb.y-pa.y)>3)){ items.push(draft); sel=draft; save(); }
+      draft=null; placing=false; finishTool(); redraw(); }
     function onMove(e){ var p=rel(e);
       if(draft){ draft.b=snap(p.x,p.y); redraw(); return; }
       if(dragging){ var s=snap(p.x,p.y); dragging.d[dragging.key]=s; redraw(); return; } }
     function onUp(e){
-      if(draft){ var pa=px(draft.a),pb=px(draft.b);
-        if(pa&&pb&&(Math.abs(pb.x-pa.x)>3||Math.abs(pb.y-pa.y)>3)){ items.push(draft); sel=draft; save(); }
-        draft=null; finishTool(); redraw(); return; }
+      if(draft && !placing){ var p=rel(e), moved=downXY&&(Math.abs(p.x-downXY.x)>4||Math.abs(p.y-downXY.y)>4);
+        if(moved) commitDraft();                                               // DRAG -> commit on release (unchanged)
+        else { placing=true; redraw(); }                                       // CLICK -> arm click-to-place; the rubber-band line follows the cursor until the 2nd click
+        return; }
       if(dragging){ dragging=null; save(); } }
     cap.addEventListener('pointerdown',onDown); window.addEventListener('pointermove',onMove); window.addEventListener('pointerup',onUp);
     // Drawings are DIRECTLY editable (Ramana 2026-07-10): click one to select and drag
@@ -1037,12 +1059,13 @@ SNIPPET = """<script>
       if(hb){ sel=hb; e.stopPropagation(); e.preventDefault(); redraw(); openEditor(hb,p.x,p.y); } },true);
 
     function toolCol(t){ return {trend:'#58a6ff',rect:'#58a6ff',fib:'#d29922',fibext:'#a371f7',measure:'#39c5cf'}[t]||'#58a6ff'; }
-    function setTool(t){ tool=(tool===t)?null:t; cap.style.pointerEvents=(tool||editing)?'auto':'none';
-      pc.applyOptions({handleScroll:!tool,handleScale:!tool}); paintTools(); }
+    function setTool(t){ placing=false; draft=null; tool=(tool===t)?null:t; cap.style.pointerEvents=(tool||editing)?'auto':'none';   // switching tools cancels any half-placed draft
+      pc.applyOptions({handleScroll:!tool,handleScale:!tool}); paintTools();
+      if(tool&&window.__cfsToolPicked) window.__cfsToolPicked(); }   // fullscreen: picking a tool auto-collapses the toolbar → full chart to draw on
     var editing=false;
     function setEdit(){ editing=!editing; tool=null; cap.style.pointerEvents=editing?'auto':'none';
       pc.applyOptions({handleScroll:!editing,handleScale:!editing}); paintTools(); }
-    function finishTool(){ tool=null; if(!editing){ cap.style.pointerEvents='none'; pc.applyOptions({handleScroll:true,handleScale:true}); } paintTools(); }
+    function finishTool(){ tool=null; placing=false; if(!editing){ cap.style.pointerEvents='none'; pc.applyOptions({handleScroll:true,handleScale:true}); } paintTools(); }
 
     // =====================================================================
     //  PER-DRAWING EDITOR — double-click any drawing (or ⚙ in ≡ list).
