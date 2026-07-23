@@ -1,5 +1,8 @@
 # Graphite Home — carry-forward & takeover prompt (2026-07-23)
 
+**Lifecycle: TRANSIENT** — retire when the Graphite Home cutover completes and folds into
+PROJECT_STATE §Decision log + docs/redesign-coordination.md.
+
 **Class: CARRY-FORWARD (TRANSIENT).** Retire when the Graphite Home cutover completes and folds into
 PROJECT_STATE §Decision log + docs/redesign-coordination.md. The redesign approval record stays
 `docs/redesign-coordination.md`; this file is the working handoff + the next-session prompt.
