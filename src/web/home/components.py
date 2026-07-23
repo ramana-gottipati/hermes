@@ -322,12 +322,13 @@ def pulse_block(idx: list, mood: dict, mood_pct, breadth, series: list = None) -
         cards = empty("Index signals pending.")
     left = ('<div class="g-pl-l"><div class="g-icards">' + cards + "</div>" + spark(series or []) + "</div>")
     # RIGHT: the restored semicircle mood gauge + breadth (verdict-free mood; signed breadth)
+    _bp = (f"{float(mood_pct):.0f}% of indices above their 200-DMA" if mood_pct else "medium-term index trend")
     gtile = ('<div class="g-mtile"><span class="g-lab">Market mood</span>'
              + gauge(mood_pct, "Market mood", mood.get("word", "No data"))
-             + '<span class="g-sub">' + esc((mood.get("plain") or "")[:64]) + "</span></div>")
+             + '<span class="g-sub">' + _bp + "</span></div>")
     if breadth and breadth.get("adv") is not None:
         adv, dec = int(breadth.get("adv") or 0), int(breadth.get("dec") or 0)
-        btile = ('<div class="g-mtile"><span class="g-lab">Breadth · NSE</span>'
+        btile = ('<div class="g-mtile"><span class="g-lab">Breadth · today</span>'
                  '<div class="g-breadth" data-adv="' + str(adv) + '" data-dec="' + str(dec) + '">'
                  '<div class="g-split"><span class="g-split-up"></span></div>'
                  '<div class="g-split-lab"><span class="up">' + str(adv) + ' adv</span>'
@@ -363,10 +364,10 @@ def css() -> str:
   border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:16px;position:relative}
 :root[data-ui-g] .g-zone::before{content:"";position:absolute;inset:0 auto auto 0;width:44px;height:2px;
   background:linear-gradient(90deg,var(--accent-hi),transparent)}
-:root[data-ui-g] .g-zone-h{display:flex;align-items:center;gap:10px;padding:13px 16px 10px;flex-wrap:wrap}
+:root[data-ui-g] .g-zone-h{display:flex;align-items:center;gap:10px;padding:10px 14px 7px;flex-wrap:wrap}
 :root[data-ui-g] .g-zone-h h2{margin:0;font-size:15px;font-weight:700}
 :root[data-ui-g] .g-sub{font-size:12px;color:var(--ink-3)}
-:root[data-ui-g] .g-zone-b{padding:4px 16px 16px}
+:root[data-ui-g] .g-zone-b{padding:2px 14px 12px}
 :root[data-ui-g] .g-prov{margin-left:auto;font:600 10px/1 var(--mono);color:var(--ink-3);background:var(--bg-0);
   border:1px solid var(--line);border-radius:var(--r-pill);padding:4px 9px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 :root[data-ui-g] .g-prov::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--accent)}
@@ -383,8 +384,8 @@ def css() -> str:
 :root[data-ui-g] .g-chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg-3);border:1px solid var(--line-2);
   border-radius:var(--r-pill);padding:4px 6px 4px 11px;font-size:12px;color:var(--ink)}
 :root[data-ui-g] .g-chip b{font:600 10px/1 var(--mono);color:var(--accent);background:var(--acc-dim);border-radius:var(--r-pill);padding:3px 6px}
-:root[data-ui-g] .g-count{background:var(--bg-0);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 12px}
-:root[data-ui-g] .g-n{font-size:24px;font-weight:700;line-height:1}
+:root[data-ui-g] .g-count{background:var(--bg-0);border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 10px}
+:root[data-ui-g] .g-n{font-size:20px;font-weight:700;line-height:1}
 :root[data-ui-g] .g-k{font-size:11px;color:var(--ink-3);margin-top:3px}
 :root[data-ui-g] .g-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:5px;vertical-align:middle}
 :root[data-ui-g] .g-dot.warn{background:var(--warn)}
@@ -408,7 +409,7 @@ def css() -> str:
 :root[data-ui-g] .g-count-band{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 @media(max-width:560px){:root[data-ui-g] .g-count-band{grid-template-columns:repeat(2,1fr)}}
 :root[data-ui-g] .g-changed{display:flex;flex-direction:column;margin-top:14px}
-:root[data-ui-g] .g-chrow{display:grid;grid-template-columns:74px 1fr auto;gap:12px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--line);font-size:13px}
+:root[data-ui-g] .g-chrow{display:grid;grid-template-columns:74px 1fr auto;gap:12px;align-items:center;padding:6px 2px;border-bottom:1px solid var(--line);font-size:12.5px}
 :root[data-ui-g] .g-chrow:last-child{border-bottom:0}
 :root[data-ui-g] .g-sym{font-weight:700;font-size:12.5px}
 :root[data-ui-g] .g-what{color:var(--ink-2)}
@@ -441,7 +442,7 @@ def css() -> str:
 :root[data-ui-g] .g-ag-d{color:var(--ink-2)}
 :root[data-ui-g] .g-kind{font:600 10px/1 var(--mono);color:var(--ink-3);border:1px solid var(--line-2);border-radius:var(--r-pill);padding:3px 8px;white-space:nowrap}
 :root[data-ui-g] .g-wire{display:flex;flex-direction:column}
-:root[data-ui-g] .g-wrow{padding:10px 2px;border-bottom:1px solid var(--line)}
+:root[data-ui-g] .g-wrow{padding:7px 2px;border-bottom:1px solid var(--line)}
 :root[data-ui-g] .g-wrow:last-child{border-bottom:0}
 :root[data-ui-g] .g-wh{font-size:13px;color:var(--ink);line-height:1.4}
 :root[data-ui-g] .g-wm{display:flex;gap:8px;margin-top:5px;font-size:11px;color:var(--ink-3);flex-wrap:wrap}
@@ -461,7 +462,7 @@ def css() -> str:
 :root[data-ui-g] .g-rb-f{display:block;height:100%;width:0;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--accent),var(--accent-hi));transition:width 1s cubic-bezier(.2,.7,.2,1)}
 :root[data-ui-g] .g-rb-v{font-family:var(--mono);text-align:right;color:var(--ink-2)}
 :root[data-ui-g] .g-note{font-size:12px;color:var(--ink-3);margin-top:12px;line-height:1.5}
-:root[data-ui-g] .g-learn{font-size:12.5px;color:var(--ink-2);margin-top:12px;line-height:1.55;padding:10px 12px;background:var(--acc-dim);border-left:2px solid var(--accent);border-radius:0 8px 8px 0}
+:root[data-ui-g] .g-learn{font-size:12px;color:var(--ink-2);margin-top:9px;line-height:1.5;padding:8px 10px;background:var(--acc-dim);border-left:2px solid var(--accent);border-radius:0 8px 8px 0}
 :root[data-ui-g] .g-learn b{color:var(--ink)}
 :root[data-ui-g] .g-pulse2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:14px}
 @media(max-width:720px){:root[data-ui-g] .g-pulse2{grid-template-columns:minmax(0,1fr)}}
