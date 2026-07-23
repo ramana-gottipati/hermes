@@ -2020,6 +2020,29 @@ edge is negative at every horizon tested. VERDICT: REJECTED, descriptive-only. *
 about weekly?" question — the low-band reclaim is a robust anti-signal on BOTH daily and weekly.** Cite
 alongside the daily momentum FAIL-null (this arc) + STREAM BAND 07-13.
 
+### Study 2026-07-23 — REGIME OVERLAY: the de-risk lever is REAL but must be TARGETED (helps high-beta momentum, HURTS defensive low-vol)
+
+A constructive lever test (`research/explosive_moves/regime_overlay.py`, descriptive), built + measured —
+not a description. Regime = Nifty-500 vs its 200-DMA (+ a vol-tercile variant), PIT (prior month-end signal
+→ current month); in a risk-off month the book is scaled to `scale` invested, the rest to cash (6%/yr).
+
+**THE DIAGNOSTIC** (base-book average monthly return, risk-off vs risk-on — predicts the result BEFORE you run):
+- LOW-VOL v2: risk-off **+2.30%** > risk-on +0.89% → it EARNS its keep in risk-off (it IS a hedge).
+- MOMENTUM (`CELL_B_TREND_STRONG`): risk-off **+0.66%** < risk-on +1.41% → it's HURT in risk-off.
+The sign of (off − on) tells you whether the overlay will help.
+
+**RESULT** (R/V · CAGR · MaxDD):
+- LOW-VOL — overlay HURTS: base 1.06/15.0/−20.8 → trend-0.3 0.93/10.9/**−26.4** (deeper!) → trend-0.0
+  0.81/9.1/−29.3. You cannot hedge a hedge — de-risking cuts the book's BEST months. (Vol overlay ~neutral.)
+- MOMENTUM — trend overlay WORKS as predicted: base 0.70/13.1/**−63.2** → trend-0.3 0.83/13.5/−48.2 →
+  trend-0.0 0.84/13.4/**−42.4**. CAGR HELD (~13.4%), DD cut ~21 points (−63→−42), R/V 0.70→0.84.
+  (Vol-tercile overlay HURTS momentum — it's the TREND regime specifically that works.)
+
+**HONEST BOUND:** the overlay is a RISK BRAKE, not alpha. Momentum + overlay is STILL R/V 0.84 < the 0.89
+hurdle, CAGR ≈ index, and has NO selection edge (it's beta with a drawdown brake) → still NOT fundable; the
+overlay does NOT rescue the crossover. In-sample; needs a forward test before trust. **CORRECTS the earlier
+loose "regime overlay = CAGR lever" claim: it is a DRAWDOWN lever, and only on books that bleed in risk-off.**
+
 ### EMA-crossover family — VERDICT (2026-07-23, explicit)
 
 **The EMA CROSSOVER ITSELF PRODUCES NOTHING FUNDABLE.** Both crossover strategies fail:
