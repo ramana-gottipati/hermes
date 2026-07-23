@@ -22,12 +22,19 @@ PROJECT_STATE §Decision log + docs/redesign-coordination.md. The redesign appro
   (alive floating Pat, a11y) · `__init__.py` (router: `/dash/home` · `/dash/home/toggle` POST ·
   `/dash/home/_kit`). Mounted by ONE additive `v2_surfaces._ROUTER_SPECS` line (anchored patch on the
   co-edited VPS file — NEVER full-scp it).
-- **Layout = owner-approved 2-region dashboard** (MoneyControl-informed, plan
-  `scratchpad/home-layout-plan.html` / artifact `ac8410d3`): top **market ribbon** (Nifty · Sensex ·
-  Bank · 500 · Dow · Nasdaq · USD/INR · Gold · Crude) → **MAIN column** (Market pulse + the **news
-  hero**, tall scrollable) + **SIDEBAR** of fixed-size, **internally-scrolling** widgets (What-changed ·
-  FII/DII · Going-ex corp actions · Results · the preview-toggle card, + a reserved watchlist slot).
-  Floating alive Pat (bottom-right). Beginner⇄Pro + ◑ theme toggles.
+- **Layout = owner-approved SCROLL-STACK** (rebuilt this session, commit `3d5637d`, DEPLOYED
+  2026-07-23 ~18:13 UTC). The tabbed-hero mock was rejected by the owner (tabs HIDE cards) → the
+  scroll-stack shows every card as you scroll and *promotes* a featured card instead of hiding the
+  rest. Shape: **selectable ticker** (feed picker: indices · watchlist · portfolio · model · movers;
+  globals dropped — no real source) → **MAIN** [**FEATURED** card you choose (Watchlist/Portfolio/
+  Index chooser + ★ default, persisted per-browser) · **Market-pulse deck** · What-changed · News] →
+  **RAIL** [FII/DII · Going-ex · Results · delivery drawer · toggle]. **⋮ pin/collapse/hide** on every
+  stack card (localStorage restore tray). Floating alive Pat. Beginner⇄Pro + ◑ theme.
+- **Market-Pulse deck** = 7 real reads (mood gauge · today's breadth · breadth-trend 30d · delivery
+  conviction `avg_dp` · accumulation `mep_net` · new-52w-highs · dispersion · sector heat), each
+  metric tile opens a 30-session trend. **Real-vs-demo honesty**: `_pick(live,demo)` marks each zone's
+  chip "sample" when on demo. New defensive reads in `reads.py`; read-contract gate extended; new
+  `tests/test_home_featured.py`. Suite 827 pass (only pre-existing `test_rule_lab` red).
 - **Isolation PROVEN both directions** — byte-identity of classic + old preview; no cross-import;
   scoped CSS both ways; **read-contract gate** (`tests/test_home_read_contract.py`) pins every column +
   shared-helper signature the home reads. Six gates green
@@ -74,24 +81,25 @@ density · index-redundancy killed · news dedup). **Cross-author near-miss** ca
    declaring visual quality. Cache: the page is `no-store` + the SW skips navigations, but bfcache holds
    old pages — hand out a `?v=N` cache-busted link.
 
-## 4. OPEN — next feedback (owner, 2026-07-23) — DO THESE (plan first)
+## 4. OPEN — next feedback
 
-1. **Rearrange content / decide section organization** — reconsider what belongs where and how each
-   section is organized (not just placed).
-2. **Response-format calibration** — when a question is raised, decide if the answer should be a terse
-   "title" or a fuller/lighter one, per context (applies to Pat + to chat replies).
-3. **Market Pulse — add more entries; kill the empty space; make it interactive & engaging.** It's
-   sparse. Think about **what first-page insights to include and how to present them effectively**
-   (e.g. advance/decline history, sector heat, 52w highs/lows, VIX, top movers, delivery leaders,
-   FII trend — pick the few that earn the space; keep descriptive).
-4. **Watchlist / portfolio** — the reserved sidebar slot. Highest-value: a dashboard people return to
-   is about THEIR holdings + alerts, not a generic market view.
-5. **Real-vs-demo honesty** — global indices (Dow/Gold) are placeholders next to live Nifty; news
-   timestamps are all identical; mood reads "Cautious" while the screen is green (reconcile/explain).
-6. **Cutover (PARKED)** — promote `/dash/home` into the nav (lens/Pat/education) + redirect old
-   `/dash/preview` → `/dash/home`, then retire the old preview — but ONLY after the stock page is
-   rebuilt in Graphite (the old preview still uniquely serves `/dash/preview/stock`). Do NOT delete
-   the old preview until then. Owner scope-choice (delete-now vs promote+keep) still open.
+**DONE + DEPLOYED this session (commit `3d5637d`):** ① section organization (scroll-stack) · ②
+Market-Pulse expanded (7-tile deck) · ③ watchlist + portfolio (featured card, reuses `watchlist` +
+`stocks_in_play`) · ④ real-vs-demo honesty (sample badges; globals dropped; portfolio honest
+"connect holdings" empty) · + the selectable **ticker feed** + **pin/collapse/hide** (new owner asks).
+
+**STILL OPEN:**
+1. **Owner PIXEL-review** — the Browser pane was down this session, so structure+gates were verified,
+   not pixels. Hand a `?v=N` link (`https://srv1704897.hstgr.cloud/dash/home?v=N`); iterate on finish.
+2. **Response-format calibration** (item #5, NOT built) — decide terse-title vs fuller answer per
+   context, for Pat's answers and chat replies.
+3. **Deferred, honest:** the Index featured view has NO sub-picker yet (v1 = NIFTY 50 focus) · no
+   per-watchlist-row sparks (no cheap per-symbol series) · the **model** ticker feed is demo/sample
+   until wired to the model-books estate · movers uses `bhavcopy_rows` day-change (confirm density).
+4. **Mood-vs-green reconcile** — the gauge is 200-DMA breadth (medium-term) vs today's adv/dec; add a
+   one-line explainer if the owner still finds it confusing on the live render.
+5. **Cutover (PARKED)** — promote `/dash/home` into nav + redirect old `/dash/preview` → `/dash/home`,
+   only after the Graphite stock page exists (old preview still uniquely serves `/dash/preview/stock`).
 
 ## 5. Deploy recipe (this section's, verified)
 
