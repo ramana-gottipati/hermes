@@ -41,6 +41,11 @@ _NAV_SENTINEL = "_v2_nav_wrapped"
 # main.py clobber/redeploy (wire() re-mounts it) without needing a main.py edit.
 _ROUTER_SPECS = [
     ("coverage", "src.web.coverage_view", "/dash/coverage"),
+    # Graphite Home (2026-07-23) — the fresh-and-parallel v3 home section, built completely
+    # separately from the classic site AND the existing preview (docs/redesign-graphite-home-spec.md).
+    # Direct-URL /dash/home + `pvg` opt-in only; NO lens_registry entry (nav stays byte-identical)
+    # until cutover. This one additive spec entry is the ONLY pre-existing-file touch for the mount.
+    ("graphite-home", "src.web.home", "/dash/home"),
     # Replay the Tape — the standalone PIT-audit one-pager linked off the Coverage/Trust
     # front-door (D-PITCH-1/4). A tiny view that serves docs/replay-the-tape.html verbatim;
     # durably mounted here so the trail off Coverage never dead-ends after a main.py clobber.

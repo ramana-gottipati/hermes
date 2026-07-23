@@ -101,6 +101,12 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                     "deliberately unlinked"),
     "/dash/preview/stock": ("v3-preview", "M4 evidence-scroll stock hub — preview-only, reached "
                                           "from /dash/preview + direct URL, never default chrome"),
+    # Graphite Home (2026-07-23) — the fresh-and-parallel v3 home section (spec
+    # docs/redesign-graphite-home-spec.md). Direct-URL, opt-in `pvg`, NO lens/nav until cutover.
+    "/dash/home":     ("graphite-home", "fresh-and-parallel v3 Graphite home — opt-in preview, "
+                                        "direct-URL only, no lens/nav until cutover (zero classic drift)"),
+    "/dash/home/_kit": ("graphite-home", "Graphite component-kit showcase — dev/preview-only, "
+                                         "deliberately unlinked"),
 }
 
 # legacy-alias 307 redirects whose handler name is NOT compat_*-prefixed and whose flat
