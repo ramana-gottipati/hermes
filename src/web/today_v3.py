@@ -49,16 +49,21 @@ def _mood_html() -> str:
 def _counts() -> list[tuple[str, str, str, str]]:
     """[(count, severity-suffix, subtitle, href)] — every read table-guarded → honest zeros
     are RENDERED as empty-state tiles, never faked."""
+    # Codex M5 B2: the COUNT tiles always render — a missing table is an honest ZERO,
+    # never a silently missing tile. The one exception is breadth (a percentage cannot
+    # honestly read 0 when unknown): it renders only when a snapshot exists.
     out: list[tuple[str, str, str, str]] = []
     with get_conn() as conn:
+        total, sev = "0", ""
         try:
             from src.automation.signal_alerts import active_count
             ac = active_count(conn, within_days=7)
+            total = str(ac.get("total", 0))
             crit = (ac.get("by_severity") or {}).get("critical", 0)
-            out.append((str(ac.get("total", 0)), (str(crit) + " critical") if crit else "",
-                        "state-changes on the signal bus this week", "/dash/attention"))
+            sev = (str(crit) + " critical") if crit else ""
         except Exception:
             pass
+        out.append((total, sev, "state-changes on the signal bus this week", "/dash/attention"))
         try:
             r = conn.execute("SELECT pct_advancing p, n_traded n FROM market_internals_daily "
                              "ORDER BY trade_date DESC LIMIT 1").fetchone()
@@ -68,20 +73,23 @@ def _counts() -> list[tuple[str, str, str, str]]:
                             "/dash/market-internals"))
         except Exception:
             pass
+        k = "0"
         try:
             from src.automation.results_calendar import upcoming_results
-            k = len(upcoming_results(days=7))
-            out.append((str(k), "", "results meetings in the next 7 days",
-                        "/dash/preview?ch=results"))
+            k = str(len(upcoming_results(days=7)))
         except Exception:
             pass
+        out.append((k, "", "results meetings in the next 7 days", "/dash/preview?ch=results"))
+        n_act = "0"
         try:
             from src.automation import corp_actions as CA
             rows, _asof = CA.flagged_symbols(conn)
-            out.append((str(len(rows)), "", "corporate actions going ex this fortnight",
-                        "/dash/preview?ch=actions"))
+            n_act = str(len(rows))
         except Exception:
             pass
+        out.append((n_act, "", "corporate actions going ex this fortnight",
+                    "/dash/preview?ch=actions"))
+        n_news = "0"
         try:
             has = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND "
                                "name IN ('news_symbol_tags','sent_news')").fetchall()
@@ -90,10 +98,10 @@ def _counts() -> list[tuple[str, str, str, str]]:
                     "SELECT COUNT(DISTINCT t.news_url) c FROM news_symbol_tags t "
                     "JOIN sent_news n ON n.url=t.news_url "
                     "WHERE n.sent_at >= datetime('now','-1 day')").fetchone()
-                out.append((str(r["c"] if r else 0), "",
-                            "stock-tagged headlines in 24 hours", "/dash/preview?ch=wire"))
+                n_news = str(r["c"] if r else 0)
         except Exception:
             pass
+        out.append((n_news, "", "stock-tagged headlines in 24 hours", "/dash/preview?ch=wire"))
     return out
 
 
@@ -171,9 +179,13 @@ def _start_here() -> str:
                   '&quot;tata consultancy&quot;" autocomplete="off" '
                   'style="text-transform:uppercase;width:70%">'
                   ' <button class="pv3-btn" type="submit">Open</button></form>'
+                  '<div id="t3sug"></div>'
                   '<p class="t3-help">New here? <a href="/dash/reading-guide">How to read these '
                   'pages →</a> · or <a href="/dash/pat">Ask Pat</a>, the built-in explainer.</p>'
-                  + ta)
+                  + ta
+                  + '<script>(function(){var i=document.getElementById("t3sym"),'
+                    's=document.getElementById("t3sug");'
+                    'if(window.__symTA&&i&&s)window.__symTA(i,s,{});})();</script>')
 
 
 _CSS = """<style>

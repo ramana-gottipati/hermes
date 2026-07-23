@@ -75,6 +75,22 @@ def test_today_never_leaks_to_legacy():
         assert "t3-idline" not in r.text and "t3-moat" not in r.text, path
 
 
+def test_today_typeahead_is_attached():
+    """Codex M5 B1: the shared typeahead must ATTACH to the box, not just be included."""
+    client = TestClient(_app())
+    t = client.get("/dash/preview").text
+    assert 'id="t3sug"' in t and 'getElementById("t3sym")' in t and "__symTA(i,s" in t
+
+
+def test_today_count_tiles_render_honest_zeros():
+    """Codex M5 B2: absent tables -> zero tiles, never silently-missing tiles (breadth is the
+    documented percentage exception)."""
+    from src.web.today_v3 import _counts
+    subs = [c[2] for c in _counts()]
+    for must in ("signal bus", "results meetings", "corporate actions", "stock-tagged headlines"):
+        assert any(must in s for s in subs), must
+
+
 def test_today_mood_uses_the_one_vocabulary():
     """If the mood renders (index data present), it must come from market_mood's banner —
     no second regime vocabulary on the page."""
