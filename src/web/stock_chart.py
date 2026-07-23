@@ -474,17 +474,17 @@ SNIPPET = """<script>
     // -- family 4: drawings (built below; engine attaches to drawBar) ---------
     var drawBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:4px');
 
-    var row1=E('div','display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px');
+    var row1=E('div','display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px'); row1.className='hsc-row';
     row1.appendChild(family('Chart type',typeSel)); row1.appendChild(sep());
     row1.appendChild(family('Strategies',stratBar)); row1.appendChild(sep());
     row1.appendChild(family('Indicators',indBar)); row1.appendChild(sep());
     row1.appendChild(family('Lower pane',lpBar)); row1.appendChild(sep());
     row1.appendChild(family('Compare',cmpBar)); row1.appendChild(sep());
-    row1.appendChild(family('Drawings',drawBar));
+    var drawFam=family('Drawings',drawBar); drawFam.className='wfKeep'; row1.appendChild(drawFam);   // wfKeep = kept in the trimmed fullscreen overlay
     rail.appendChild(row1);
 
     // -- compact second line: interval · range · Wolfe status (re-homed) ------
-    var row2=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:8px;border-top:1px solid var(--bg-2);margin-top:2px;padding-top:4px');
+    var row2=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:8px;border-top:1px solid var(--bg-2);margin-top:2px;padding-top:4px'); row2.className='hsc-row';
     var ivBar=document.getElementById('ivBar');
     var rangeBar=document.querySelector('.rangebar');
     var ctBar=document.getElementById('ctBar');
@@ -492,13 +492,13 @@ SNIPPET = """<script>
     var wfRow=document.getElementById('wfChk'); wfRow=wfRow?wfRow.closest('.fbar'):null;
     if(ivBar){ row2.appendChild(family('Interval',ivBar)); }
     if(rangeBar){ row2.appendChild(family('Range',rangeBar)); }
-    if(wfLbl){ var st=E('span','font-size:12px;color:'+C.txt); st.appendChild(wfLbl); row2.appendChild(st); }
+    if(wfLbl){ var st=E('span','font-size:12px;color:'+C.txt); st.className='wfKeep'; st.appendChild(wfLbl); row2.appendChild(st); }   // Wolfe DRAW controls kept in the trimmed fullscreen overlay
     rail.appendChild(row2);
 
     // -- legend / "Read" strip — names what each ACTIVE overlay means so the chart
     //    reads as a workstation, not a wall of lines. Descriptive grammar; updates
     //    on every toggle. Harmonic carries its read-by-side backtest caveat here.
-    var legend=E('div','display:none;flex-wrap:wrap;gap:4px 12px;border-top:1px solid var(--bg-2);margin-top:2px;padding-top:4px;font-size:11px;color:'+C.txt);
+    var legend=E('div','display:none;flex-wrap:wrap;gap:4px 12px;border-top:1px solid var(--bg-2);margin-top:2px;padding-top:4px;font-size:11px;color:'+C.txt); legend.className='hsc-legend';
     rail.appendChild(legend);
     var LEGEND={
       dvpt:[C.dvpt,'DVPT','rupee value traded; amber = institutional (1m+) day'],
@@ -571,7 +571,9 @@ SNIPPET = """<script>
         // visible + move with the chart in fullscreen. .rail-collapsed hides the rail body (drawer).
         st.textContent='.cfs{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;height:auto!important;z-index:9999!important;max-width:none!important;margin:0!important;border-radius:0!important;background:'+C.bg+'}'
           +'.cfs-rail{position:fixed!important;top:0!important;left:0!important;right:76px!important;z-index:10000!important;margin:0!important;max-height:52vh!important;overflow:auto!important;border-radius:0 0 8px 0!important;box-shadow:0 6px 18px rgba(0,0,0,.55)!important}'
-          +'.rail-collapsed>*:not(.cbar){display:none!important}';
+          +'.rail-collapsed>*:not(.cbar){display:none!important}'
+          +'.cfs-rail .hsc-row>*:not(.wfKeep){display:none!important}'    // fullscreen: trim the overlay to the DRAWING-relevant controls only
+          +'.cfs-rail .hsc-legend{display:none!important}';
         document.head.appendChild(st); }
       function refit(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); }
       var railCollapsedH=34;   // height of the thin collapsed strip; the chart is offset by THIS only
