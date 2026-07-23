@@ -3,7 +3,11 @@
 > **Lifecycle: TRANSIENT** — retire when: M6 ships and its landing record folds into
 > `docs/redesign-coordination.md` §5; then `git rm`. Fold into: `docs/redesign-coordination.md`.
 
-**Status: SPEC v1.0 — no code. Built only on explicit owner go, after the Codex review loop.**
+**Status: SPEC v1.1 — no code. Built only on explicit owner go.** Codex pre-build review:
+`VERDICT: APPROVE-WITH-CHANGES` — 2 BLOCKING accepted and fixed in this revision (the
+empty-state contract enforced at the COMPONENT level across all v3 empties; the migration
+inventory corrected) + 2 ADVISORY folded (structural tour-ban checks; the "track" persona exit
+verified). Dispositions: `docs/redesign-coordination.md` §2.
 Inputs: Part II §E as RATIFIED — the evidence there is one-sided (NN/g n=70: upfront tours made
 apps feel HARDER; skippers rated them easier) — so Part I's original "coach-mark journey"
 was already revised to: **one one-shot nudge · contextual pull-help · teaching empty states ·
@@ -26,14 +30,21 @@ M4's hub already carry steps 1–2 and 4–5); M6 adds the "learn" trigger and t
    position on every v3 page (the shell top bar, before Skin/Theme), linking
    `/dash/reading-guide`. Same label, same slot, site-wide — position consistency IS the
    feature (NN/g: help must be dismissible and retrievable later, in a standing place).
-3. **TEACHING EMPTY STATES (contract, not copy).** A shared `C.empty(message, href, label)`
-   component: every v3 empty state must explain WHY it's empty and offer ONE next action.
-   Migrate the existing v3 empty states (dock channels · hub sections · Today tiles warm-up ·
-   miss page) to it. Test: every `pv3-dock-empty` in v3 output carries either a link or a
-   why-clause — a bare "no data" becomes a build failure.
+3. **TEACHING EMPTY STATES (contract, not copy — Codex B1/B2 form).** A shared
+   `C.empty(why, href, label)` component that REQUIRES a why-clause AND exactly one action
+   (both mandatory arguments — the component itself enforces the invariant; a bare "no data"
+   cannot be constructed). Migration inventory (corrected): `news_dock._empty` (all channels) ·
+   the hub's real section-empty returns + the miss page + the context-rail "No context data
+   yet" · Today's warm-up + what-changed empties · the chart section's no-tape empties
+   (`stock_chart_v3`). NOT migrated: hub `_collapsed` (a lazy closed-section renderer with an
+   "Open section" action — not an empty state). Test: source-level — every `C.empty(` call
+   site passes non-empty why + href + label; render-level — no legacy bare-empty markup
+   remains in v3 output.
 4. **PER-PERSONA EXITS (verification only, no new UI).** The §E exits already exist (newcomer →
-   reading-guide, analyst → Proof links, skeptic → validation record on every teach card);
-   M6's test file asserts they are reachable from BOTH Today and the hub in ≤1 click.
+   reading-guide, analyst → Proof links, skeptic → validation record on every teach card,
+   **tracker → the Tracker destination in the fixed bar** — Codex A4); M6's test file asserts
+   all FOUR are reachable from BOTH Today and the hub in ≤1 click (the destination bar
+   satisfies the track exit; asserted, not assumed).
 
 **Non-goals:** NO multi-step tour (banned by the ratified evidence — a test asserts no
 tour markers ever appear) · no Pat changes · no new data · no cut-over.
@@ -47,7 +58,7 @@ tour markers ever appear) · no Pat changes · no new data · no cut-over.
 | `src/web/shell_v3.py` (edit, v3-owned) | the "New here? How to read →" control in the fixed top-bar slot |
 | `src/web/stock_hub_v3.py` (edit, v3-owned) | includes `journey_v3.assets()` + the nudge after the digest |
 | v3 empty-state call sites (edits, all v3-owned) | migrate to `C.empty` (dock channels · hub `_collapsed`/miss · Today warm-up) |
-| `tests/test_v3_journey.py` (NEW) | nudge present on hub + one-shot mechanics in markup · absent from legacy AND from Today (it belongs where chips live) · help control same slot on Today/hub/showcase · every v3 empty state teaches (link or why-clause) · NO tour markers (`data-tour`, `step 1 of`, `Next →`) anywhere in v3 output · per-persona exits reachable ≤1 click from Today + hub |
+| `tests/test_v3_journey.py` (NEW) | nudge present on hub + one-shot mechanics in markup · absent from legacy AND from Today · help control same slot on Today/hub/showcase · the C.empty contract (source-level: every call passes why+href+label; render-level: no bare empties) · **structural tour-ban (Codex A3): no backdrop/dimming element, no focus trap, no body-scroll lock, no multi-step state beyond `pv3nudge=done`, no "next" control** + the string markers (`data-tour`, `step 1 of`, `Next →`) · per-persona exits incl. Tracker reachable ≤1 click from Today + hub |
 
 ## 3. Verification
 
