@@ -2054,6 +2054,26 @@ plain trend filter for this job — measure, don't assume.** India VIX may still
 feature (position sizing / mean-reversion timing), not as a de-risk overlay — a separate test. (AMFI NAVAll
 reachable = fund NAVs only; stock-level MF flow needs AMC-portfolio parsing — a real build, not a quick pull.)
 
+### Study 2026-07-23 — OPTIONS-IMPLIED PHASE 0: PCR selects (weak, both halves); other OI signals fail — proceed CAUTIOUSLY
+
+Phase 0 of `docs/options-implied-scope.md` — event-study gate on the OI signals ALREADY on the box
+(`fno_oi_signals`, no new data), `research/explosive_moves/fno_oi_phase0.py`. Cross-sectional quintiles
+weekly, 22d forward excess vs Nifty-500, Cliff's δ (top-Q vs bottom-Q), both halves. Window 2024-07→2026-07
+(**~2yr, 102 weeks — low power**).
+
+**RESULT — 1 of 4 selects: PCR.** High put-call-ratio stocks (top-Q) fwd excess **+0.74%/mo** vs bot-Q −0.02%,
+**δ +0.061, and POSITIVE in BOTH halves (+0.033 / +0.096)** — a CONTRARIAN signal (heavy put positioning →
+forward out-performance), more half-robust than institutional flow was. The other three FAIL: max-pain
+distance (δ −0.03, halves flip +0.24/−0.04), basis (δ +0.12 but halves flip −0.11/+0.13), futures OI change
+(δ ≈0). Gate verdict: PROCEED.
+
+**HONEST CAVEATS (do not over-read):** δ +0.06 is WEAK — same order as the institutional-flow signal (+0.07)
+that passed selection but DIED on fundability; the 2-year window has low power (each half ~1yr; δ_h1 barely
+clears +0.03); and this is SELECTION, not a net book. **NEXT (recommended, cheap, data-on-box): test whether
+PCR is a fundable NET book (quintile long, monthly, net of cost) BEFORE committing the multi-day IV build
+(Phase 1).** Selection ≠ fundability (the flow lesson). If PCR survives cost → the IV build is justified; if
+it dies like flow → the OI dimension isn't tradeable and we save 2-3 sessions. Forward-test-only regardless.
+
 ### Study 2026-07-23 — INSTITUTIONAL FLOW: the FIRST orthogonal-data signal is REAL but weak/relative — long-short, not a fundable long-only book (REJECTED)
 
 The first study to mine OWNERSHIP not price. Data ALREADY on the box: `research.db.shareholding_history` —
