@@ -86,14 +86,19 @@ def test_filings_feed_is_balanced_across_sources_and_deduped():
               "signal_class TEXT,promoter_group_flag INT)")
     c.execute("CREATE TABLE sast_pledge_events(symbol TEXT,broadcast_dt TEXT,event_type TEXT,event_pct REAL)")
     c.execute("CREATE TABLE sast_reg29_events(symbol TEXT,broadcast_dt TEXT,acq_sale TEXT,promoter_flag INT)")
-    c.execute("INSERT INTO insider_events VALUES('INFY',date('now'),'BUY','conviction',1)")
+    c.execute("INSERT INTO insider_events VALUES('INFY',date('now'),'OPEN_MARKET_BUY','conviction',1)")
     c.execute("INSERT INTO sast_pledge_events VALUES('TATAPOWER',date('now'),'released',1.5)")
+    # administrative NOISE that must never reach the card (the bulk of the real table)
+    c.execute("INSERT INTO insider_events VALUES('NOISECO',date('now'),'ESOP','plumbing',0)")
+    c.execute("INSERT INTO insider_events VALUES('JUNKCO',date('now'),'UNKNOWN','ignore',1)")
     for i in range(20):                                   # a flood of NEWER stake events
         c.execute("INSERT INTO sast_reg29_events VALUES(?,datetime('now'),'acquired',0)", (f"SYM{i}",))
     rows = reads.filings_recent(c, days=7, limit=12)
     details = " | ".join(r["detail"] for r in rows)
+    syms = {r["symbol"] for r in rows}
     assert "Promoter buy" in details, ("insider filings must survive a stake-disclosure flood", details)
     assert "Pledge released" in details, ("pledge filings must survive too", details)
+    assert "NOISECO" not in syms and "JUNKCO" not in syms, ("plumbing/ignore noise must be filtered", syms)
     # near-duplicates (same symbol + same event line) collapse
     c.execute("INSERT INTO insider_events VALUES('INFY',date('now'),'BUY','conviction',1)")
     again = reads.filings_recent(c, days=7, limit=12)

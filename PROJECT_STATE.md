@@ -2237,8 +2237,14 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   REAL data on the VPS (conviction ASTRAMICRO/FLUOROCHEM; filings VIJIFIN/AFCONS; 0 demo symbols), but
   the filings feed was **12/12 stake events** — SAST Reg-29 fires far more often than insider trades
   (281 vs 158 in 21d, to-the-minute timestamps), so a pure newest-first merge **buried every insider
-  buy**. Fixed: per-source quotas into the candidate pool before the merge + near-duplicate collapse
-  (`filings_recent`), gated by `test_filings_feed_is_balanced_across_sources_and_deduped`.
+  buy**. Fixed: sources are **round-robin interleaved** (immune to the timestamp-granularity skew —
+  `disclosure_dt` is date-only while SAST carries to-the-minute, so same-day insider rows sorted LAST)
+  + near-duplicate collapse. **Second defect found in the same pass:** the real `signal_class`
+  vocabulary is conviction 3022 · **plumbing 3004** · sell_other 1637 · caution 891 · buy_other 588 ·
+  pledge_risk 468 · **ignore 390** — `plumbing` (ESOP/gift/inter-se/allotment) and `ignore` (UNKNOWN)
+  are administrative NOISE and were what the card actually surfaced (a `PATINTLOG UNKNOWN/ignore` row).
+  Now filtered at the query, with the real vocabulary mapped to the signed dot. Gated by
+  `test_filings_feed_is_balanced_across_sources_and_deduped` (flood + noise + dedupe).
 
 ### Session 214 — 2026-07-23 — EMA-CROSSOVER FAMILY carried to a VERDICT: both crossover strategies FAIL (momentum = par/beta, reversal = dead); the only fundable output is a SEPARATE low-vol factor (quarterly+hysteresis, scales to ~₹500cr); `ema_crossover_forward.py` forward test ARMED + a quarterly VPS→Telegram checkpoint LIVE
 (Renumbered S210→S214 on push contact — origin held 210–213.) The 16BD momentum-band+RSI lane S209 flagged as a parallel sibling — carried to a full verdict. All research ran on the VPS (`.venv-research`; the laptop has only synthetic fixtures). Reconciled by cherry-picking ONLY my 15 disjoint commits onto origin/main (the chart/wolfe local commits left untouched for their owner — no cross-absorption).

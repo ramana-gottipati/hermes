@@ -351,12 +351,20 @@ def conviction_now(limit: int = 6) -> list:
         return []
 
 
+# The REAL insider vocabulary (box-verified 2026-07-23). `plumbing` (ESOP/gift/inter-se/allotment,
+# ~3.0k rows) and `ignore` (UNKNOWN, ~390) are administrative NOISE — they must never crowd the card;
+# the signal lives in conviction/caution/buy_other/sell_other/pledge_risk/pledge_relief.
+_INSIDER_NOISE = ("ignore", "plumbing")
+_INSIDER_POS = ("conviction", "buy_other", "pledge_relief")
+_INSIDER_WARN = ("caution", "sell_other", "pledge_risk")
+
+
 def _insider_ev(r: dict) -> dict:
-    tc = (r.get("txn_class") or "").upper()
+    tc = (r.get("txn_class") or "").upper()          # OPEN_MARKET_BUY | OPEN_MARKET_SELL | ...
     sc = (r.get("signal_class") or "").lower()
     who = "Promoter" if r.get("promoter_group_flag") else "Insider"
     verb = "buy" if ("BUY" in tc or "ACQ" in tc) else ("sell" if ("SELL" in tc or "DISP" in tc) else "trade")
-    cls = "pos" if sc == "conviction" else ("warn" if sc in ("caution", "pledge") else "")
+    cls = "pos" if sc in _INSIDER_POS else ("warn" if sc in _INSIDER_WARN else "")
     return {"symbol": r.get("symbol"), "detail": f"{who} {verb}", "date": r.get("disclosure_dt"), "cls": cls}
 
 
@@ -384,33 +392,42 @@ def filings_recent(conn, days: int = 21, limit: int = 12) -> list:
     unified newest-first, each a plain-English descriptive line. [] if the tables are absent/empty
     (the caller falls back to demo). Descriptive only, never a recommendation.
 
-    BALANCED BY SOURCE (box-verified 2026-07-23): stake disclosures fire far more often than insider
-    trades (281 vs 158 in 21 days, and to-the-minute timestamps), so a pure newest-first merge served
-    12/12 stake events and buried every insider buy — the highest-signal filing here. Each source now
-    contributes its own newest `per` rows to the candidate pool before the merge, and near-duplicates
-    (same symbol + same event line) collapse."""
+    BALANCED BY SOURCE, box-verified 2026-07-23. Two real defects this fixes:
+      1. Stake disclosures fire far more often than insider trades (281 vs 158 in 21d) AND carry
+         to-the-minute timestamps while `disclosure_dt` is date-only — so a newest-first merge served
+         12/12 stake events and buried every insider buy. Sources are now ROUND-ROBIN interleaved
+         (each internally newest-first), which is immune to that timestamp-granularity skew.
+      2. `signal_class` 'plumbing'/'ignore' (ESOP, gifts, inter-se, UNKNOWN — the bulk of the table)
+         is administrative noise; it is filtered out so the card carries actual signal.
+    Near-duplicates (same symbol + same event line) collapse. Descriptive only."""
     per = max(4, int(limit) // 2)
     win = (f"-{int(days)} day", per)
-    out = []
+    groups = []
     if _has(conn, "insider_events"):
-        out += [_insider_ev(r) for r in _rows(
+        qs = ",".join("?" * len(_INSIDER_NOISE))
+        groups.append([_insider_ev(r) for r in _rows(
             conn, "SELECT symbol, disclosure_dt, txn_class, signal_class, promoter_group_flag FROM insider_events "
-                  "WHERE disclosure_dt >= date('now', ?) ORDER BY disclosure_dt DESC LIMIT ?", win)]
+                  f"WHERE disclosure_dt >= date('now', ?) AND COALESCE(signal_class,'') NOT IN ({qs}) "
+                  "ORDER BY disclosure_dt DESC LIMIT ?",
+            (f"-{int(days)} day", *_INSIDER_NOISE, per))])
     if _has(conn, "sast_pledge_events"):
-        out += [_pledge_ev(r) for r in _rows(
+        groups.append([_pledge_ev(r) for r in _rows(
             conn, "SELECT symbol, broadcast_dt, event_type, event_pct FROM sast_pledge_events "
-                  "WHERE broadcast_dt >= date('now', ?) ORDER BY broadcast_dt DESC LIMIT ?", win)]
+                  "WHERE broadcast_dt >= date('now', ?) ORDER BY broadcast_dt DESC LIMIT ?", win)])
     if _has(conn, "sast_reg29_events"):
-        out += [_reg29_ev(r) for r in _rows(
+        groups.append([_reg29_ev(r) for r in _rows(
             conn, "SELECT symbol, broadcast_dt, acq_sale, promoter_flag FROM sast_reg29_events "
-                  "WHERE broadcast_dt >= date('now', ?) ORDER BY broadcast_dt DESC LIMIT ?", win)]
-    out = [e for e in out if e.get("symbol")]
-    out.sort(key=lambda x: x.get("date") or "", reverse=True)
-    seen, deduped = set(), []
-    for e in out:
-        key = (e.get("symbol"), e.get("detail"))
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append(e)
-    return deduped[:limit]
+                  "WHERE broadcast_dt >= date('now', ?) ORDER BY broadcast_dt DESC LIMIT ?", win)])
+    groups = [[e for e in g if e.get("symbol")] for g in groups]
+    seen, out = set(), []
+    for i in range(per):                       # round-robin: one source can never crowd out another
+        for g in groups:
+            if i >= len(g):
+                continue
+            e = g[i]
+            key = (e.get("symbol"), e.get("detail"))
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(e)
+    return out[:limit]
