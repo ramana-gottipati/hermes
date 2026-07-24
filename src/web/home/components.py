@@ -732,6 +732,58 @@ def conviction_block(rows) -> str:
                     "accumulating now, near a buyable entry, with quality as a ✓. Described from the data, never a recommendation."))
 
 
+# ── sector canonicalisation: unify the NSE (primary_sector) + Screener (screener_industry)
+#    taxonomies into ONE coarse bucket set, so 'IT' and 'Information Technology' — or 'Bank',
+#    'PSU Bank' and 'Financial Services' — merge into a single heatmap block instead of duplicates.
+_SECTOR_MAP = {
+    "bank": "Financials", "psu bank": "Financials", "private bank": "Financials",
+    "financial services": "Financials", "fin services": "Financials", "financial services ex-bank": "Financials",
+    "it": "IT", "information technology": "IT",
+    "auto": "Auto",
+    "metal": "Metals & Mining", "commodities": "Metals & Mining", "materials": "Metals & Mining",
+    "chemicals": "Chemicals",
+    "realty": "Realty", "real estate": "Realty",
+    "media": "Media",
+    "fmcg": "FMCG & Consumer", "consumer durables": "FMCG & Consumer",
+    "consumer discretionary": "FMCG & Consumer", "consumer staples": "FMCG & Consumer", "consumer": "FMCG & Consumer",
+    "energy": "Energy", "oil & gas": "Energy", "utilities": "Energy",
+    "healthcare": "Pharma & Health", "pharma": "Pharma & Health", "health care": "Pharma & Health",
+    "infrastructure": "Industrials", "india defence": "Industrials", "industrials": "Industrials",
+    "telecommunication": "Telecom", "communication services": "Telecom", "telecom": "Telecom",
+    "services": "Services",
+    "midcap select": "Other",                                # a size index, not a sector
+}
+# Substring fallback — SAFE keywords only (never a bare 'it': 'capital' contains 'it').
+_SECTOR_KW = (
+    ("Financials", ("bank", "financ", "insur", "nbfc", "capital market")),
+    ("IT", ("software", "infotech", "info tech")),
+    ("Pharma & Health", ("pharma", "health", "hospital", "medic", "life scien")),
+    ("Energy", ("oil", "gas", "power", "energy", "coal", "petro", "utilit")),
+    ("Auto", ("auto", "vehicle", "tyre")),
+    ("Metals & Mining", ("metal", "mining", "steel", "commodit", "material")),
+    ("Chemicals", ("chemical", "fertil")),
+    ("FMCG & Consumer", ("consumer", "fmcg", "retail", "food", "beverage", "textile", "apparel")),
+    ("Industrials", ("industri", "infra", "capital goods", "defence", "cement", "construct",
+                     "engineering", "logist", "transport", "aviation", "airport")),
+    ("Telecom", ("telecom", "communicat")),
+    ("Realty", ("realty", "real estate")),
+    ("Media", ("media", "entertain")),
+    ("Services", ("service",)),
+)
+
+
+def _canon_sector(label) -> str:
+    s = (label or "").lower().replace("nifty ", "").replace(" index", "").strip()
+    if not s:
+        return "Other"
+    if s in _SECTOR_MAP:
+        return _SECTOR_MAP[s]
+    for name, keys in _SECTOR_KW:
+        if any(k in s for k in keys):
+            return name
+    return "Other"
+
+
 # ── the market heatmap: a server-computed SQUARIFIED treemap (Bruls et al.) ───────
 # Computed in Python (no client layout lib, CSP-safe); tiles are absolute-positioned by percentage,
 # coloured by day-move via color-mix on the signed --up/--down tokens (theme-aware). Geometry is
@@ -821,7 +873,7 @@ def heatmap(rows) -> str:
         return empty("Market map data hasn't landed yet.")
     secs = {}
     for r in rows:
-        secs.setdefault(r.get("sector") or "Other", []).append(r)
+        secs.setdefault(_canon_sector(r.get("sector")), []).append(r)
     sec_list = sorted(secs.items(), key=lambda kv: sum(x["turnover"] for x in kv[1]), reverse=True)
     area = _HM_W * _HM_H
     totals = [sum(x["turnover"] for x in v) for _, v in sec_list]
@@ -837,9 +889,12 @@ def heatmap(rows) -> str:
                              rect["x"], rect["y"], rect["dx"], rect["dy"])
         for stk, sr in zip(stocks, st_rects):
             tiles += _hm_tile(stk, sr)
+    n_other = len(secs.get("Other", []))
+    other_note = (" · " + str(n_other) + " unclassified") if n_other else ""
     legend = ('<div class="g-hm-leg"><span><i class="dn"></i> down</span>'
               '<span><i class="up"></i> up</span><span>tile size = turnover · '
-              + str(len(rows)) + " most-traded · click any tile</span></div>")
+              + str(len(rows)) + " most-traded · sectors: NSE + Screener" + other_note
+              + " · click any tile</span></div>")
     return '<div class="g-hm">' + tiles + "</div>" + legend
 
 

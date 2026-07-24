@@ -70,21 +70,29 @@ def market_map(conn, limit: int = 140) -> list:
     if not d:
         return []
     sd = _latest_date(conn, "stock_signals", "trade_date")
+    # Sector label priority: the canonical NSE narrowest-sectoral-index `primary_sector` FIRST; then,
+    # for the ~1/3 of liquid names in no NSE sectoral index, fall back to the existing (already
+    # harvested) `company_about.screener_industry`. Screener-derived → disclosed on the surface
+    # (the heatmap legend) and display-only (grouping, never scoring). The join is CONDITIONAL so a
+    # DB without company_about can't break the map. components._canon_sector unifies the two taxonomies.
+    has_about = _has(conn, "company_about")
+    sec_expr = "COALESCE(s.primary_sector, a.screener_industry)" if has_about else "s.primary_sector"
+    join_about = "LEFT JOIN company_about a ON a.symbol=b.symbol" if has_about else ""
     rows = _rows(conn,
-                 "SELECT b.symbol, b.close, b.prev_close, b.value, s.primary_sector AS sector "
-                 "FROM bhavcopy_rows b LEFT JOIN stock_signals s "
-                 "  ON s.symbol=b.symbol AND s.trade_date=? "
-                 "WHERE b.trade_date=? AND b.series IN ('EQ','BE') "
-                 "  AND b.value IS NOT NULL AND b.value>0 AND b.prev_close>0 "
-                 "ORDER BY b.value DESC LIMIT ?", (sd, d, int(limit)))
+                 f"SELECT b.symbol, b.close, b.prev_close, b.value, {sec_expr} AS sector "
+                 f"FROM bhavcopy_rows b LEFT JOIN stock_signals s ON s.symbol=b.symbol AND s.trade_date=? "
+                 f"{join_about} "
+                 f"WHERE b.trade_date=? AND b.series IN ('EQ','BE') "
+                 f"  AND b.value IS NOT NULL AND b.value>0 AND b.prev_close>0 "
+                 f"ORDER BY b.value DESC LIMIT ?", (sd, d, int(limit)))
     out = []
     for r in rows:
         try:
             pct = (r["close"] - r["prev_close"]) / r["prev_close"] * 100.0
         except (TypeError, ZeroDivisionError):
             continue
-        sector = (r.get("sector") or "").replace("Nifty ", "").strip() or "Other"
-        out.append({"symbol": r["symbol"], "pct": pct, "turnover": float(r["value"] or 0.0), "sector": sector})
+        out.append({"symbol": r["symbol"], "pct": pct, "turnover": float(r["value"] or 0.0),
+                    "sector": r.get("sector")})              # raw label — components._canon_sector buckets it
     return out
 
 

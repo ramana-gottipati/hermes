@@ -155,6 +155,22 @@ def test_today_additions_escape_untrusted():
         assert "<script>" not in h and "<i>" not in h and "<b>x" not in h
 
 
+def test_canon_sector_unifies_nse_and_screener_taxonomies():
+    """The heatmap groups by a canonical bucket so the NSE ('Nifty IT', 'Nifty Bank') and Screener
+    ('Information Technology', 'Financial Services') taxonomies merge into one block, not duplicates.
+    Also guards the greedy-substring trap: 'Capital Goods' must NOT become IT (it contains 'it')."""
+    m = {
+        "Nifty Bank": "Financials", "Nifty PSU Bank": "Financials", "Financial Services": "Financials",
+        "Nifty IT": "IT", "Information Technology": "IT",
+        "Nifty Healthcare Index": "Pharma & Health", "Consumer Discretionary": "FMCG & Consumer",
+        "Industrials": "Industrials", "Capital Goods": "Industrials", "Telecommunication": "Telecom",
+        "Nifty Oil & Gas": "Energy", "Nifty Midcap Select": "Other",
+    }
+    for raw, want in m.items():
+        assert C._canon_sector(raw) == want, (raw, C._canon_sector(raw), want)
+    assert C._canon_sector(None) == "Other" and C._canon_sector("") == "Other"
+
+
 def test_heatmap_squarify_tiles_the_box_and_renders_safely():
     """The treemap is server-computed and can't be pixel-verified this session, so pin its GEOMETRY:
     squarify must tile the whole box (areas sum to dx*dy) with every rect inside the bounds, and the

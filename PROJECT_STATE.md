@@ -2278,6 +2278,16 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   `heatmap` + `_squarify`/`_hm_layout`/`_hm_tile`. **Geometry is GATE-TESTED** (can't pixel-verify this
   session): `test_heatmap_squarify_tiles_the_box_and_renders_safely` + a 30-stock integration check
   (0 out-of-bounds, 100% coverage, symbols escaped incl. `M&M`). Defensive + demo/sample-honest.
+- **Heatmap sector enrichment (owner ask):** ~1/3 of top-liquid names had no `primary_sector` (only
+  NSE-sectoral-index members get one), landing in a big "Other" block. Measured the only DB fallback:
+  `security_master`/`fundamentals` have NO sector; `company_about.screener_industry` fills +26 of the
+  49 → ~84% covered. Enriched `market_map` = `COALESCE(primary_sector, screener_industry)` (CONDITIONAL
+  join — a DB without company_about can't break it) + `components._canon_sector` unifies the two
+  taxonomies (NSE 'Nifty IT'/'Bank' + Screener 'Information Technology'/'Financial Services') into ONE
+  canonical bucket set so blocks merge not duplicate (greedy-'it' trap gate-tested). 🔴 **screener_industry
+  is Screener-derived → guardrail #8 tension** (don't extend the Screener dependency): used display-only
+  (grouping, never scoring) + **disclosed on the surface** (legend "sectors: NSE + Screener · N
+  unclassified"), flagged to the owner for veto. Gate `test_canon_sector_unifies_nse_and_screener_taxonomies`.
 - Also this session: **India VIX** neutral deck tile (real feed, `index_signals`), **conviction "N
   cleared all 3 pillars today"** legibility line (gate stays strict), and the four box-verified data
   fixes (mixed-case index names · filings noise/balance · watchlist two-tier). Suite 837 pass (only
