@@ -1,9 +1,17 @@
 # Options-Implied Signals — Scoped Effort
 
-> **Lifecycle: SCOPE (2026-07-23).** A dedicated, phased plan to test the options-implied dimension — the
-> last untested orthogonal data axis after the flow thread closed (ledger 2026-07-23). Grounded in
-> *verified* data reality, NOT greenfield. Execute in phases with go/no-go gates. Retire this banner when
-> Phase 0 lands (fold the result into `docs/strategy-ledger.md`); delete the doc if Phase 0 kills it.
+> **🛑 STATUS 2026-07-23 — PHASE 0/1.5/1.6 RAN → STOPPED. The OI-positioning half is PRICED.** PCR was the
+> only OI signal to select (δ +0.06, Phase 0), but it is NOT a fundable book: monthly net R/V 0.28
+> (turnover 815%/yr), and SLOWING it made it worse (0.11–0.20) — its signal decays fast (Phase 1.5/1.6,
+> ledger "Study 2026-07-23 — OPTIONS-IMPLIED PHASE 0"). **Phase 1 (the IV/skew build) is NOT justified on
+> current evidence** (2yr window + base rate: crossover/regime/flow/OI-positioning = 3+ signals, 0 fundable).
+> Phases 1 (IV back-compute) + 0.5 (pre-2024 backfill) below remain a VALID design for a FUTURE dedicated
+> effort ONLY if explicitly prioritized — IV is a distinct (slower) signal that this OI-positioning result
+> does not strictly condemn, but it is a 2-3-session bet against a discouraging base rate. Do not auto-start.
+>
+> **Lifecycle: SCOPE — PARKED (2026-07-23).** A dedicated, phased plan to test the options-implied dimension.
+> Grounded in *verified* data reality, NOT greenfield. Retire/delete only when a future session decides IV is
+> or isn't worth building; the Phase-0/1.5/1.6 results are folded into `docs/strategy-ledger.md`.
 
 ## Why this exists
 The fundable product is the standalone low-vol book. Every other orthogonal signal tested (regime, all 3

@@ -2086,6 +2086,17 @@ this does NOT directly condemn the IV build; but the base rate is discouraging. 
 test a SLOWED PCR (quarterly / smoothed) — if even that fails, the OI-positioning dimension is priced and IV
 won't differ → stop; if it clears, real finding + de-risks the IV build. [[failure-models-ledger]].
 
+**SLOWED-PCR (Phase 1.6, `fno_oi_pcr_slow.py`) — slowing did NOT rescue it; it made it WORSE. OI dimension
+PRICED → STOP.** Net R/V by variant: raw-monthly **0.28** (best) · raw-quarterly 0.11 · smoothed-monthly
+0.12 · smoothed-quarterly 0.20 — turnover cut 815%→275% but EVERY slow variant is BELOW the original
+monthly; none near 0.89. **Why: cutting turnover cut the COST but cut the SIGNAL more — PCR's predictive
+content decays fast, so the fast churn WAS partly the signal; there is no slow, tradeable version.**
+**DECISION: STOP the options-implied effort.** The OI-positioning dimension (PCR) is priced; the multi-day
+IV build is NOT justified on current evidence (2yr window + base rate: crossover/regime/flow/OI-positioning
+= 3+ orthogonal signals explored, ZERO fundable). IV remains SCOPED-but-unbuilt (`docs/options-implied-scope.md`)
+for a future dedicated effort only if explicitly prioritized. **THE FUNDABLE PRODUCT REMAINS THE STANDALONE
+LOW-VOL BOOK** (forward test armed, `ema_crossover_forward` twin cadence).
+
 ### Study 2026-07-23 — INSTITUTIONAL FLOW: the FIRST orthogonal-data signal is REAL but weak/relative — long-short, not a fundable long-only book (REJECTED)
 
 The first study to mine OWNERSHIP not price. Data ALREADY on the box: `research.db.shareholding_history` —
