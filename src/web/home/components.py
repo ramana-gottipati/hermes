@@ -125,6 +125,25 @@ def pro_more(inner_html: str) -> str:
     return '<div class="g-pro-more pro-more">' + inner_html + "</div>"
 
 
+def pro_teaser(body_html: str, cta_sub: str = "", advertise: bool = False) -> str:
+    """Pro-Ads locked teaser (owner-confirmed 2026-07-24) — the THIRD tier state, beside `.free-only`
+    (Free-only guides) and `.pro-more` (Pro-only depth). Shows a REAL Pro block to FREE users, BLURRED
+    + non-interactive, under an 'Unlock with Pro' CTA, so they see what they're missing. Two modes:
+      • advertise=False → the SAME element renders clean (un-blurred, no CTA) in Pro. Use when the
+        block itself is the Pro feature (e.g. the FII/DII deep panel).
+      • advertise=True  → a pure Free-tier ad (adds `.free-only`, so it VANISHES in Pro because the
+        real block lives elsewhere in Pro, e.g. the pulse reference chips).
+    Free stays complete — only the premium DEPTH is teased, never the core number. Reduced-motion
+    safe (static blur, no transitions/animation)."""
+    cls = "g-proad free-only" if advertise else "g-proad"
+    # The CTA switches to the Pro tier (bound in shell _TIER_JS) — in this preview 'Pro' is the toggle;
+    # a real launch would route to a subscription flow. A button so it's keyboard-reachable.
+    lock = ('<div class="g-proad-lock"><button type="button" class="g-proad-cta">⚡ Unlock with Pro</button>'
+            + ('<span class="g-proad-sub">' + esc(cta_sub) + "</span>" if cta_sub else "") + "</div>")
+    return ('<div class="' + cls + '"><div class="g-proad-body" aria-hidden="true">'
+            + body_html + "</div>" + lock + "</div>")
+
+
 def _ord(n) -> str:
     """1→1st, 2→2nd, 3→3rd, 11→11th, 82→82nd — for percentile phrasing."""
     try:
@@ -138,7 +157,7 @@ def _ord(n) -> str:
     return f"{i}{suf}"
 
 
-def ref_chip(ref: dict, unit: str = "", dp: int = 0, trend: str = None) -> str:
+def ref_chip(ref: dict, unit: str = "", dp: int = 0, trend: str = None, bare: bool = False) -> str:
     """THE reference chip — one consistent grammar on every Free number (owner's binding principle:
     a number in isolation is useless; the reference is the premium). Pro-only (carries `.pro-more`,
     so it is hidden in Free and revealed in Pro). Renders a compact two-line micro-block:
@@ -167,7 +186,8 @@ def ref_chip(ref: dict, unit: str = "", dp: int = 0, trend: str = None) -> str:
     n = r.get("n")
     ttl = "%s percentile vs its own %s history — descriptive context, not a signal" % (
         _ord(p), (f"{int(n):,}-session" if n else "full"))
-    return ('<div class="g-refchip pro-more" title="' + esc(ttl) + '">'
+    cls = "g-refchip" if bare else "g-refchip pro-more"   # bare = for embedding inside a Pro-Ad teaser
+    return ('<div class="' + cls + '" title="' + esc(ttl) + '">'
             '<div class="g-rc-1"><span class="g-rc-p' + ext + '">' + _ord(p) + ' pct</span>'
             '<span class="g-rc-b">' + esc(band) + '</span></div>'
             '<div class="g-rc-2">' + typ + sep + tr + "</div></div>")
@@ -311,10 +331,13 @@ def _flows_deep_html(deep) -> str:
                   + "</div>")
     if not parts:
         return ""
-    return pro_more('<div class="g-fd">' + parts + "</div>"
-                    + '<p class="g-fd-note">Per participant — FII vs DII, gross flows, and the run + '
-                      "5-day pressure behind today's net. Only cash-segment FII/FPI and DII are reported "
-                      "to the exchange; no derivatives split exists, so none is shown.</p>")
+    # Pro-Ads (owner's named example): in Free this deep block is a BLURRED teaser + 'Unlock with Pro'
+    # CTA (Free still shows the complete net bars above); in Pro it renders clean.
+    return pro_teaser('<div class="g-fd">' + parts + "</div>"
+                      + '<p class="g-fd-note">Per participant — FII vs DII, gross flows, and the run + '
+                        "5-day pressure behind today's net. Only cash-segment FII/FPI and DII are reported "
+                        "to the exchange; no derivatives split exists, so none is shown.</p>",
+                      cta_sub="Streak · 5-day cumulative · per-participant depth")
 
 
 def spark(series: list, cls: str = "accent") -> str:
@@ -667,10 +690,20 @@ def pulse_deck(idx, mood, mood_pct, breadth, series, internals, highs, sectors, 
         exps += _exp("e-disp", "Dispersion — how spread-out returns are", disp, "",
                      "Higher dispersion means stocks are moving quite differently from one another — a "
                      "stock-pickers' market where selection matters more than index direction. Low dispersion: everything moves together.")
+    # Pro-Ads: advertise the reference layer to Free users with the REAL breadth chip, blurred, under
+    # a CTA (vanishes in Pro, where the real per-tile chips show). Free still sees every number.
+    ad = ""
+    br = _d(refs.get("breadth"))
+    if br.get("pctile") is not None:
+        tval = br.get("today")
+        q = (f"Is {float(tval):.0f}% breadth normal? " if tval is not None else "")
+        ad = pro_teaser(ref_chip(refs.get("breadth"), unit="%", trend=_trend_of(padv), bare=True),
+                        cta_sub=q + "Pro ranks every reading vs its 22-year history.",
+                        advertise=True)
     return ('<div class="g-pl-wrap">' + head
             + learn("Six instruments read the market's internals — how broad, how convicted, how accumulated the "
                     "move was, not just where the index closed. Click any tile for its trend and a plain-English read.")
-            + '<div class="g-deck">' + tiles + exps + "</div></div>")
+            + ad + '<div class="g-deck">' + tiles + exps + "</div></div>")
 
 
 # ── the FEATURED card: your pick leads; watchlist · portfolio · index focus ───────
@@ -1723,6 +1756,20 @@ def css() -> str:
 :root[data-ui-g] .g-rc-b{font-size:10.5px;color:var(--ink-3)}
 :root[data-ui-g] .g-rc-2{margin-top:2px;font-size:10.5px;color:var(--ink-3);display:flex;gap:1px;flex-wrap:wrap}
 :root[data-ui-g] .g-rc-tr{color:var(--ink-2)}
+/* Pro-Ads — a locked teaser (blurred real Pro block + 'Unlock with Pro' CTA) shown to FREE users;
+   clean in Pro (advertise=false) or gone in Pro (advertise=true / .free-only). Static blur (RM-safe). */
+:root[data-ui-g] .g-proad{position:relative;overflow:hidden;border-radius:11px;margin-top:11px}
+:root[data-ui-g][data-tier="free"] .g-proad .g-proad-body{filter:blur(5px);opacity:.5;pointer-events:none;user-select:none}
+:root[data-ui-g] .g-proad-lock{display:none}
+:root[data-ui-g][data-tier="free"] .g-proad-lock{display:flex;position:absolute;inset:0;flex-direction:column;
+  align-items:center;justify-content:center;gap:5px;text-align:center;padding:10px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--bg-0) 26%,transparent),color-mix(in srgb,var(--bg-0) 60%,transparent))}
+:root[data-ui-g] .g-proad-cta{font:800 12px var(--font);letter-spacing:.02em;color:var(--on-accent);border:0;cursor:pointer;
+  background:linear-gradient(120deg,var(--accent),var(--accent-hi));padding:7px 14px;border-radius:var(--r-pill);
+  box-shadow:0 7px 20px -7px var(--accent)}
+:root[data-ui-g] .g-proad-cta:hover{filter:brightness(1.08)}
+:root[data-ui-g] .g-proad-cta:focus-visible{outline:2px solid var(--on-accent);outline-offset:2px}
+:root[data-ui-g] .g-proad-sub{font-size:10.5px;color:var(--ink-2);max-width:290px;line-height:1.45}
 </style>"""
 
 

@@ -81,6 +81,7 @@ document.addEventListener("DOMContentLoaded",function(){
 var f=document.getElementById("g-tfree"),p=document.getElementById("g-tpro");
 if(f)f.addEventListener("click",function(){set("free");});
 if(p)p.addEventListener("click",function(){set("pro");});
+document.querySelectorAll(".g-proad-cta").forEach(function(b){b.addEventListener("click",function(){set("pro");});});
 set(r.getAttribute("data-tier")||"free");});})();</script>"""
 
 _THEME_JS = """<script>(function(){var r=document.documentElement,k="pvgtheme";

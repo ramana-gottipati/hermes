@@ -2218,6 +2218,26 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Graphite Home — 2026-07-24 — PRO-ADS locked-teaser layer (owner-confirmed) — the third tier state
+Built the Pro-Ads upsell layer after the owner CONFIRMED the locked-teaser reading (blurred Pro block
++ 'Unlock with Pro' CTA to Free users; not a plain benefits list). New `components.pro_teaser` = the
+THIRD tier state beside `.free-only` (Free guides) and `.pro-more` (Pro depth):
+- **Mechanism (`.g-proad`):** in FREE the real Pro block renders BLURRED + non-interactive under an
+  'Unlock with Pro' CTA (static blur = reduced-motion safe; body `aria-hidden`); the CTA is a button
+  wired (shell `_TIER_JS`) to flip to the Pro tier in place. Two modes: `advertise=False` → the SAME
+  element renders CLEAN in Pro (the block IS the feature); `advertise=True` → adds `.free-only` so it
+  VANISHES in Pro (the real block lives elsewhere). **Free stays complete — only premium DEPTH is
+  teased, never the core number.**
+- **Applied to (v1):** (1) the **FII/DII deep block** (owner's named example) — `_flows_deep_html`
+  now `pro_teaser` not `pro_more`, so Free sees a blurred streak/cumulative/per-participant preview +
+  CTA above the complete net bars; (2) a **pulse-deck reference teaser** (`advertise=True`) showing the
+  REAL breadth chip blurred + "Is 74% breadth normal? Pro ranks every reading vs its 22-year history"
+  (uses the live breadth value). `ref_chip` gained a `bare=True` mode (drops `.pro-more`) so a real
+  chip can sit inside a teaser.
+- Additive/isolated (`.g-proad*`), DOM-safe, RM-safe, keyboard-reachable CTA. 82 home gates green.
+  DEFERRED: the CTA flips the preview tier (no subscription/payment flow yet — a real launch routes it
+  to checkout). B3 next-trigger-on-add still deferred.
+
 ### Graphite Home — 2026-07-24 — A3 + owner corrections B1/B2 (watchlist add-date · ADD affordance · portfolio attribution)
 Continued the PRO reference layer + landed the owner's concrete corrections. Additive/isolated,
 gate-passing (82 home tests), deployed writer-safe + box-verified (including a real add→appear→cleanup
