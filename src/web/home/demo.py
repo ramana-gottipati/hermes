@@ -73,6 +73,7 @@ INTERNALS = [
     ]
 ]
 NEW_HIGHS = {"highs": 84, "near": 213}
+VIX = {"close_value": 13.5, "ret_1d_pct": 1.43}          # India VIX — real feed lives in index_signals
 SECTOR_HEAT = [
     {"sector": "Nifty IT", "rs": 1.2}, {"sector": "Nifty Auto", "rs": 0.9},
     {"sector": "Nifty Metal", "rs": 0.6}, {"sector": "Nifty Energy", "rs": 0.3},

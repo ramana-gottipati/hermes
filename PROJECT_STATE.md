@@ -2245,6 +2245,17 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   are administrative NOISE and were what the card actually surfaced (a `PATINTLOG UNKNOWN/ignore` row).
   Now filtered at the query, with the real vocabulary mapped to the signed dot. Gated by
   `test_filings_feed_is_balanced_across_sources_and_deduped` (flood + noise + dedupe).
+  **🔴 THIRD + biggest defect — the real-vs-demo honesty mechanism paid for itself:** the ONE remaining
+  "sample" badge was on **Market pulse**, which traced to `index_signals` storing **MIXED CASE** index
+  names — `'Nifty 50'`/`'Nifty Bank'`/`'Nifty 500'`/`'Nifty Smallcap 250'` but `'NIFTY Midcap 100'`.
+  `index_pulse`'s exact `IN ('NIFTY 50',…)` matched **nothing** (0 rows), so the pulse headline, the
+  ribbon index feed, the index-focus chart AND `mood_inputs`' nifty-above-200-DMA had been running on
+  DEMO since the rebuild — visible only because the zone honestly badged itself. Fixed by matching
+  `UPPER(index_name)` everywhere (immune to the source's inconsistent casing), gated by
+  `test_index_reads_match_index_name_case_insensitively`. **Also corrected an earlier wrong claim of
+  mine:** I had dropped VIX saying "no feed" — **India VIX IS in `index_signals`** (13.5, +1.43); it is
+  now a neutral-toned deck tile (`vix_latest`), never coloured, since a higher VIX is a wider expected
+  move, not good or bad news.
 
 ### Session 214 — 2026-07-23 — EMA-CROSSOVER FAMILY carried to a VERDICT: both crossover strategies FAIL (momentum = par/beta, reversal = dead); the only fundable output is a SEPARATE low-vol factor (quarterly+hysteresis, scales to ~₹500cr); `ema_crossover_forward.py` forward test ARMED + a quarterly VPS→Telegram checkpoint LIVE
 (Renumbered S210→S214 on push contact — origin held 210–213.) The 16BD momentum-band+RSI lane S209 flagged as a parallel sibling — carried to a full verdict. All research ran on the VPS (`.venv-research`; the laptop has only synthetic fixtures). Reconciled by cherry-picking ONLY my 15 disjoint commits onto origin/main (the chart/wolfe local commits left untouched for their owner — no cross-absorption).

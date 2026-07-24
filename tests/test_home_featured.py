@@ -75,6 +75,26 @@ def test_regime_conviction_filings_builders():
     assert "g-empty" in C.filings_block([])
 
 
+def test_index_reads_match_index_name_case_insensitively():
+    """Box-verified defect: index_signals stores MIXED casing — 'Nifty 50' / 'Nifty Bank' / 'Nifty 500'
+    / 'Nifty Smallcap 250' but 'NIFTY Midcap 100'. An exact-match IN(...) returned NOTHING, so the whole
+    Market-pulse zone silently ran on demo (the 'sample' badge is what exposed it)."""
+    import sqlite3
+    from src.web.home import reads
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    c.execute("CREATE TABLE index_signals(index_name TEXT, trade_date TEXT, close_value REAL,"
+              " ret_1d_pct REAL, pct_above_200d_avg REAL)")
+    c.execute("INSERT INTO index_signals VALUES('Nifty 50','2026-07-23',23869.6,-0.53,4.2)")
+    c.execute("INSERT INTO index_signals VALUES('NIFTY Midcap 100','2026-07-23',61685.0,-0.99,1.1)")
+    c.execute("INSERT INTO index_signals VALUES('India VIX','2026-07-23',13.5,1.43,NULL)")
+    names = {r["index_name"] for r in reads.index_pulse(c)}
+    assert {"Nifty 50", "NIFTY Midcap 100"} <= names, ("mixed-case index names must resolve", names)
+    assert len(reads.index_series(c, "NIFTY 50", 10)) == 1     # title-case row found via case-insensitive match
+    assert reads.mood_inputs(c)[1] is True                     # 'Nifty 50' above its 200-DMA resolved
+    assert reads.vix_latest(c).get("close_value") == 13.5      # India VIX IS a real feed
+
+
 def test_filings_feed_is_balanced_across_sources_and_deduped():
     """Box-verified defect: stake disclosures fire far more often than insider trades, so a pure
     newest-first merge buried every insider buy. Each source must survive a flood from another."""

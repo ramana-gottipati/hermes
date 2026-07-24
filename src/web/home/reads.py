@@ -41,7 +41,11 @@ def _latest_date(conn, table: str, col: str) -> Optional[str]:
 _PULSE_NAMES = ("NIFTY 50", "NIFTY BANK", "NIFTY 500", "NIFTY MIDCAP 100", "NIFTY SMALLCAP 250")
 
 
-def index_pulse(conn, names=_PULSE_NAMES, limit: int = 4) -> list:
+def index_pulse(conn, names=_PULSE_NAMES, limit: int = 5) -> list:
+    """CASE-INSENSITIVE on index_name (box-verified 2026-07-23): the table stores mixed casing —
+    'Nifty 50' / 'Nifty Bank' / 'Nifty 500' / 'Nifty Smallcap 250' but 'NIFTY Midcap 100'. An exact
+    IN(...) match silently returned NOTHING, so the whole Market-pulse zone ran on demo (the 'sample'
+    badge is what exposed it). `names` are the UPPER-CASE canonical forms."""
     if not _has(conn, "index_signals"):
         return []
     d = _latest_date(conn, "index_signals", "trade_date")
@@ -50,10 +54,23 @@ def index_pulse(conn, names=_PULSE_NAMES, limit: int = 4) -> list:
     qs = ",".join("?" * len(names))
     return _rows(conn,
                  f"SELECT index_name, close_value, ret_1d_pct, pct_above_200d_avg "
-                 f"FROM index_signals WHERE trade_date=? AND index_name IN ({qs}) "
-                 f"ORDER BY CASE index_name {' '.join(f'WHEN ? THEN {i}' for i in range(len(names)))} "
+                 f"FROM index_signals WHERE trade_date=? AND UPPER(index_name) IN ({qs}) "
+                 f"ORDER BY CASE UPPER(index_name) {' '.join(f'WHEN ? THEN {i}' for i in range(len(names)))} "
                  f"ELSE 99 END LIMIT ?",
                  (d, *names, *names, limit))
+
+
+def vix_latest(conn) -> dict:
+    """India VIX — the expected-swing gauge. It IS carried in index_signals (box-verified); higher
+    means a wider expected move, so it is rendered NEUTRAL (a rising VIX is not 'good'). {} if absent."""
+    if not _has(conn, "index_signals"):
+        return {}
+    d = _latest_date(conn, "index_signals", "trade_date")
+    if not d:
+        return {}
+    rows = _rows(conn, "SELECT close_value, ret_1d_pct FROM index_signals "
+                       "WHERE trade_date=? AND UPPER(index_name)='INDIA VIX'", (d,))
+    return rows[0] if rows else {}
 
 
 def mood_inputs(conn) -> tuple:
@@ -72,7 +89,7 @@ def mood_inputs(conn) -> tuple:
         breadth = None
     try:
         r = conn.execute("SELECT pct_above_200d_avg FROM index_signals "
-                         "WHERE trade_date=? AND index_name='NIFTY 50'", (d,)).fetchone()
+                         "WHERE trade_date=? AND UPPER(index_name)='NIFTY 50'", (d,)).fetchone()
         nifty_up = (r[0] > 0) if r and r[0] is not None else None
     except sqlite3.Error:
         nifty_up = None
@@ -173,7 +190,7 @@ def index_series(conn, name: str = "NIFTY 50", n: int = 30) -> list:
         return []
     try:
         rows = conn.execute(
-            "SELECT close_value FROM index_signals WHERE index_name=? AND close_value IS NOT NULL "
+            "SELECT close_value FROM index_signals WHERE UPPER(index_name)=UPPER(?) AND close_value IS NOT NULL "
             "ORDER BY trade_date DESC LIMIT ?", (name, n)).fetchall()
         return [float(r[0]) for r in rows][::-1]
     except (sqlite3.Error, TypeError, ValueError):

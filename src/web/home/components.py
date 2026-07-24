@@ -447,7 +447,7 @@ def _sector_tile(sectors) -> str:
             '<div class="g-heat">' + chips + "</div></div>")
 
 
-def pulse_deck(idx, mood, mood_pct, breadth, series, internals, highs, sectors) -> str:
+def pulse_deck(idx, mood, mood_pct, breadth, series, internals, highs, sectors, vix=None) -> str:
     """The market in one glance: a headline index + a deck of internals tiles (breadth · delivery
     conviction · accumulation · 52w highs · dispersion · sector heat). Each metric tile opens its
     30-session trend. Every read is bounded; a missing feed just drops its tile."""
@@ -476,6 +476,15 @@ def pulse_deck(idx, mood, mood_pct, breadth, series, internals, highs, sectors) 
                               f"{int(hi.get('near') or 0)} within 2% of high", "e-52w", tone="up")
     if disp and disp[-1] is not None:
         tiles += _deck_cell("Dispersion", f"{float(disp[-1]):.2f}", "stock-pickers' spread", disp, "e-disp", hint="what's this ›")
+    v = _d(vix)
+    if v and v.get("close_value") is not None:
+        chg = v.get("ret_1d_pct")
+        try:
+            sub = ("%s%.1f%% today" % ("+" if float(chg) >= 0 else "−", abs(float(chg)))) if chg is not None else "expected swing"
+        except (TypeError, ValueError):
+            sub = "expected swing"
+        # NEUTRAL by design: a higher VIX is a wider expected move, not a "good" or "bad" reading.
+        tiles += _deck_static("Volatility · India VIX", f"{float(v['close_value']):.1f}", sub, "e-vix")
     tiles += _sector_tile(sectors)
     exps = ""
     if padv:
@@ -494,6 +503,11 @@ def pulse_deck(idx, mood, mood_pct, breadth, series, internals, highs, sectors) 
         exps += _exp("e-52w", "New 52-week highs", None, "up",
                      "Stocks printing a fresh 52-week high today, with the count within 2% of their high — "
                      "expanding new-high leadership. When highs dry up while the index rises, that divergence shows here.")
+    if v and v.get("close_value") is not None:
+        exps += _exp("e-vix", "India VIX — the market's expected swing", None, "",
+                     "The index of expected near-term volatility priced into Nifty options. A higher "
+                     "reading means the market is paying up for a wider move — it says nothing about "
+                     "direction, so it is shown neutral, never as good or bad news.")
     if disp:
         exps += _exp("e-disp", "Dispersion — how spread-out returns are", disp, "",
                      "Higher dispersion means stocks are moving quite differently from one another — a "

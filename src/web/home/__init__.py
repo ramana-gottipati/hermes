@@ -123,6 +123,7 @@ def _compose(conn, on: bool) -> str:
     internals, _id = _pick(reads.internals_series(conn, 30), demo.INTERNALS)
     highs = reads.new_highs(conn) or demo.NEW_HIGHS
     sectors = reads.sector_heat(conn) or demo.SECTOR_HEAT
+    vix = reads.vix_latest(conn) or demo.VIX
     sev = reads.severity_counts(conn)
     if not sev.get("total"):
         sev = demo.SEVERITY
@@ -149,7 +150,7 @@ def _compose(conn, on: bool) -> str:
     # ── MAIN column: featured · pulse deck · what-changed · news (all visible) ──
     pulse = C.zone("Market pulse", "market internals · nightly",
                    C.pulse_deck(idx, mood, (b_in if b_in is not None else 0), breadth,
-                                series70[-30:], internals, highs, sectors),
+                                series70[-30:], internals, highs, sectors, vix=vix),
                    sub="the market in one glance", sample=idx_demo)
     trig = C.zone("What changed today", "Signal engine · nightly",
                   C.count_band(sev) + C.changed_rows(reads.what_changed(conn) or demo.WHATCHANGED)
