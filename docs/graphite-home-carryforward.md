@@ -96,7 +96,8 @@ Everything deployed to `/dash/home`; suite 833 pass; classic + old preview byte-
 definition (RS leader + accumulating + near entry). Do **NOT** widen it to near-misses to pad the
 count; a short list (2 names on 2026-07-24) is the selectivity working as designed. If it reads as
 "broken" to a viewer, the fix is legibility (a "N cleared all 3 pillars today" line), never loosening
-the gate.
+the gate. **→ that legibility line is now BUILT** (always-visible accent count atop the card; the gate
+is untouched; `conviction_now` returns the full qualifying set ≤40 for an honest count, top 8 shown).
 
 **STILL OPEN:**
 1. **Owner PIXEL-review** — the Browser pane was down this session, so structure+gates were verified,

@@ -69,6 +69,9 @@ def test_regime_conviction_filings_builders():
     cv = C.conviction_block([{"symbol": "TCS", "rs_rank": 90, "primary_sector": "Nifty IT",
                               "gap_to_key_p3m": 1.2, "pt14_ns": 160, "pt14_dq": 0}])
     assert "TCS" in cv and "RS #90" in cv and "near entry" in cv and "★ quality" in cv
+    assert ">1</b> name cleared all 3 pillars today" in cv     # the legibility count line (singular)
+    cv2 = C.conviction_block([{"symbol": "A", "rs_rank": 1}, {"symbol": "B", "rs_rank": 2}])
+    assert ">2</b> names cleared all 3 pillars today" in cv2   # plural, accurate count
     assert "g-empty" in C.conviction_block([])
     fl = C.filings_block([{"symbol": "RELIANCE", "detail": "Promoter buy", "date": "2026-07-23", "cls": "pos"}])
     assert "RELIANCE" in fl and "Promoter buy" in fl and "g-fl-dot pos" in fl

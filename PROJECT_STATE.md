@@ -2263,6 +2263,11 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   **Final box state:** every stack zone renders REAL data (0 sample badges); the ONE remaining demo is
   the featured Watchlist, which is honest — Ramana has 2 `open` positions and genuinely no watch-tier
   names yet. Home suite 62.
+- **Conviction legibility line (owner: "keep it strict" → "add the N-cleared line"):** the card now
+  leads with "**N** name(s) cleared all 3 pillars today" (accent count, always visible) so a short
+  list reads as SELECTIVE, not broken — the gate is unchanged, `conviction_now` just returns the full
+  qualifying set (≤40) for an honest count while the card still shows the top 8. Gated in
+  `test_home_featured`. Decision + rationale in `docs/graphite-home-carryforward.md` §4.
 
 ### Session 214 — 2026-07-23 — EMA-CROSSOVER FAMILY carried to a VERDICT: both crossover strategies FAIL (momentum = par/beta, reversal = dead); the only fundable output is a SEPARATE low-vol factor (quarterly+hysteresis, scales to ~₹500cr); `ema_crossover_forward.py` forward test ARMED + a quarterly VPS→Telegram checkpoint LIVE
 (Renumbered S210→S214 on push contact — origin held 210–213.) The 16BD momentum-band+RSI lane S209 flagged as a parallel sibling — carried to a full verdict. All research ran on the VPS (`.venv-research`; the laptop has only synthetic fixtures). Reconciled by cherry-picking ONLY my 15 disjoint commits onto origin/main (the chart/wolfe local commits left untouched for their owner — no cross-absorption).

@@ -373,13 +373,15 @@ def movers(conn, limit: int = 6) -> dict:
 
 
 # ── the analyst's "today" additions: conviction shortlist + ownership filings ─────
-def conviction_now(limit: int = 6) -> list:
+def conviction_now(limit: int = 40) -> list:
     """The cross-pillar Conviction shortlist (RS leader + accumulating now + near entry, pt14 quality
     as a ✓) — reuses the CANONICAL stock_rs.conviction_shortlist (same as /dash/conviction, DRY). It
-    opens its own read-only connection. [] on any error → the caller shows demo (marked sample)."""
+    opens its own read-only connection. Returns the FULL qualifying set (up to `limit`) so the card
+    can state the honest count ('N cleared all 3 pillars today') even though it displays only the top
+    few. [] on any error → the caller shows demo (marked sample)."""
     try:
         from src.automation.stock_rs import conviction_shortlist
-        return list(conviction_shortlist(limit=limit) or [])[:limit]
+        return list(conviction_shortlist(limit=limit) or [])
     except Exception:  # noqa: BLE001 — a heavy/edge synthesis must never 500 the home
         return []
 

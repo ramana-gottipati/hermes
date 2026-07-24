@@ -701,10 +701,16 @@ def regime_banner(mood_word, breadth_pct, breadth_row, delivery_pct, fii_net, ni
 
 
 def conviction_block(rows) -> str:
+    rows = list(rows or [])
+    n = len(rows)
     if not rows:
-        return empty("No names have all three pillars aligned today.")
+        return empty("No names cleared all three pillars today.")
+    shown = min(n, 8)
+    extra = (" · top " + str(shown) + " shown") if n > shown else ""
+    head = ('<p class="g-cv-count"><b class="g-num">' + str(n) + "</b> name" + ("" if n == 1 else "s")
+            + " cleared all 3 pillars today" + esc(extra) + "</p>")
     out = ""
-    for r in (rows or [])[:8]:
+    for r in rows[:8]:
         r = _d(r)
         rank = r.get("rs_rank")
         sector = (r.get("primary_sector") or "").replace("Nifty ", "").strip()
@@ -721,7 +727,7 @@ def conviction_block(rows) -> str:
         out += ('<div class="g-cv"><span class="g-cv-s">' + sym_link(r.get("symbol")) + "</span>"
                 '<span class="g-cv-meta g-num">' + meta + "</span>"
                 '<span class="g-cv-tags">' + tags + "</span></div>")
-    return ('<div class="g-convw">' + out + "</div>"
+    return (head + '<div class="g-convw">' + out + "</div>"
             + learn("Names where all three pillars line up — a relative-strength leader, institutions "
                     "accumulating now, near a buyable entry, with quality as a ✓. Described from the data, never a recommendation."))
 
@@ -970,6 +976,8 @@ def css() -> str:
 :root[data-ui-g] .g-regime-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none;box-shadow:0 0 10px var(--glow)}
 :root[data-ui-g] .g-regime-t b{color:var(--ink)}
 /* ── conviction shortlist ── */
+:root[data-ui-g] .g-cv-count{font-size:12px;color:var(--ink-3);margin:0 0 9px}
+:root[data-ui-g] .g-cv-count b{color:var(--accent)}
 :root[data-ui-g] .g-convw{display:flex;flex-direction:column}
 :root[data-ui-g] .g-cv{display:grid;grid-template-columns:112px 1fr auto;gap:12px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--line);font-size:13px}
 :root[data-ui-g] .g-cv:last-child{border-bottom:0}
