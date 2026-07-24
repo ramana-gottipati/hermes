@@ -2269,6 +2269,17 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   qualifying set (≤40) for an honest count while the card still shows the top 8. Gated in
   `test_home_featured`. Decision + rationale in `docs/graphite-home-carryforward.md` §4.
 
+### Graphite Home — 2026-07-24 — PERF: the home page was 4.1s — conviction query cached by date (→ 90ms)
+🔴 Profiling the whole page (prompted by the regime-band work) exposed a defect I'd shipped earlier and
+never timed: **`conviction_now` = 3.9s on EVERY call** (the canonical `stock_rs.conviction_shortlist`
+joins the 5.9M-row `stock_signals`), so the home had been ~4s since the conviction card landed — I'd
+verified its OUTPUT (2 rows) but not its LATENCY. The RRG was NOT the cause (45ms). Fix: `conviction_now`
+now **caches by the latest stock_signals date** (nightly data → a daily cache is semantically correct;
+the nightly date-change invalidates it) — the canonical query is untouched (another lane owns it). Box:
+cold first-hit 4.1s (warmed by the post-deploy verify-curl), then **every load 90ms**. Gate
+`test_conviction_now_caches_by_date` (second call must not recompute). Residual: the first request after
+a restart/nightly-refresh pays the 3.9s once; a lazy-load would remove even that (deferred if it bites).
+
 ### Graphite Home — 2026-07-24 — MARKET-REGIME BAND: sector-rotation RRG + breadth-vs-delivery divergence (below the today-core)
 - **Owner placement call (asked first, plan-first):** these two are multi-period REGIME views, not
   today-vs-yesterday — so they sit in a distinct, fenced **"Market regime — the bigger picture"** band

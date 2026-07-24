@@ -489,15 +489,32 @@ def movers(conn, limit: int = 6) -> dict:
 
 
 # ── the analyst's "today" additions: conviction shortlist + ownership filings ─────
+_CONV_CACHE: dict = {}   # {latest_stock_signals_date: result} — the canonical query is ~3.9s (box-
+
+
 def conviction_now(limit: int = 40) -> list:
     """The cross-pillar Conviction shortlist (RS leader + accumulating now + near entry, pt14 quality
-    as a ✓) — reuses the CANONICAL stock_rs.conviction_shortlist (same as /dash/conviction, DRY). It
-    opens its own read-only connection. Returns the FULL qualifying set (up to `limit`) so the card
-    can state the honest count ('N cleared all 3 pillars today') even though it displays only the top
-    few. [] on any error → the caller shows demo (marked sample)."""
+    as a ✓) — reuses the CANONICAL stock_rs.conviction_shortlist (same as /dash/conviction, DRY).
+
+    CACHED BY DATE (box-measured: the canonical query is ~3.9s EVERY call — it joins the 5.9M-row
+    stock_signals — which made the whole home page ~4s). The data is NIGHTLY, so the result is cached
+    against the latest stock_signals date: the first request after a restart/nightly-refresh pays the
+    cost once, every later request is instant, and the nightly date-change invalidates it. The
+    canonical query is NOT modified (another lane owns it). Returns the FULL qualifying set (≤`limit`)
+    so the card can state the honest count. [] on any error → caller shows demo (marked sample)."""
     try:
+        from src.core.db import get_conn
+        with get_conn() as c:
+            row = c.execute("SELECT MAX(trade_date) FROM stock_signals").fetchone()
+        key = row[0] if row else None
+        if key is not None and key in _CONV_CACHE:
+            return list(_CONV_CACHE[key])[:limit]
         from src.automation.stock_rs import conviction_shortlist
-        return list(conviction_shortlist(limit=limit) or [])
+        res = list(conviction_shortlist(limit=max(int(limit), 40)) or [])
+        if key is not None:
+            _CONV_CACHE.clear()
+            _CONV_CACHE[key] = res
+        return res[:limit]
     except Exception:  # noqa: BLE001 — a heavy/edge synthesis must never 500 the home
         return []
 

@@ -155,6 +155,25 @@ def test_today_additions_escape_untrusted():
         assert "<script>" not in h and "<i>" not in h and "<b>x" not in h
 
 
+def test_conviction_now_caches_by_date(monkeypatch):
+    """The canonical conviction query is ~3.9s (it joins 5.9M-row stock_signals); it's nightly data,
+    so conviction_now caches by the latest stock_signals date — the second call must NOT recompute."""
+    from src.web.home import reads
+    import src.automation.stock_rs as sr
+    reads._CONV_CACHE.clear()
+    calls = {"n": 0}
+
+    def fake(limit=40, trade_date=None):
+        calls["n"] += 1
+        return [{"symbol": "TCS", "rs_rank": 90}]
+
+    monkeypatch.setattr(sr, "conviction_shortlist", fake)
+    a = reads.conviction_now()
+    b = reads.conviction_now()
+    assert a and b and a[0]["symbol"] == "TCS"
+    assert calls["n"] == 1, ("second call must hit the cache, not recompute", calls["n"])
+
+
 def test_regime_band_rrg_and_breadth_render_safely():
     """The regime band's two SVGs are server-computed and can't be pixel-verified — pin that they
     render from data, mark today's point, escape labels, and stay DOM-safe with no legacy markers."""
