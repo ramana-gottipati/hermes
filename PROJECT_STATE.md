@@ -1943,6 +1943,23 @@ Never full-file-scp the co-edited nav files (dashboard/v2_surfaces/lens_registry
 
 ## What's NOT yet built / open items
 
+### 🔎 Data 360° review (2026-07-24) — "data-rich, surface-poor" dark-data queue
+Full-estate audit (4 read-only agents + `docs/DATA-POSTMORTEM-2026-07-05.md`). **New feeds → `docs/patearn-charter.md §6` amendment 2026-07-24** (D-08 AMFI = the only orthogonal non-price alpha axis; D-09 NSDL endpoint FOUND/unblocked; D-13 index weights new; GST/e-way/power/UPI KILLED; bulk-block history impossible-free; India VIX already live). The **COLLECTED-BUT-UNSURFACED** assets to wire (high-confidence = no `web`/`pat` importer + no SQL ref outside the writer):
+1. **MTF family DARK — biggest single waste.** `bars_weekly/monthly` + `weekly/monthly_signals` (`mtf_signals.py`) — materialised nightly, dozens of cols each, ZERO surface (and no timer, postmortem §2d). Unlocks weekly/monthly DVPT+RS everywhere (== NEXT-BUILDS #1).
+2. **SLB unsurfaced.** `slb_volumes`/`slb_open_positions` ingested daily (D-04 LIVE) but read only by their own selftest → India's only short-interest board is invisible. Descriptive; prereg any study.
+3. **Promoter/governance event tape — aggregators BUILT, wired to NOTHING.** `insider_events.aggregate()` + `sast_events.aggregate()` compute PIT net-cashflow / cluster-buy / pledge roll-ups — ZERO imports in `src/`. ₹38,672cr of promoter caution-selling stored, surfaced nowhere (postmortem §4.3). Also the #1 B2B-sellable dataset (§4.11).
+4. **`concall_results`** (reported rev/EBITDA/PAT/EPS + QoQ/YoY) = feeder-only → put on the dossier + promise-vs-actual curve.
+5. **`company_profile.business_brief`** (~2,900 Gemini briefs) rendered NOWHERE → a "what this company does" line = cheapest UI win (§4.6).
+6. **`fundamentals` ~15 cols scraped, never shown:** `fii_holding, dii_holding, dividend_yield, book_value, roce/roe_3y_avg, sales/profit_growth_5y, *_ttm, eps_ttm, debt_cr, cash_cr, interest_coverage`.
+7. **`participant_oi`** — only index-fut long:short shown; the 8 option + stock-fut long/short cols are ingested-but-underused.
+8. **`index_rows` PE/PB/DY 14-yr history** — only the recent window is shown → valuation-percentile board (market sits in its cheap-third; §4.7).
+9. **`num_trades`/`avg_price`** feeder-only → rupee **ticket-size** (institutionalisation) 2×2 (§4.1 = the ONE new stored col that earned its place).
+10. **DROP/wire dead schema:** `bhavcopy_rows.open_interest/change_in_oi/settlement_price/last_price` (never read) · legacy ignition `ignition_ranking/ranking_history/ignition_rank_v2/feature_lift` (superseded by launchpad) · `concall_coverage` (no populator) · `accum_screen`/`entity_edges` (no reader) · 12 dead `stock_signals` cols rewritten nightly ~0.5 GB/night (§4.1).
+
+**Field-level ingestion DISCARDS (fix at the parser, not a new feed):** niftyindices constituent `Industry`+`ISIN` dropped — only `Symbol` kept (`membership.py`); retires the Screener industry dep → cheapest primary-source win · full F&O option chain discarded (IV surface from `SttlmPric` lost) · `EQUITY_L`/`corp_actions` face value · UDiFF `UndrlygPric` · bulk-deal `Remarks`.
+
+**Integrity riders (not sourcing, but silently corrupts what we DO use — surface loudly):** rename boundary breaks 100% of renamed-symbol tapes — canonicalise both sides through `security_master` before any join (§4.8) · re-verify `corporate_actions` stayed healthy post the 2026-07-06 resurrection.
+
 - **Redesign M4–M8 (D144, plan `docs/redesign-plan-2026-07-17.md` §6) — NOT approved yet:**
   v3 stock Focus page · Today v3 · guided journey · cluster consolidations · screener v3.
   Owner approves per-module via `docs/redesign-coordination.md`. (M0–M2 preview DEPLOYED

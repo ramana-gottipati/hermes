@@ -110,9 +110,9 @@ since calibrated dating of the 28 historical quarters clears the floors at once.
 box) · M-04 ✓ (`prereg.py` registry, gates hashed — E-11/E-12 pre-hashed before first run) ·
 M-03 half (evlib re-export; factory print-wiring = next factory run) · E-11 + E-12 RUN
 (pre-registered; results in the ledger § Studies) · E-14 waits ~Jul-21 Reg-31 flood · E-08/E-09
-blocked on data depth (membership-change history; D-07) · D-09/D-10 (+D-07) need an
-endpoint-discovery pass first (direct probes 404; NO dead pipes built) · D-08 = its own 1-2
-sessions · **P-04 SHIPPED (S96, 2026-07-10): `/dash/evidence-pack` — the print-CSS procurement
+blocked on data depth (membership-change history; D-07) · ~~D-09~~ **endpoint FOUND 2026-07-24 (§6
+D-09 row) — no longer blocked** · D-10 (+D-07) still need an endpoint-discovery pass (direct probes
+404; NO dead pipes built) · D-08 = its own 1-2 sessions · **P-04 SHIPPED (S96, 2026-07-10): `/dash/evidence-pack` — the print-CSS procurement
 assembly (P-03 sheets verbatim + coverage boundary + live season SLA + replay pointer; browser
 print→PDF, zero deps; every number imported from the surface that owns it, never restated)** ·
 P-06 deferred per the
@@ -133,12 +133,29 @@ STUDY remains its own future pre-registration.**
 | D-06 | Announcement categories | BSE (existing pattern) | 1 s | governance red-flag events (E-07), order-win tags |
 | D-07 | MWPL / F&O eligibility inputs | NSE daily | 0.5 s | F&O-entry prediction (E-09) |
 | D-08 | AMFI monthly MF portfolios | AMFI/AMC disclosures | 1–2 s | institutional ground truth; calibration labels wave-2 |
-| D-09 | FPI fortnightly sector flows | NSDL/CDSL | 0.5 s | sector-rotation confirmation layer |
+| D-09 | FPI fortnightly sector flows | **NSDL — endpoint FOUND (2026-07-24 data-360 review), blocker cleared:** `fpi.nsdl.co.in/web/Reports/FPI_Fortnightly_Selection.aspx` (selector) + static `…/StaticReports/Fortnightly_Sector_wise_FII_Investment_Data/FIIInvestmentSector_h.html`; SEBI mirror `sebi.gov.in/statistics/fpi-investment/fortnightly-sector-wise.html` | 0.5 s | sector-FPI conviction — REAL depository AUC/net by sector, distinct from the daily provisional cash FII/DII (`fiidiiTradeReact`) we already have; sector-rotation confirmation layer |
 | D-10 | Short-delivery / auction qty | NSE settlement reports | 0.5–1 s | distress/squeeze microsignal |
 | D-11 | SEBI debarred entities | SEBI lists | 0.5 s | governance veto feed |
-| D-12 | RBI sectoral credit | RBI DBIE | 1 s | macro context for rotation boards |
+| D-12 | RBI sectoral credit | RBI DBIE (`data.rbi.org.in`, Excel/CSV; repo · G-sec curve · USD-INR · forex · **sectoral bank-credit deployment**) | 1 s | macro DESCRIPTIVE regime overlay only (valuation × phase × breadth × macro); NOT stock-level alpha |
+| D-13 | NSE index constituent **WEIGHTS** | NSE Indices factsheets (the constituent CSV carries NO weight — `stock_index_membership.weight_pct` is 100% NULL) | 1 s | rebalance passive-flow front-running; index add/drop impact sizing (E-08); weight-change events (impossible today) |
 
 "s" = sessions. Wave-1 = D-01..D-05 (approved, D88). Wave-2 = D-06..D-08 after the war room ships.
+
+**Amendment — 2026-07-24 (data-sourcing 360° review).** Full-estate audit (4 agents + the 2026-07-05
+DATA-POSTMORTEM). Findings folded here + into `PROJECT_STATE.md § "Data 360° review"`:
+- **New-feed priority (survivors, all still ₹0/primary):** **D-08 AMFI monthly MF portfolios** = the one
+  ORTHOGONAL non-price alpha axis left (postmortem concl. #5) → highest value, own 1-2 sessions ·
+  **D-09 unblocked** (endpoint above) · **D-06 announcement taxonomy** is cheap (reuses the live
+  `concall_bse.py` BSE-announcement fetch) · **D-13** new (index weights) · D-07/D-10/D-11/D-12 stand.
+- **KILLED — do NOT re-propose (evidence):** GST + e-way + power + UPI (only national aggregate exists →
+  ~0 single-stock alpha, `DATASET-RESEARCH-BRIEF.md §5` / D76) · bulk-block HISTORY (no free archive,
+  bot-walled, `deals.py:11` / D-05 re-scope) · India VIX is ALREADY live (`index_signals`).
+- **Already-download-but-DISCARD (fix at the parser, not a new feed):** (1) **niftyindices constituent
+  `Industry` + `ISIN` are dropped** — only `Symbol` kept (`membership.py`); this is an authoritative NSE
+  sector map we throw away while depending on Screener's industry text — **cheapest primary-source win,
+  retires a VENDOR-TOS leg** · (2) full **F&O option chain** discarded (only near-month PCR/max-pain
+  stored; IV surface derivable from `SttlmPric` lost) · (3) minor: `EQUITY_L` face value · `corp_actions`
+  face value · UDiFF `UndrlygPric` · bulk-deal `Remarks`.
 Nothing here touches a vendor; everything follows an existing ingest pattern in `src/automation/`.
 
 ## 7. Idea bank (50) — every entry enters through §2.1's gate
