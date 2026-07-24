@@ -34,6 +34,45 @@ demonstrates the mechanism but its PALETTE is rejected); (3) then M6 build on ow
 (the big one: portfolio pages per Part III §J) · M8. Lane: `D:/Hermes.worktrees/v3-preview`
 (rebase-on-origin before every push; verify pushes BY CONTENT).
 
+## 🔬 STRATEGY / RESEARCH LANE — TAKEOVER PROMPT (S214-cont close, 2026-07-23)
+
+> Paste-ready for the next strategy/research session:
+
+**You are resuming the Patearn strategy/research lane.** Boot: `CLAUDE.md` → `docs/SESSION-PROTOCOL.md` →
+the top `PROJECT_STATE.md` session-log entries (**S214** + **S214 (cont.)**) + `docs/strategy-ledger.md`.
+Run autonomously (Guardrail #0; harness-level access — never ask for file/tool access). Boot the FABLE §0
+stance. Data = PRIMARY sources only (NSE/BSE/SEBI/XBRL, no vendors); descriptive-only, SEBI-safe; every
+ratio is return/vol not a Sharpe (D142).
+
+**STATE (2026-07-23).** The **one fundable product is the standalone low-vol book** (`lowvol_sleeve_q`,
+quarterly + hysteresis: net R/V ~1.0, CAGR ~15%, ~⅓ the index drawdown, scales to ₹500cr, corr-to-momentum
+0.003). Its **forward test is ARMED** (`ema_crossover_forward` + `hermes-ema-forward` timer → quarterly
+VPS→Telegram verdict; **first checkpoint 2026-10-03**). The EMA-crossover family is CLOSED (both strategies
+fail — D146). A full **orthogonal-data exploration is COMPLETE + mapped** (D147): regime = a *drawdown*
+lever not alpha; institutional flow = real-but-weak/unstable (not fundable in 3 forms); options-positioning
+(PCR) = selects weakly but not fundable (turnover). **Base rate: 3+ orthogonal signals, ZERO fundable.**
+
+**BINDING — do NOT redo (kickstart-pick-verify + cite the ledger before touching any of these):**
+(1) EMA crossover (momentum/reversal, daily+weekly) — no edge, descriptive-only; (2) institutional flow
+(any form) — thread closed; (3) options-positioning (PCR/max-pain/basis) — priced; (4) regime overlay — a
+DD lever, not a return source. **LESSON: selection ≠ fundability** — a +0.05–0.07 δ over a short window does
+not survive cost; treat weak-δ selection as descriptive.
+
+**OPEN / next (only if explicitly prioritised):**
+- Forward tests fire **~2026-10-03**: the **union family** (`union_forward`) AND the **low-vol book**
+  (`ema_crossover_forward --rebuild`). WATCH, do not re-fit.
+- **IV/skew options build** — SCOPED-but-PARKED (`docs/options-implied-scope.md`); a 2-3-session bet vs a
+  discouraging base rate + ~2yr window; do NOT auto-start.
+- Deferred: pure-MF breakout vs DII aggregate; more history for flow/options; the 2026-07-24 data-sourcing
+  360° review (charter §6, folded by a parallel lane) if it surfaces a NEW primary feed.
+
+**HOW TO WORK (Ramana's correction, binding — memory [[record-and-remind]]):** DRIVE — proactively surface
+the highest-altitude lever (INCLUDING data we don't yet collect) at every inflection; and BUILD the
+constructive mechanism with real numbers, do NOT describe-then-back-off. Every new signal must clear BOTH
+gates before it's more than descriptive: the event-study gate (does it SELECT? Cliff's δ vs placebo, both
+halves) AND a net-of-cost book (is it FUNDABLE? R/V > 0.89, beats index). Hot shared tree → work from a
+scratchpad worktree off `origin/main`; **verify every push BY CONTENT, never exit code.**
+
 # NEXT-SESSION CARRY-FORWARD (autonomous, agent-driven)
 
 
