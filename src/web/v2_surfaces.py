@@ -97,6 +97,10 @@ _ROUTER_SPECS = [
     # Move anatomy (deep-data value sprint) — the features event panel as a descriptive
     # fingerprint (what precedes a move) + MFE/MAE envelope. Reads research.db, leak-safe.
     ("move-anatomy", "src.web.move_anatomy_view", "/dash/move-anatomy"),
+    # Own-history map (2026-07-24) — self-relative percentiles (each metric vs the stock's own
+    # 3-year history) for a bounded universe; compute-on-read, split/bonus-adjusted. New
+    # self-contained module, additive; durably mounted so a clean clone renders it.
+    ("self-history", "src.web.self_history_view", "/dash/self-history"),
     # Sector economics (deep-data value sprint) — median ROCE/OPM by sector × year over a decade
     # (research.db fundamentals ⋈ hermes company_tags). Aggregate, descriptive; the fundamental
     # complement to the RS-based Sectors lens.

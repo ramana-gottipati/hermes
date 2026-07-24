@@ -145,6 +145,11 @@ NAV_ONLY: dict[str, tuple[str, str]] = {
                                       "metric; Pat points to it, no inline data flow"),
     "move-anatomy":       ("markets", "aggregate move-precursor fingerprint — a market-wide study "
                                       "board; nav is right until a per-symbol read exists"),
+    "self-history":       ("markets", "self-relative percentiles (each metric vs the stock's own "
+                                      "3-year history) for a bounded universe — a market-wide scan "
+                                      "board sibling of move-anatomy/market-internals; its jargon "
+                                      "(self-relative percentile / coil) is glossary-defined so Pat "
+                                      "explains it, and nav names+links the page"),
     "seasonal-divergence": ("markets", "two-index calendar co-movement — a descriptive board; the "
                                        "per-symbol seasonal base rate is covered by the seasonal flow"),
     "seasonal-calendar":  ("markets", "expiry/holiday return conditioning (X-10) — a descriptive board "

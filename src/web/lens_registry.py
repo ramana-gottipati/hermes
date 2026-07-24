@@ -83,6 +83,13 @@ LENSES: tuple[Lens, ...] = (
     # (Still cross-linked from the Coverage/Trust evidence index via coverage_view.)
     Lens("move-anatomy", "Move anatomy", "market", "markets", "/dash/move-anatomy",
          group="Big picture", aliases=("anatomy", "fingerprint", "what-precedes-a-move")),
+    # Own-history map (2026-07-24) — every metric ranked 0-100 vs each stock's OWN 3-year
+    # history (the self-relative axis, beside absolute reads and RS-vs-benchmark). Surfaces
+    # "hollow highs" (own price-high on thin turnover), coiled springs, distribution-into-
+    # strength — signatures a price chart hides. Compute-on-read (bounded universes),
+    # split/bonus-adjusted, descriptive-only. Sibling of Market internals & Move anatomy.
+    Lens("self-history", "Own-history map", "market", "markets", "/dash/self-history",
+         group="Big picture", aliases=("self-relative", "own-history", "vs-own-history", "stretch-map")),
     # Seasonal tape (P0/P1) — 25y calendar seasonality of PIT idiosyncratic residuals,
     # certification-gated (placebo nulls + FDR + N>=15 + OOS sign + pledged mechanism).
     # Descriptive-only, never a signal.

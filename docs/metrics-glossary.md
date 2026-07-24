@@ -131,6 +131,14 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Detrended band % (0–100).** The band percentile on the *trend-removed* (Mansfield) RS series — "rich vs its own history but NOT vs its trend." Separates a genuinely stretched name from one simply high because it is steadily re-rating. *Source:* `rs_band_pct_detr`.
 - **Band width % / maturity.** Width = resistance-to-support spread as a % of the median (how wide the envelope is). Maturity = **full** (≥3y, scored) or **provisional** (2–3y); under 2y no verdict. *Source:* `rs_band_width_pct`, `band_maturity`.
 
+## Own-history map — every metric ranked vs the stock's own past
+
+> A third axis beside absolute reads (price, delivery, turnover) and RS-vs-benchmark: **self-relative** — how extreme today's number is for THIS stock, ranked against its own trailing 3-year history, so a giant and a small-cap read on one 0–100 scale. Computed live at `/dash/self-history`; descriptive-only.
+
+- **Self-relative percentile (0–100).** Today's value of a metric ranked against that same stock's *own* trailing 3-year history of the metric. **0 = a 3-year low for it; 100 = a 3-year high for it.** Puts a ₹13,000 giant and a ₹180 small-cap on one scale ("how unusual is today, *for you*") — unlike an absolute level or an RS-vs-benchmark read. Price and momentum percentiles use a **split/bonus-adjusted** close (raw NSE close would fake a crash on a bonus); delivery-%, ₹ turnover and range are action-neutral. *Source:* computed on read (`self_history_view`).
+- **Coil (range percentile).** The recent daily range — (high−low)/close, 14-day smoothed — expressed as a self-relative percentile. **Low = wound tight / quiet versus its own history (coiled); high = expanded / violent.** A low coil beside a high price percentile is a stock drifting quietly at its own highs. *Source:* computed on read.
+- **Hollow high.** A descriptive pattern on the own-history map: a name at a high self-relative *price* percentile (near its own 3-year high) but a **low turnover percentile** — drifting up on the thinnest participation in three years, a signature a price chart hides. Not a signal. *Source:* computed on read.
+
 ## RS Rotation — the weather phase
 
 > A single "weather" label shared by stocks and sectors, from the RS-vs-broad slopes at 1m/3m/6m/12m plus trend state (and, for sectors, breadth). First-match-wins; descriptive. Stored in `rs_phase`.
