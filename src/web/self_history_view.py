@@ -24,8 +24,8 @@ range ratio are action-neutral and used raw. Without this the page would publish
 nice colours.
 
 STRICTLY DESCRIPTIVE (ledger): a self-relative percentile is CONTEXT, not a signal — "extreme vs
-its own past" says nothing about forward return, no ranking, no buy/sell. Compute-on-read
-(bounded: <=100 liquid names, cached per trading day). Route: /dash/self-history [?u=..&sort=..].
+its own past" says nothing about forward return, no ranking, no buy/sell. Compute-on-read, cached
+per trading day (Nifty 500 ~2.3s cold, instant warm). Route: /dash/self-history [?u=..&sort=..].
 """
 from __future__ import annotations
 
@@ -40,10 +40,11 @@ from src.web import infographics as ifx
 
 router = APIRouter()
 
-# bounded universes (each <=100 liquid names → compute-on-read stays cheap)
+# universes (compute-on-read, cached per trading day; Nifty 500 ~2.3s cold, instant warm)
 _UNIVERSES: dict[str, str] = {
     "nifty50":     "Nifty 50",
     "next50":      "Nifty Next 50",
+    "nifty500":    "Nifty 500",
     "midcap100":   "Nifty Midcap 100",
     "smallcap100": "Nifty Smallcap 100",
 }
@@ -419,6 +420,7 @@ def _selftest() -> int:
     app.include_router(router)
     c = TestClient(app)
     for url in ("/dash/self-history", "/dash/self-history?u=midcap100&sort=vol_pct",
+                "/dash/self-history?u=nifty500&sort=mom_pct",
                 "/dash/self-history?u=bogus&sort=bogus", "/dash/self-history?format=csv"):
         r = c.get(url)
         assert r.status_code == 200, (url, r.status_code)
