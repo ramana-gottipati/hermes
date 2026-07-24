@@ -162,6 +162,71 @@ def rrg_sectors(conn, benchmark: str = "Nifty 500", tail: int = 8, limit: int = 
     return out
 
 
+def _block_means(pts: list, dots: int) -> list:
+    """Downsample a chronological point list to EXACTLY `dots` points: (dots-1) contiguous block-means
+    for the history + today's EXACT last point as the comet head. The clutter fix — the horizon sets
+    each dot's SPACING (more months ⇒ each dot spans more calendar), so the tail stays ~`dots` dots
+    readable at every horizon instead of a dense jagged smear."""
+    if len(pts) <= dots:
+        return pts
+    head, base = pts[-1], pts[:-1]
+    n, k = len(base), dots - 1
+    out = []
+    for i in range(k):
+        a, b = i * n // k, (i + 1) * n // k
+        blk = base[a:b] or [base[min(a, n - 1)]]
+        out.append((sum(p[0] for p in blk) / len(blk), sum(p[1] for p in blk) / len(blk)))
+    return out + [head]
+
+
+# The full economic-sector set for the Markets rotation page (a superset of the compact Today deck).
+_ROTATION_SECTORS = _RRG_SECTORS
+
+
+def rrg_journey(conn, months: int = 6, benchmark: str = "Nifty 500", dots: int = 10, limit: int = 18) -> list:
+    """Longer-horizon sector-rotation RRG for the Markets page (§5-D). SAME canonical JdK math as
+    rrg_sectors (`_rs_ratio_momentum`/`quadrant`; daily NORM_WIN/SMOOTH untouched), read over a window
+    covering ~`months` months, then downsampled to a FIXED ~`dots`-dot tail via `_block_means` — so the
+    comet stays readable at 6/12/24 months (the period sets the dots' SPACING, not their count). A
+    sector appears at a horizon ONLY if it has that much history (honest — no partial 'N-month' tail).
+    Each: label · `dots` (rs_ratio, rs_momentum) points oldest→newest (LAST = today) · quadrant. []
+    on any error → caller shows demo/empty."""
+    if not _has(conn, "ratio_rows"):
+        return []
+    try:
+        from src.automation.rrg import _rs_ratio_momentum, quadrant, NORM_WIN, SMOOTH_SPAN
+    except Exception:  # noqa: BLE001
+        return []
+    need = NORM_WIN + SMOOTH_SPAN
+    window = max(int(round(21 * int(months))), int(dots) + 1)   # ~21 trading days per month
+    readn = window + need + 40
+    out = []
+    for name in _ROTATION_SECTORS:
+        try:
+            rows = conn.execute(
+                "SELECT ratio FROM ratio_rows WHERE numerator=? AND denominator=? AND ratio IS NOT NULL "
+                "ORDER BY trade_date DESC LIMIT ?", (name, benchmark, readn)).fetchall()
+        except sqlite3.Error:
+            continue
+        ratio = [r[0] for r in rows][::-1]                       # chronological
+        if len(ratio) < need + window:                           # not enough history for THIS horizon
+            continue
+        try:
+            rr, rm = _rs_ratio_momentum(ratio)
+        except Exception:  # noqa: BLE001
+            continue
+        pts = [(rr[i], rm[i]) for i in range(len(ratio)) if rr[i] is not None and rm[i] is not None]
+        if len(pts) < int(dots) + 1:
+            continue
+        pts = pts[-window:]                                      # the journey window
+        tail = _block_means(pts, int(dots))
+        out.append({"label": name.replace("Nifty ", "").replace(" Index", "").strip(),
+                    "points": tail, "quadrant": quadrant(tail[-1][0], tail[-1][1])})
+        if len(out) >= int(limit):
+            break
+    return out
+
+
 def breadth_divergence(conn, n: int = 60) -> list:
     """Price-breadth (% of stocks advancing) vs EFFORT-breadth (% of names showing net accumulation
     effort, from MEP) over recent sessions — the divergence IS the regime read: advancing on real

@@ -44,6 +44,26 @@ def home(request: Request) -> HTMLResponse:
     return HTMLResponse(shell.shell("Home", toast + body, pat_html=pat))
 
 
+@router.get("/dash/home/rotation", response_class=HTMLResponse, include_in_schema=False)
+def rotation(request: Request) -> HTMLResponse:
+    """The Markets rotation page (§5-D) — a NEW isolated Graphite sub-page: 6/12/24-month sector-
+    rotation RRG journeys (fixed ~10-dot tails, the horizon sets the spacing), the per-sector standing
+    table, and education. 6M is Free; 12M/24M are Pro locked-teasers. Reached via 'See the full
+    rotation →' from the Today RRG. Read-only; never 500s (defensive)."""
+    from src.core.db import get_conn
+    body, pat = "", ""
+    try:
+        with get_conn() as conn:
+            conn.row_factory = __import__("sqlite3").Row
+            journeys = {m: reads.rrg_journey(conn, months=m) for m in (6, 12, 24)}
+            body = C.rotation_view(journeys)
+            from src.web.home import pat_dock
+            pat = pat_dock.dock_html(conn)
+    except Exception:  # noqa: BLE001 — a heavy/edge read must never 500 the page
+        body = C.fence("Sector-rotation data hasn't landed yet.") + C.empty("Check back after the next nightly run.")
+    return HTMLResponse(shell.shell("Rotation", body, current="Markets", pat_html=pat))
+
+
 @router.post("/dash/home/watch/add", include_in_schema=False)
 def watch_add(symbol: str = Form("")) -> RedirectResponse:
     """Add a name to the watch tier (owner B2). Home-owned WRITE (the home was read-only) — writes the

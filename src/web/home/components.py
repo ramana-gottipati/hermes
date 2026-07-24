@@ -1194,11 +1194,12 @@ def filings_block(rows) -> str:
 _QCLASS = {"Leading": "q-lead", "Improving": "q-impr", "Weakening": "q-weak", "Lagging": "q-lag"}
 
 
-def rrg_map(sectors) -> str:
+def rrg_map(sectors, note: str = None) -> str:
     """Sector rotation map (JdK RRG): RS-Ratio (x) × RS-Momentum (y), centred at 100. Sectors drift
     through Leading / Improving / Weakening / Lagging; the comet TAIL is real recent history and the
     BRIGHT head is today. Server-computed SVG, DOM-safe. Quadrant colours are a 4-hue palette (not the
-    signed --up/--down — quadrant is a category, not a signed value)."""
+    signed --up/--down — quadrant is a category, not a signed value). `note` overrides the legend
+    caption (the Markets page passes a per-horizon note)."""
     sectors = [_d(s) for s in (sectors or []) if _d(s).get("points")]
     xs = [p[0] for s in sectors for p in s["points"] if p and p[0] is not None]
     ys = [p[1] for s in sectors for p in s["points"] if p and p[1] is not None]
@@ -1249,11 +1250,104 @@ def rrg_map(sectors) -> str:
                  + '<circle class="g-rrg-head" cx="%.1f" cy="%.1f" r="4.8"/>' % (hx, hy)
                  + '<text class="g-rrg-lbl" x="%.1f" y="%.1f">%s</text>' % (hx + 6, hy + 3, lbl)
                  + "</g>")
+    cap = note if note else "bright dot = today · tail ≈ 8 weeks (weekly steps) · vs Nifty 500"
     leg = ('<div class="g-rrg-leg"><span class="q-lead">Leading</span><span class="q-impr">Improving</span>'
            '<span class="q-weak">Weakening</span><span class="q-lag">Lagging</span>'
-           '<span class="g-rrg-note">bright dot = today · tail ≈ 8 weeks (weekly steps) · vs Nifty 500</span></div>')
+           '<span class="g-rrg-note">' + esc(cap) + "</span></div>")
     return ('<div class="g-rrg"><svg viewBox="0 0 460 380" preserveAspectRatio="xMidYMid meet" '
             'role="img" aria-label="Sector rotation map (RRG)">' + quads + cross + qlab + dots + "</svg></div>" + leg)
+
+
+# ── the Markets rotation page (§5-D): 6/12/24-month RRG journeys, Pro-gated long horizons ──────────
+_ROT_PERIODS = ((6, "6M", "6 months"), (12, "12M", "12 months"), (24, "24M", "24 months"))
+
+
+def _rot_quad_summary(journey) -> str:
+    """A one-line Free overview: how many sectors sit in each quadrant right now."""
+    counts = {"Leading": 0, "Improving": 0, "Weakening": 0, "Lagging": 0}
+    for s in (journey or []):
+        q = _d(s).get("quadrant")
+        if q in counts:
+            counts[q] += 1
+    chips = ""
+    for q in ("Leading", "Improving", "Weakening", "Lagging"):
+        chips += ('<span class="g-rot-sc ' + _QCLASS[q] + '"><b>' + str(counts[q]) + "</b> " + q + "</span>")
+    return '<div class="g-rot-sum">' + chips + "</div>"
+
+
+def _rot_sector_table(journey) -> str:
+    """Per-sector current standing from a journey (today's head = the last point): quadrant (Free) +
+    RS-Ratio / RS-Momentum values (Pro). Sorted Leading→Improving→Weakening→Lagging."""
+    order = {"Leading": 0, "Improving": 1, "Weakening": 2, "Lagging": 3}
+    rows = sorted((_d(s) for s in (journey or []) if _d(s).get("points")),
+                  key=lambda s: order.get(s.get("quadrant"), 9))
+    if not rows:
+        return ""
+    body = ""
+    for s in rows:
+        pts = s.get("points") or []
+        rr, rm = (pts[-1] if pts else (None, None))
+        q = s.get("quadrant") or "—"
+        vals = ""
+        if rr is not None and rm is not None:
+            vals = '<span class="g-rot-v pro-more">ratio <b>%.1f</b> · mom <b>%.1f</b></span>' % (rr, rm)
+        body += ('<div class="g-rot-row"><span class="g-rot-nm">' + esc(s.get("label")) + "</span>"
+                 '<span class="g-rot-q ' + _QCLASS.get(q, "q-lag") + '">' + esc(q) + "</span>" + vals + "</div>")
+    return ('<div class="g-rot-tbl"><div class="g-rot-row g-rot-hd"><span>Sector</span>'
+            '<span>Quadrant</span><span class="pro-more">RS ratio · momentum</span></div>' + body + "</div>")
+
+
+_ROT_JS = """<script>(function(){
+var pbs=document.querySelectorAll(".g-rot-pb");
+function show(p){pbs.forEach(function(b){var on=b.getAttribute("data-p")===p;b.setAttribute("aria-pressed",on?"true":"false");b.classList.toggle("on",on);});
+document.querySelectorAll(".g-rot-map").forEach(function(m){m.classList.toggle("on",m.getAttribute("data-p")===p);});}
+pbs.forEach(function(b){b.addEventListener("click",function(){show(b.getAttribute("data-p"));});});
+})();</script>"""
+
+
+def rotation_view(journeys: dict, benchmark: str = "Nifty 500") -> str:
+    """The Markets rotation page body (§5-D): a 6/12/24-month sector-rotation RRG with a period
+    selector, the per-sector standing table, and an education scaffold. 6M is FREE (complete); 12M/24M
+    are Pro locked-teasers (the long journeys). `journeys` = {6:[...], 12:[...], 24:[...]} from
+    reads.rrg_journey. Server-computed, DOM-safe, reduced-motion safe."""
+    journeys = journeys or {}
+    j6 = journeys.get(6) or []
+    if not j6:
+        return (fence("Sector-rotation data hasn't landed yet.")
+                + empty("The rotation map needs the nightly RRG ratios. Check back after the next run."))
+    btns = ""
+    for m, lab, _full in _ROT_PERIODS:
+        pro = ' data-pro="1"' if m != 6 else ""
+        badge = '<span class="g-rot-prob">PRO</span>' if m != 6 else ""
+        btns += ('<button type="button" class="g-rot-pb%s" data-p="%d"%s aria-pressed="%s">%s%s</button>'
+                 % (" on" if m == 6 else "", m, pro, "true" if m == 6 else "false", lab, badge))
+    sel = '<div class="g-rot-sel" role="group" aria-label="Rotation horizon">' + btns + "</div>"
+
+    def _note(m):
+        return "bright dot = today · %d-month journey (~10 steps) · vs %s" % (m, esc(benchmark))
+
+    maps = ""
+    for m, lab, full in _ROT_PERIODS:
+        j = journeys.get(m) or []
+        inner = (rrg_map(j, note=_note(m)) if j
+                 else empty("Not enough history for the %s horizon yet." % full))
+        if m == 6:
+            maps += '<div class="g-rot-map on" data-p="6">' + inner + "</div>"
+        else:
+            teased = pro_teaser(inner, cta_sub="The %s rotation journey — see how sectors travelled" % full)
+            maps += '<div class="g-rot-map" data-p="%d">%s</div>' % (m, teased)
+
+    edu = learn("A Relative-Rotation Graph plots each sector's strength vs the broad market (x, RS-Ratio) "
+                "against the momentum of that strength (y, RS-Momentum), both centred at 100. Sectors circulate "
+                "clockwise: Improving → Leading → Weakening → Lagging. The bright dot is today; the tail is the "
+                "path it travelled. Longer horizons show the bigger rotation, not this week's wiggle. Descriptive "
+                "of the past — never a prediction.")
+    return (fence("Sector rotation over 6, 12 and 24 months — where each sector sits versus the broad market, "
+                  "and the path it travelled to get there. Descriptive context from NSE index history, never advice.")
+            + sel + '<div class="g-rot-maps">' + maps + "</div>"
+            + _rot_quad_summary(j6)
+            + '<h3 class="g-rot-h">Where each sector stands today</h3>' + _rot_sector_table(j6)
+            + edu + _ROT_JS)
 
 
 def breadth_divergence_chart(rows) -> str:
@@ -1372,7 +1466,9 @@ def regime_band(rrg_html, breadth_html, rrg_sample: bool = False, bd_sample: boo
             '<span class="g-sub">rotation &amp; breadth over time</span></div>' + fence
             + '<div class="g-rband-grid">'
             '<div class="g-rband-card"><div class="g-rband-ch"><h3>Sector rotation · RRG</h3>' + _chip(rrg_sample)
-            + "</div>" + rrg_html + "</div>"
+            + "</div>" + rrg_html
+            + '<a class="g-rot-more" href="/dash/home/rotation">See the full rotation — 6 / 12 / 24-month journeys →</a>'
+            + "</div>"
             '<div class="g-rband-card"><div class="g-rband-ch"><h3>Breadth vs delivery</h3>' + _chip(bd_sample)
             + "</div>" + breadth_html + "</div></div></section>")
 
@@ -1706,6 +1802,31 @@ def css() -> str:
 :root[data-ui-g] .g-rrg-leg span{display:inline-flex;align-items:center;gap:5px}
 :root[data-ui-g] .g-rrg-leg span::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--qc)}
 :root[data-ui-g] .g-rrg-note{color:var(--ink-3)} :root[data-ui-g] .g-rrg-note::before{display:none!important}
+/* "see the full rotation" deep-link on the Today RRG card */
+:root[data-ui-g] .g-rot-more{display:inline-block;margin-top:10px;font-size:12px;font-weight:600;color:var(--accent);text-decoration:none}
+:root[data-ui-g] .g-rot-more:hover{text-decoration:underline}
+/* ── the Markets rotation page ── */
+:root[data-ui-g] .g-rot-sel{display:inline-flex;gap:3px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-pill);padding:3px;margin:2px 0 14px}
+:root[data-ui-g] .g-rot-pb{border:0;background:transparent;color:var(--ink-2);font:700 12px var(--font);padding:7px 15px;border-radius:var(--r-pill);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+:root[data-ui-g] .g-rot-pb.on{color:var(--on-accent);background:linear-gradient(120deg,var(--accent),var(--accent-hi))}
+:root[data-ui-g] .g-rot-prob{font:800 7.5px/1 var(--mono);letter-spacing:.1em;padding:2px 4px;border-radius:4px;background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent)}
+:root[data-ui-g] .g-rot-pb.on .g-rot-prob{background:color-mix(in srgb,var(--on-accent) 26%,transparent);color:var(--on-accent)}
+:root[data-ui-g] .g-rot-maps{position:relative}
+:root[data-ui-g] .g-rot-map{display:none;max-width:560px;margin:0 auto}
+:root[data-ui-g] .g-rot-map.on{display:block}
+:root[data-ui-g] .g-rot-sum{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin:14px 0 4px}
+:root[data-ui-g] .g-rot-sc{font-size:12px;color:var(--ink-2);display:inline-flex;align-items:center;gap:5px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-pill);padding:5px 11px}
+:root[data-ui-g] .g-rot-sc::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--qc)}
+:root[data-ui-g] .g-rot-sc b{color:var(--ink);font-weight:800}
+:root[data-ui-g] .g-rot-h{margin:20px 0 9px;font-size:14px}
+:root[data-ui-g] .g-rot-tbl{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+:root[data-ui-g] .g-rot-row{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:9px 13px;border-bottom:1px solid var(--line);font-size:13px}
+:root[data-ui-g] .g-rot-row:last-child{border-bottom:0}
+:root[data-ui-g] .g-rot-hd{background:var(--bg-2);font:700 10.5px var(--font);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+:root[data-ui-g] .g-rot-nm{font-weight:600}
+:root[data-ui-g] .g-rot-q{font:600 10.5px/1 var(--mono);letter-spacing:.03em;border-radius:var(--r-pill);padding:4px 9px;text-align:center;white-space:nowrap;
+  color:var(--qc);border:1px solid color-mix(in srgb,var(--qc) 45%,var(--line-2))}
+:root[data-ui-g] .g-rot-v{font:500 11.5px var(--mono);color:var(--ink-3)} :root[data-ui-g] .g-rot-v b{color:var(--ink-2)}
 /* breadth divergence chart */
 :root[data-ui-g] .g-bd{width:100%;aspect-ratio:460/200}
 :root[data-ui-g] .g-bd svg{width:100%;height:100%;display:block}

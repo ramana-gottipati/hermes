@@ -2222,6 +2222,28 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Graphite Home — 2026-07-24 — MARKETS ROTATION PAGE (§5-D) — 6/12/24-mo RRG journeys, new isolated sub-page
+Built the Markets rotation page — a NEW isolated Graphite sub-page at **`/dash/home/rotation`** (owner
+asked for it). Additive/isolated, reuses the canonical RRG math, gate-passing (89 gates incl. registry
++ pat-coverage + all home).
+- **Route + page:** `home.rotation` GET renders `components.rotation_view(journeys)` via the home shell
+  (`current="Markets"`). Reached via a new **"See the full rotation →"** deep-link on the Today RRG
+  card (`regime_band`) — never an orphan URL.
+- **The clutter fix (the design fork's verdict, box-feasible):** new `reads.rrg_journey(conn, months)`
+  reuses the CANONICAL `rrg._rs_ratio_momentum`/`quadrant` (daily NORM_WIN/SMOOTH untouched) over a
+  `~21×months`-day window, then `reads._block_means` downsamples to a **FIXED ~10-dot tail** — the
+  horizon sets the dots' SPACING, not their count (6mo ~2.5-wk blocks · 12mo ~5-wk · 24mo ~2.4-mo), so
+  the comet stays readable at every horizon. A sector appears at a horizon ONLY if it has that much
+  history (honest — no partial 'N-month' tail). `ratio_rows` = 14y/sector, so all three horizons are
+  real.
+- **Free vs Pro:** 6M journey is FREE (complete); **12M/24M are Pro locked-teasers** (`pro_teaser`,
+  blurred + CTA in Free, clean in Pro) — the long journeys. Per-sector standing table: quadrant is
+  Free, the RS-ratio/momentum values are `pro-more`. Period selector toggles the maps client-side
+  (`_ROT_JS`, DOM-safe reads `data-p`). Quadrant palette reuses the canonical `--qc` (theme-safe).
+- **Registration (SURFACE-PLAYBOOK backstop):** `/dash/home/rotation` added to
+  `tests/test_dash_route_registry.py` INTERNAL_DEV (graphite-home owner; declared child, no lens/nav
+  until cutover — same treatment as `/dash/home`). Education scaffold (RRG explainer) + fence in-page.
+
 ### Graphite Home — 2026-07-24 — PRO-ADS locked-teaser layer (owner-confirmed) — the third tier state
 Built the Pro-Ads upsell layer after the owner CONFIRMED the locked-teaser reading (blurred Pro block
 + 'Unlock with Pro' CTA to Free users; not a plain benefits list). New `components.pro_teaser` = the

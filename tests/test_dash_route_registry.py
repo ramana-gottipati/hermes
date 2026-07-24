@@ -107,6 +107,10 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                         "direct-URL only, no lens/nav until cutover (zero classic drift)"),
     "/dash/home/_kit": ("graphite-home", "Graphite component-kit showcase — dev/preview-only, "
                                          "deliberately unlinked"),
+    "/dash/home/rotation": ("graphite-home", "Markets sector-rotation RRG (6/12/24-month journeys, "
+                                             "fixed ~10-dot tails) — a declared child of the Graphite "
+                                             "home, reached via 'See the full rotation →' from the Today "
+                                             "RRG; direct-URL, no lens/nav until cutover"),
     # Sideways migration-parity board (2026-07-24) — the internal governance dashboard proving no
     # classic element is silently missed in the modern-app rebuild (gate: tests/test_sideways_parity.py).
     # An owner/ops tool, deliberately unlinked; NOT a customer lens, so no lens_registry entry.
