@@ -2269,6 +2269,24 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   qualifying set (≤40) for an honest count while the card still shows the top 8. Gated in
   `test_home_featured`. Decision + rationale in `docs/graphite-home-carryforward.md` §4.
 
+### Graphite Home — 2026-07-24 — MARKET-REGIME BAND: sector-rotation RRG + breadth-vs-delivery divergence (below the today-core)
+- **Owner placement call (asked first, plan-first):** these two are multi-period REGIME views, not
+  today-vs-yesterday — so they sit in a distinct, fenced **"Market regime — the bigger picture"** band
+  BELOW the today-core; each marks today's point. (2 structured questions → regime-band-below + mark-today.)
+- **RRG rotation map** (`components.rrg_map`) — server-computed SVG: RS-Ratio×RS-Momentum centred at
+  100, 12 sector comet-tails (bright head = today) drifting through Leading/Improving/Weakening/Lagging.
+  Quadrant colours are a **4-hue palette (accent-hi/candle-up/warn/ink-3), NOT signed green/red** —
+  quadrant is a category, not a signed value (doctrine-clean). 🔴 **Perf fix (box-measured, not guessed):**
+  `rrg.tail` reads each pair's FULL ratio_rows history → **803ms/12 sectors** (whole page sluggish); the
+  JdK normalisation only looks back NORM_WIN+SMOOTH (~70), so `reads.rrg_sectors` reads the last ~220
+  rows and reuses the canonical `rrg._rs_ratio_momentum`+`quadrant` → **34ms**, output **bit-identical**
+  to `rrg.tail` (Bank (107.569,96.484), quadrant match — verified, not assumed).
+- **Breadth-vs-delivery divergence** (`components.breadth_divergence_chart`) — price-breadth (`pct_adv`)
+  vs effort-breadth (`100·mep_acc/(mep_acc+mep_dis)`, avg_dp fallback) over ~60 sessions; the shaded GAP
+  is the regime read, today's point marked + a plain-English "advancing on thin delivery / delivery
+  keeping pace" line. Reads `breadth_divergence`; both defensive + demo/sample-honest. New gates
+  `test_regime_band_rrg_and_breadth_render_safely` + `test_rrg_math_helpers_the_home_reuses`. Suite 840.
+
 ### Graphite Home — 2026-07-24 — MARKET HEATMAP (the "impress at a glance" hero) + India VIX + conviction legibility
 - **Market heatmap** (`/dash/home` hero, after the featured card) — the whole market as a **squarified
   treemap** (Bruls et al.), SERVER-computed in Python (no client layout lib → CSP-safe), tiles

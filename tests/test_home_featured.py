@@ -155,6 +155,28 @@ def test_today_additions_escape_untrusted():
         assert "<script>" not in h and "<i>" not in h and "<b>x" not in h
 
 
+def test_regime_band_rrg_and_breadth_render_safely():
+    """The regime band's two SVGs are server-computed and can't be pixel-verified — pin that they
+    render from data, mark today's point, escape labels, and stay DOM-safe with no legacy markers."""
+    rrg = C.rrg_map([
+        {"label": "IT", "points": [(101.0, 100.4), (101.5, 101.6), (102.0, 102.6)], "quadrant": "Leading"},
+        {"label": "<script>", "points": [(99.0, 99.5), (98.7, 99.0), (98.3, 98.2)], "quadrant": "Lagging"},
+    ])
+    assert "<svg" in rrg and "g-rrg-tail" in rrg and "g-rrg-head" in rrg
+    assert "LEADING" in rrg and "WEAKENING" in rrg and "bright dot = today" in rrg
+    assert "<script>" not in rrg and "IT" in rrg
+    assert "g-empty" in C.rrg_map([])
+    bd = C.breadth_divergence_chart([{"d": "a", "price": 60, "effort": 54}, {"d": "b", "price": 74, "effort": 55},
+                                     {"d": "c", "price": 51, "effort": 44}])
+    assert "<svg" in bd and "g-bd-price" in bd and "g-bd-eff" in bd and "g-bd-gap" in bd
+    assert "Today:" in bd and "51% advancing vs 44% delivering" in bd
+    assert "g-empty" in C.breadth_divergence_chart([])
+    band = C.regime_band(rrg, bd, rrg_sample=True, bd_sample=False)
+    assert "Market regime" in band and "not today's change" in band and "sample" in band
+    for h in (rrg, bd, band):
+        assert "pv3" not in h and "data-ui-v3" not in h and "uk-sub" not in h
+
+
 def test_canon_sector_unifies_nse_and_screener_taxonomies():
     """The heatmap groups by a canonical bucket so the NSE ('Nifty IT', 'Nifty Bank') and Screener
     ('Information Technology', 'Financial Services') taxonomies merge into one block, not duplicates.

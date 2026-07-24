@@ -96,6 +96,86 @@ def market_map(conn, limit: int = 140) -> list:
     return out
 
 
+# ── the regime band: sector rotation (RRG) + breadth-vs-delivery divergence ───────
+# Curated ECONOMIC sectors for the RRG (rs_extras is cluttered with factor/bond/ESG indices).
+_RRG_SECTORS = (
+    "Nifty Bank", "Nifty IT", "Nifty Auto", "Nifty Pharma", "Nifty FMCG", "Nifty Metal",
+    "Nifty Energy", "Nifty Realty", "Nifty Financial Services", "Nifty Media", "Nifty PSU Bank",
+    "Nifty Private Bank", "Nifty Healthcare Index", "Nifty Oil & Gas", "Nifty Consumer Durables",
+    "Nifty Infrastructure", "Nifty India Defence", "Nifty Chemicals",
+)
+
+
+def rrg_sectors(conn, benchmark: str = "Nifty 500", tail: int = 8, limit: int = 12) -> list:
+    """Sector-rotation RRG tails vs the broad benchmark. Reuses the CANONICAL JdK math from rrg
+    (`_rs_ratio_momentum` + `quadrant`) but over a BOUNDED recent window of ratio_rows instead of
+    each pair's full history — the normalisation only looks back NORM_WIN+SMOOTH (~70), so reading the
+    last ~220 rows reproduces the last `tail` points at a fraction of the cost (box-measured: 803ms →
+    ~60ms for 12 sectors; the full-history read made the whole page sluggish). Each: short label · the
+    last `tail` (rs_ratio, rs_momentum) points oldest→newest (LAST = today, the comet head) · today's
+    quadrant. [] on any error → caller shows demo."""
+    if not _has(conn, "ratio_rows"):
+        return []
+    try:
+        from src.automation.rrg import _rs_ratio_momentum, quadrant, NORM_WIN, SMOOTH_SPAN
+    except Exception:  # noqa: BLE001
+        return []
+    need = NORM_WIN + SMOOTH_SPAN
+    out = []
+    for name in _RRG_SECTORS:
+        try:
+            rows = conn.execute(
+                "SELECT ratio FROM ratio_rows WHERE numerator=? AND denominator=? AND ratio IS NOT NULL "
+                "ORDER BY trade_date DESC LIMIT 220", (name, benchmark)).fetchall()
+        except sqlite3.Error:
+            continue
+        ratio = [r[0] for r in rows][::-1]                     # chronological
+        if len(ratio) < need + 2:
+            continue
+        try:
+            rr, rm = _rs_ratio_momentum(ratio)
+        except Exception:  # noqa: BLE001
+            continue
+        pts = [(rr[i], rm[i]) for i in range(len(ratio)) if rr[i] is not None and rm[i] is not None]
+        if len(pts) < 2:
+            continue
+        pts = pts[-int(tail):]
+        out.append({"label": name.replace("Nifty ", "").replace(" Index", "").strip(),
+                    "points": pts, "quadrant": quadrant(pts[-1][0], pts[-1][1])})
+        if len(out) >= int(limit):
+            break
+    return out
+
+
+def breadth_divergence(conn, n: int = 60) -> list:
+    """Price-breadth (% of stocks advancing) vs EFFORT-breadth (% of names showing net accumulation
+    effort, from MEP) over recent sessions — the divergence IS the regime read: advancing on real
+    delivery, or on thin air? Chronological. [] if absent."""
+    if not _has(conn, "market_internals_daily"):
+        return []
+    rows = _rows(conn, "SELECT d, pct_adv, mep_acc, mep_dis, avg_dp FROM market_internals_daily "
+                       "WHERE pct_adv IS NOT NULL ORDER BY d DESC LIMIT ?", (int(n),))
+    out = []
+    for r in rows[::-1]:                                       # oldest → newest
+        acc, dis = r.get("mep_acc"), r.get("mep_dis")
+        eff = None
+        try:
+            if acc is not None and dis is not None and (float(acc) + float(dis)) > 0:
+                eff = 100.0 * float(acc) / (float(acc) + float(dis))
+        except (TypeError, ValueError):
+            eff = None
+        if eff is None and r.get("avg_dp") is not None:        # fall back to avg delivery %
+            try:
+                eff = float(r["avg_dp"])
+            except (TypeError, ValueError):
+                eff = None
+        try:
+            out.append({"d": r.get("d"), "price": float(r["pct_adv"]), "effort": eff})
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 def vix_latest(conn) -> dict:
     """India VIX — the expected-swing gauge. It IS carried in index_signals (box-verified); higher
     means a wider expected move, so it is rendered NEUTRAL (a rising VIX is not 'good'). {} if absent."""

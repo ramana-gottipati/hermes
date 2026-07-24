@@ -187,6 +187,17 @@ def test_home_reads_execute_against_the_real_schemas():
     assert isinstance(reads.conviction_now(), list)      # defensive: opens its own conn, never raises
     assert reads.market_map(c) == []                     # bhavcopy present but empty -> no tiles
     assert reads.vix_latest(c) == {}
+    assert reads.breadth_divergence(c) == []             # market_internals present but empty
+    assert isinstance(reads.rrg_sectors(c), list)        # reuses rrg.tail defensively; never raises
+
+
+def test_rrg_math_helpers_the_home_reuses():
+    """The home's RRG reuses rrg's canonical JdK math over a bounded window (not rrg.tail's
+    full-history read). Pin the helpers + window constants it depends on."""
+    from src.automation import rrg
+    assert callable(rrg._rs_ratio_momentum) and callable(rrg.quadrant)
+    assert isinstance(rrg.NORM_WIN, int) and isinstance(rrg.SMOOTH_SPAN, int)
+    assert "numerator" in inspect.signature(rrg.tail).parameters   # the pair-keyed read still exists
 
 
 def test_conviction_shortlist_helper_signature():

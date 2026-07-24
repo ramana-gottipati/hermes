@@ -913,6 +913,125 @@ def filings_block(rows) -> str:
     return '<div class="g-filings">' + out + "</div>"
 
 
+# ── the REGIME band: sector-rotation RRG + breadth-vs-delivery divergence ─────────
+_QCLASS = {"Leading": "q-lead", "Improving": "q-impr", "Weakening": "q-weak", "Lagging": "q-lag"}
+
+
+def rrg_map(sectors) -> str:
+    """Sector rotation map (JdK RRG): RS-Ratio (x) × RS-Momentum (y), centred at 100. Sectors drift
+    through Leading / Improving / Weakening / Lagging; the comet TAIL is real recent history and the
+    BRIGHT head is today. Server-computed SVG, DOM-safe. Quadrant colours are a 4-hue palette (not the
+    signed --up/--down — quadrant is a category, not a signed value)."""
+    sectors = [_d(s) for s in (sectors or []) if _d(s).get("points")]
+    xs = [p[0] for s in sectors for p in s["points"] if p and p[0] is not None]
+    ys = [p[1] for s in sectors for p in s["points"] if p and p[1] is not None]
+    if not xs or not ys:
+        return empty("Rotation data hasn't landed yet.")
+    W, H = 460.0, 380.0
+    m = max([abs(v - 100) for v in xs + ys] + [3.0]) * 1.14
+    lo, hi = 100 - m, 100 + m
+
+    def sx(v):
+        return (v - lo) / (hi - lo) * W
+
+    def sy(v):
+        return H - (v - lo) / (hi - lo) * H
+
+    cx, cy = sx(100.0), sy(100.0)
+    quads = ('<rect class="q-lead" x="%.1f" y="0" width="%.1f" height="%.1f"/>' % (cx, W - cx, cy)
+             + '<rect class="q-impr" x="0" y="0" width="%.1f" height="%.1f"/>' % (cx, cy)
+             + '<rect class="q-lag" x="0" y="%.1f" width="%.1f" height="%.1f"/>' % (cy, cx, H - cy)
+             + '<rect class="q-weak" x="%.1f" y="%.1f" width="%.1f" height="%.1f"/>' % (cx, cy, W - cx, H - cy))
+    cross = ('<line class="g-rrg-ax" x1="%.1f" y1="0" x2="%.1f" y2="%.1f"/>' % (cx, cx, H)
+             + '<line class="g-rrg-ax" x1="0" y1="%.1f" x2="%.1f" y2="%.1f"/>' % (cy, W, cy))
+    qlab = ('<text class="g-rrg-q" x="%.0f" y="15" text-anchor="end">LEADING</text>' % (W - 7)
+            + '<text class="g-rrg-q" x="7" y="15">IMPROVING</text>'
+            + '<text class="g-rrg-q" x="7" y="%.0f">LAGGING</text>' % (H - 7)
+            + '<text class="g-rrg-q" x="%.0f" y="%.0f" text-anchor="end">WEAKENING</text>' % (W - 7, H - 7))
+    dots = ""
+    for s in sectors:
+        pts = [(sx(p[0]), sy(p[1])) for p in s["points"] if p and p[0] is not None and p[1] is not None]
+        if len(pts) < 2:
+            continue
+        q = _QCLASS.get(s.get("quadrant"), "q-lag")
+        poly = " ".join("%.1f,%.1f" % (x, y) for x, y in pts)
+        hx, hy = pts[-1]
+        dots += ('<polyline class="g-rrg-tail %s" points="%s"/>' % (q, poly)
+                 + '<circle class="g-rrg-head %s" cx="%.1f" cy="%.1f" r="4.6"/>' % (q, hx, hy)
+                 + '<text class="g-rrg-lbl" x="%.1f" y="%.1f">%s</text>' % (hx + 6, hy + 3, esc(s.get("label"))))
+    leg = ('<div class="g-rrg-leg"><span class="q-lead">Leading</span><span class="q-impr">Improving</span>'
+           '<span class="q-weak">Weakening</span><span class="q-lag">Lagging</span>'
+           '<span class="g-rrg-note">bright dot = today · tail = recent weeks · vs Nifty 500</span></div>')
+    return ('<div class="g-rrg"><svg viewBox="0 0 460 380" preserveAspectRatio="xMidYMid meet" '
+            'role="img" aria-label="Sector rotation map (RRG)">' + quads + cross + qlab + dots + "</svg></div>" + leg)
+
+
+def breadth_divergence_chart(rows) -> str:
+    """Price-breadth (% of stocks advancing) vs EFFORT-breadth (% showing net accumulation effort)
+    over recent sessions — the GAP is the regime read. Server-computed SVG; today's point marked."""
+    rows = [_d(r) for r in (rows or []) if _d(r).get("price") is not None]
+    if len(rows) < 2:
+        return empty("Breadth history hasn't landed yet.")
+    W, H = 460.0, 200.0
+    n = len(rows)
+
+    def X(i):
+        return i / (n - 1) * W
+
+    def Y(v):
+        return H - max(0.0, min(100.0, float(v))) / 100.0 * H
+
+    price = [(X(i), Y(r["price"])) for i, r in enumerate(rows)]
+    have_eff = all(r.get("effort") is not None for r in rows)
+    eff = [(X(i), Y(r["effort"])) for i, r in enumerate(rows)] if have_eff else []
+    fill = ""
+    if eff:
+        fwd = " ".join("%.1f,%.1f" % p for p in price)
+        bwd = " ".join("%.1f,%.1f" % p for p in reversed(eff))
+        fill = '<polygon class="g-bd-gap" points="%s %s"/>' % (fwd, bwd)
+
+    def _pl(points, cls):
+        return '<polyline class="%s" points="%s"/>' % (cls, " ".join("%.1f,%.1f" % p for p in points))
+
+    mid = '<line class="g-bd-mid" x1="0" y1="%.1f" x2="%.1f" y2="%.1f"/>' % (Y(50), W, Y(50))
+    dots = '<circle class="g-bd-dot price" cx="%.1f" cy="%.1f" r="3.6"/>' % price[-1]
+    if eff:
+        dots += '<circle class="g-bd-dot eff" cx="%.1f" cy="%.1f" r="3.6"/>' % eff[-1]
+    svg = ('<div class="g-bd"><svg viewBox="0 0 460 200" preserveAspectRatio="xMidYMid meet" '
+           'role="img" aria-label="Breadth vs delivery">' + fill + mid + _pl(price, "g-bd-price")
+           + (_pl(eff, "g-bd-eff") if eff else "") + dots + "</svg></div>")
+    leg = ('<div class="g-bd-leg"><span class="price">Price-breadth · % advancing</span>'
+           '<span class="eff">Effort-breadth · delivery/MEP</span></div>')
+    last = rows[-1]
+    read = ""
+    if last.get("effort") is not None:
+        pv, ev = float(last["price"]), float(last["effort"])
+        gap = pv - ev
+        verb = ("advancing on thin delivery" if gap > 8 else
+                ("delivery leading price" if gap < -8 else "delivery keeping pace with price"))
+        read = ('<p class="g-bd-read"><b>Today:</b> ' + esc(f"{pv:.0f}% advancing vs {ev:.0f}% delivering")
+                + " — " + esc(verb) + ".</p>")
+    return svg + leg + read
+
+
+def regime_band(rrg_html, breadth_html, rrg_sample: bool = False, bd_sample: bool = False) -> str:
+    """The 'bigger picture' band, placed BELOW the today-core (owner call): multi-week rotation +
+    multi-day breadth trend, fenced as regime CONTEXT — never today's change (today's point is marked
+    on each). Full-width, two cards side by side."""
+    def _chip(s):
+        return ('<span class="g-prov sample">demo · sample</span>' if s
+                else '<span class="g-prov">live · nightly</span>')
+    fence = ('<p class="g-fence-top">The bigger picture — multi-week sector rotation and the multi-day '
+             "breadth trend. This is regime CONTEXT, not today's change; each marks where things stand today.</p>")
+    return ('<section class="g-rband"><div class="g-rband-h"><h2>Market regime — the bigger picture</h2>'
+            '<span class="g-sub">rotation &amp; breadth over time</span></div>' + fence
+            + '<div class="g-rband-grid">'
+            '<div class="g-rband-card"><div class="g-rband-ch"><h3>Sector rotation · RRG</h3>' + _chip(rrg_sample)
+            + "</div>" + rrg_html + "</div>"
+            '<div class="g-rband-card"><div class="g-rband-ch"><h3>Breadth vs delivery</h3>' + _chip(bd_sample)
+            + "</div>" + breadth_html + "</div></div></section>")
+
+
 # ── the .g-* stylesheet (scoped by data-ui-g on the root, via the token layer) ──
 def css() -> str:
     return """<style>/* g-kit */
@@ -1174,6 +1293,47 @@ def css() -> str:
 :root[data-ui-g] .g-hm-leg{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:9px;font-size:11px;color:var(--ink-3)}
 :root[data-ui-g] .g-hm-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle}
 :root[data-ui-g] .g-hm-leg i.up{background:var(--up)} :root[data-ui-g] .g-hm-leg i.dn{background:var(--down)}
+/* ── regime band (below the today-core): RRG + breadth divergence ── */
+:root[data-ui-g] .g-rband{margin-top:20px;background:linear-gradient(165deg,var(--bg-2),var(--bg-1) 66%);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px 18px;position:relative;overflow:hidden}
+:root[data-ui-g] .g-rband::before{content:"";position:absolute;inset:0 auto auto 0;width:60px;height:2px;background:linear-gradient(90deg,var(--accent-hi),transparent)}
+:root[data-ui-g] .g-rband-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+:root[data-ui-g] .g-rband-h h2{margin:0;font-size:16px;font-weight:800}
+:root[data-ui-g] .g-rband-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:820px){:root[data-ui-g] .g-rband-grid{grid-template-columns:1fr}}
+:root[data-ui-g] .g-rband-card{background:var(--bg-0);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 14px}
+:root[data-ui-g] .g-rband-ch{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+:root[data-ui-g] .g-rband-ch h3{margin:0;font-size:13px;font-weight:700}
+:root[data-ui-g] .g-rband-ch .g-prov{margin-left:auto}
+/* quadrant hue vars (a 4-hue palette, NOT the signed up/down) */
+:root[data-ui-g] .q-lead{--qc:var(--accent-hi)} :root[data-ui-g] .q-impr{--qc:var(--candle-up)}
+:root[data-ui-g] .q-weak{--qc:var(--warn)} :root[data-ui-g] .q-lag{--qc:var(--ink-3)}
+:root[data-ui-g] .g-rrg{width:100%;aspect-ratio:460/380}
+:root[data-ui-g] .g-rrg svg{width:100%;height:100%;display:block}
+:root[data-ui-g] .g-rrg rect{fill:color-mix(in srgb,var(--qc) 9%,transparent)}
+:root[data-ui-g] .g-rrg-ax{stroke:var(--line-2);stroke-width:1;stroke-dasharray:3 3}
+:root[data-ui-g] .g-rrg-q{fill:var(--ink-3);font:700 8.5px var(--font);letter-spacing:.1em}
+:root[data-ui-g] .g-rrg-tail{fill:none;stroke:var(--qc);stroke-width:1.6;opacity:.5;stroke-linejoin:round;stroke-linecap:round}
+:root[data-ui-g] .g-rrg-head{fill:var(--qc);stroke:var(--bg-0);stroke-width:1}
+:root[data-ui-g] .g-rrg-lbl{fill:var(--ink);font:700 9px var(--font);paint-order:stroke;stroke:var(--bg-0);stroke-width:2.4px}
+:root[data-ui-g] .g-rrg-leg{display:flex;flex-wrap:wrap;gap:11px;align-items:center;margin-top:8px;font-size:10.5px;color:var(--ink-2)}
+:root[data-ui-g] .g-rrg-leg span{display:inline-flex;align-items:center;gap:5px}
+:root[data-ui-g] .g-rrg-leg span::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--qc)}
+:root[data-ui-g] .g-rrg-note{color:var(--ink-3)} :root[data-ui-g] .g-rrg-note::before{display:none!important}
+/* breadth divergence chart */
+:root[data-ui-g] .g-bd{width:100%;aspect-ratio:460/200}
+:root[data-ui-g] .g-bd svg{width:100%;height:100%;display:block}
+:root[data-ui-g] .g-bd-gap{fill:var(--acc-dim)}
+:root[data-ui-g] .g-bd-mid{stroke:var(--line-2);stroke-width:1;stroke-dasharray:3 3}
+:root[data-ui-g] .g-bd-price{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
+:root[data-ui-g] .g-bd-eff{fill:none;stroke:var(--candle-up);stroke-width:2;stroke-linejoin:round;opacity:.9}
+:root[data-ui-g] .g-bd-dot{stroke:var(--bg-0);stroke-width:1.5}
+:root[data-ui-g] .g-bd-dot.price{fill:var(--accent)} :root[data-ui-g] .g-bd-dot.eff{fill:var(--candle-up)}
+:root[data-ui-g] .g-bd-leg{display:flex;flex-wrap:wrap;gap:14px;margin-top:8px;font-size:10.5px;color:var(--ink-2)}
+:root[data-ui-g] .g-bd-leg span{display:inline-flex;align-items:center;gap:5px}
+:root[data-ui-g] .g-bd-leg span::before{content:"";width:12px;height:3px;border-radius:2px}
+:root[data-ui-g] .g-bd-leg .price::before{background:var(--accent)} :root[data-ui-g] .g-bd-leg .eff::before{background:var(--candle-up)}
+:root[data-ui-g] .g-bd-read{font-size:12.5px;color:var(--ink-2);margin:9px 0 0}
+:root[data-ui-g] .g-bd-read b{color:var(--ink)}
 </style>"""
 
 

@@ -107,6 +107,24 @@ MARKET_MAP = [
     {"symbol": "GRASIM", "sector": "Cement", "pct": 0.2, "turnover": 600},
     {"symbol": "POLYCAB", "sector": "Capital Goods", "pct": 3.1, "turnover": 700},
 ]
+# Regime band — sector rotation (RRG) tails (rs_ratio, rs_momentum) oldest→newest, last = today.
+RRG = [
+    {"label": "IT", "points": [(100.6, 99.2), (101.0, 100.4), (101.5, 101.6), (102.0, 102.6)], "quadrant": "Leading"},
+    {"label": "Metal", "points": [(100.4, 100.6), (100.9, 101.4), (101.4, 102.1), (101.9, 102.7)], "quadrant": "Leading"},
+    {"label": "Auto", "points": [(98.9, 100.8), (99.3, 101.6), (99.9, 102.4), (100.4, 103.0)], "quadrant": "Improving"},
+    {"label": "Realty", "points": [(98.4, 100.2), (98.7, 101.0), (99.1, 101.8), (99.5, 102.4)], "quadrant": "Improving"},
+    {"label": "Bank", "points": [(100.8, 100.6), (100.6, 100.1), (100.4, 99.6), (100.2, 99.1)], "quadrant": "Weakening"},
+    {"label": "Energy", "points": [(101.2, 100.4), (101.0, 99.9), (100.7, 99.4), (100.5, 99.0)], "quadrant": "Weakening"},
+    {"label": "Pharma", "points": [(99.2, 99.4), (98.9, 99.0), (98.6, 98.6), (98.3, 98.2)], "quadrant": "Lagging"},
+    {"label": "FMCG", "points": [(99.6, 100.2), (99.4, 99.7), (99.1, 99.2), (98.9, 98.8)], "quadrant": "Lagging"},
+]
+BREADTH_DIV = [
+    {"d": "d%02d" % i, "price": p, "effort": e} for i, (p, e) in enumerate([
+        (44, 52), (62, 54), (58, 55), (41, 51), (55, 53), (67, 56), (74, 55), (71, 54),
+        (66, 52), (70, 53), (79, 55), (74, 54), (60, 51), (52, 49), (57, 50), (63, 52),
+        (69, 53), (66, 52), (58, 50), (51, 44),
+    ])
+]
 SECTOR_HEAT = [
     {"sector": "Nifty IT", "rs": 1.2}, {"sector": "Nifty Auto", "rs": 0.9},
     {"sector": "Nifty Metal", "rs": 0.6}, {"sector": "Nifty Energy", "rs": 0.3},
