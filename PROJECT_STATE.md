@@ -2201,6 +2201,30 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Graphite Home — 2026-07-24 — SESSION WRAP: FREE/PRO/PRO-ADS plan + reference-layer queue + owner corrections
+Full handoff (state · plan · open items · deploy recipe · **autonomous next-session takeover prompt**):
+**`docs/graphite-home-carryforward.md`** (rewritten this wrap). Highlights:
+- **Shipped this session (all LIVE, isolated, suite 844):** scroll-stack rebuild · Pat+Telegram
+  response calibration · classic-site directory · analyst additions (regime one-liner · Today's
+  conviction · Filings) + 4 box-verified data fixes · **market heatmap** (squarified treemap + sector
+  enrichment + labels + rich hover) · **regime band** (RRG weekly-tail comet with taper + hover-isolate,
+  breadth two-gauge) · conviction perf cache (page 4.1s→90ms warm) · **Free⇄Pro tier switch** + the
+  breadth-gap **PRO relative-context** demonstrator. Commit trail in the carry-forward §8.
+- **🔴 BINDING PRINCIPLE (owner):** *a number in isolation is useless — the REFERENCE is the premium.*
+  FREE = the number (complete, never crippled); PRO = the reference layer (percentile · typical ·
+  trend · streak, as a consistent **reference chip**) + drill/history/portfolio-analytics + the Markets
+  6/12/24-mo journeys. **PRO-ADS** = the upsell teaser layer (locked/blurred Pro preview + CTA to free
+  users) — owner wants it DEEPER (e.g. FII/DII per-participant); ⚠ confirm the "Pro-Ads" reading.
+- **NEXT SESSION (queue, carry-forward §5):** build the PRO reference layer — (A1) reference chip +
+  Pulse-deck percentiles [8 tiles] → (A2) FII/DII deeper (streak · cumulative · per-participant) → (A3)
+  featured watchlist/portfolio references; + owner corrections: watchlist **add-date**, **wire the
+  missing add-to-watchlist/portfolio** affordance (record add-date + success/error feedback; home is
+  currently read-only), richer Graphite watchlist; + the Markets rotation page; + confirm Pro-Ads.
+  DEFERRED discussion: "when a name is added, when is its next trigger?"
+- **⚠ Cross-lane:** `a23b380 /dash/self-history` (NOT this lane) is the reference-point idea at the
+  STOCK level (metrics vs each stock's own 3-yr past) — the Pro reference layer should ALIGN with it.
+
+
 ### Own-history map — 2026-07-24 — new self-relative lens `/dash/self-history` (every metric ranked vs each stock's OWN 3-year past)
 From an ideation thread ("different unique ways of reading the data that surprises the audience") → the generative principle **the surprise is the axis you arrange known data along, not new data**. Prototyped the strongest read live against real bhav data, then wired it as a lens per SURFACE-PLAYBOOK.
 - **The read:** for each stock in a bounded universe, rank today's price / 3m-momentum / delivery-% / ₹-turnover / range on a **0–100 percentile vs its own trailing 3-year history**, so a ₹13k giant and a ₹180 small-cap read on one scale. Surfaces signatures a price chart hides — "hollow highs" (own price-high on 15th-pctl turnover), coiled springs (BEL at its 0.1-pctl range), distribution-into-strength (metals high-in-range, momentum ~0, delivery 90th).

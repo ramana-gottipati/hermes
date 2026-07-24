@@ -1,147 +1,228 @@
-# Graphite Home — carry-forward & takeover prompt (2026-07-23)
+# Graphite Home — carry-forward & takeover (2026-07-24 WRAP)
 
 **Lifecycle: TRANSIENT** — retire when the Graphite Home cutover completes and folds into
-PROJECT_STATE §Decision log + docs/redesign-coordination.md.
+`PROJECT_STATE.md` §Decision log + `docs/redesign-coordination.md`. This is the working handoff +
+the next-session takeover prompt.
 
-**Class: CARRY-FORWARD (TRANSIENT).** Retire when the Graphite Home cutover completes and folds into
-PROJECT_STATE §Decision log + docs/redesign-coordination.md. The redesign approval record stays
-`docs/redesign-coordination.md`; this file is the working handoff + the next-session prompt.
+## 0. Boot (every session, no exceptions)
+`CLAUDE.md` → THIS file → `docs/redesign-coordination.md`. Sessions run AUTONOMOUSLY (Guardrail #0):
+build agreed/converged plans, commit to main, deploy verified gate-passing additive changes; surface
+first ONLY for paid spend / deleting others' work / DB-destructive / publishing beyond the VPS.
+Deploy recipe in §6. The in-app Browser pane is DOWN — verify HTML/gates/data on the box, hand the
+owner a `?v=N` link for pixels.
 
 ---
 
-## 1. Where it stands — LIVE
+## 1. Where it stands — LIVE (`https://srv1704897.hstgr.cloud/dash/home?v=N`)
 
-- **`/dash/home`** — the from-scratch **Graphite** dashboard — is **BUILT · DEPLOYED · LIVE**.
-  Public: `https://srv1704897.hstgr.cloud/dash/home` (append `?v=N` to bypass browser bfcache).
-  Opt-in preview (`pvg` cookie), fully isolated; the classic site + old preview are byte-untouched.
-- Package **`src/web/home/`**: `tokens.py` (Graphite palette, both themes, `:root[data-ui-g]`/`.g-*`,
-  AA-gated incl. the corrected light candle) · `shell.py` (own chrome + destination bar + persona
-  toggle + theme) · `components.py` (the `.g-*` kit: ribbon, tiles, gauge, split-bar, diverging-flow,
-  agenda, wire, drawers, count-band, provenance, sym-link, DOM-safe) · `reads.py` (self-contained,
-  import-ban on preview modules, defensive) · `demo.py` (representative preview data) · `pat_dock.py`
-  (alive floating Pat, a11y) · `__init__.py` (router: `/dash/home` · `/dash/home/toggle` POST ·
-  `/dash/home/_kit`). Mounted by ONE additive `v2_surfaces._ROUTER_SPECS` line (anchored patch on the
-  co-edited VPS file — NEVER full-scp it).
-- **Layout = owner-approved SCROLL-STACK** (rebuilt this session, commit `3d5637d`, DEPLOYED
-  2026-07-23 ~18:13 UTC). The tabbed-hero mock was rejected by the owner (tabs HIDE cards) → the
-  scroll-stack shows every card as you scroll and *promotes* a featured card instead of hiding the
-  rest. Shape: **selectable ticker** (feed picker: indices · watchlist · portfolio · model · movers;
-  globals dropped — no real source) → **MAIN** [**FEATURED** card you choose (Watchlist/Portfolio/
-  Index chooser + ★ default, persisted per-browser) · **Market-pulse deck** · What-changed · News] →
-  **RAIL** [FII/DII · Going-ex · Results · delivery drawer · toggle]. **⋮ pin/collapse/hide** on every
-  stack card (localStorage restore tray). Floating alive Pat. Beginner⇄Pro + ◑ theme.
-- **Market-Pulse deck** = 7 real reads (mood gauge · today's breadth · breadth-trend 30d · delivery
-  conviction `avg_dp` · accumulation `mep_net` · new-52w-highs · dispersion · sector heat), each
-  metric tile opens a 30-session trend. **Real-vs-demo honesty**: `_pick(live,demo)` marks each zone's
-  chip "sample" when on demo. New defensive reads in `reads.py`; read-contract gate extended; new
-  `tests/test_home_featured.py`. Suite 827 pass (only pre-existing `test_rule_lab` red).
-- **Isolation PROVEN both directions** — byte-identity of classic + old preview; no cross-import;
-  scoped CSS both ways; **read-contract gate** (`tests/test_home_read_contract.py`) pins every column +
-  shared-helper signature the home reads. Six gates green
-  (`test_home_isolation/_tokens_aa/_pat_a11y/_dom_safety/_reduced_motion/_persona`) + zones + contract.
-  Full suite ~817 pass (the ONLY red is the research lane's pre-existing `test_rule_lab`, being fixed
-  in a separate session — NOT this lane).
-- **Data:** live reads with `demo.py` fallback per zone (owner directive — generate representative
-  data when the live read is empty, so the preview shows the full experience).
+The Graphite home is the isolated, opt-in from-scratch v3 dashboard (`src/web/home/` package, route
+`/dash/home`, cookie `pvg`, scoped `:root[data-ui-g]`/`.g-*`, one additive `v2_surfaces._ROUTER_SPECS`
+mount line). Classic site + old `/dash/preview` byte-untouched; isolation + read-contract gates green;
+full suite **844 pass** (only the pre-existing research-lane `test_rule_lab` red, not ours).
 
-## 2. This session's arc (chronological)
+**Layout = SCROLL-STACK** (everything visible; you promote a featured card, never hide the rest):
+- **Top chrome:** brand · PREVIEW · **Free ⇄ Pro tier switch** · ◑ Theme · **Classic site** dropdown
+  (the WHOLE classic site, ~60 lenses generated from `lens_registry`, one-way).
+- **Selectable ticker** (feed picker: indices · watchlist · portfolio · model · movers).
+- **Regime one-liner** (calibrated market read).
+- **MAIN:** FEATURED card (Watchlist / Portfolio / Index chooser, ★ default, bounded internal scroll
+  to 50 names) → **Market map** (squarified treemap, sector labels + rich hover) → **Market-pulse
+  deck** (mood gauge · breadth today · breadth-trend · delivery conviction · accumulation · new-52w ·
+  dispersion · India VIX · sector heat, click-to-expand) → **Today's conviction** ("N cleared all 3
+  pillars") → **What changed** → **News**.
+- **RAIL:** FII/DII · Filings & ownership · Going-ex · Results · delivery drawer · toggle. ⋮ pin/collapse/hide.
+- **Regime band** (below the today-core): **RRG rotation map** (weekly tail ~8wk, tapered comet, bold
+  today-line, hover/click-to-isolate) + **Breadth two-gauge** read (Stocks rising vs Backed by real
+  delivery + gap; Pro adds the reference block).
+- **Floating Pat** (alive, response-calibrated: terse title + detail-on-demand; typed box classifies/deep-links).
 
-Fresh-identity samples (4 dirs) → owner picked **B Graphite** → experience prototype (energy + alive
-Pat + Beginner⇄Pro) → **Codex `OBJECT`** (colour-doctrine, hype, a11y, DOM-safety, earned-motion) →
-fixes → home-dashboard **architecture** (grounded inventory) → **blueprint** → **candle-AA** fix
-(light down `#93a2b8`→`#6f8096` fill / `#455468` outline, computed) → owner: **build FRESH-AND-PARALLEL,
-zero-touch existing** → build **increments (i)-(iv)** (foundation · zones 1-3 · calendars/news/drawer ·
-alive Pat + persona) each green → **deployed** → **read-contract gate** (bidirectional-isolation
-follow-up) → **owner design-feedback loop:** restore semicircle gauge · demo data · tile-grid ·
-"fixed scrollable boxes, not a flat page" · MoneyControl-style **plan-first** → **2-region rebuild** →
-review passes (clickable symbols · plain-English sources · nav on its own bar · gauge/breadth clarity ·
-density · index-redundancy killed · news dedup). **Cross-author near-miss** caught + fixed
-(`stock_chart.py` swept into a commit → soft-reset + specific-path re-commit).
+**Data honesty:** every zone marks itself `sample` on demo; only genuinely-empty zones show demo. Real
+data flows on the box (heatmap 140 tiles, RRG 12 sectors, conviction/filings/pulse all real).
 
-## 3. Standing corrections — BINDING (violate none)
+**Perf:** warm page load ~90ms. Cold (first hit after restart/nightly) ~4-8s because
+`conviction_now` runs the ~3.9s canonical `stock_rs.conviction_shortlist` — CACHED BY DATE, warmed by
+the post-deploy verify-curl. If cold ever bites the owner → lazy-load the below-fold heavy blocks.
 
-1. **Classic site = FROZEN REFERENCE** (zero edits, byte-identical). **New experience = from scratch**
-   (no legacy palette/tokens; carry only doctrine + the blue-up/grey-down candle identity). [[ramana-working-principles]]
-2. **Plan-first, deeply.** Approve/build = "plan it to depth first, then ask." STUDY reference products
-   (e.g. MoneyControl) — how they organize each section — before building. Present the plan; build on go.
-3. **Fixed-size boxes that scroll internally — NEVER a flat endless page.** You don't show everything at
-   once; overflow scrolls inside the widget. Dense, tidy tiles; no dead full-width bars.
-4. **Generate representative data** when a live read is empty (previews must look full) — but keep the
-   **real-vs-demo line honest** (mark or wire placeholders; don't pass fake as primary).
-5. **Crisp by default; detail on demand.** No walls of text. Short answer + link/decision; depth behind
-   an optional "know more" affordance, only when relevant. **Calibrate the response format to the
-   question** (a terse title vs a fuller/engaging answer — pick what fits).
-6. **Plain-English, no jargon on-screen** (no raw table names like `index_signals`); symbols are
-   **clickable** deep-links; every number links to its source; descriptive-only fences stay.
-7. **Argue back, no sycophancy.** He wants the spine + the honest verdict, and is right that we're not
-   "truly great" yet.
-8. **Communication reaches him IN CHAT** with working links (`https://srv1704897.hstgr.cloud/...`, never
-   raw IP:8000). **Constraint this session: the in-app browser was DOWN — pixels could not be verified;
-   review was HTML-level only.** Get a real render (fix the preview OR an owner screenshot) before
-   declaring visual quality. Cache: the page is `no-store` + the SW skips navigations, but bfcache holds
-   old pages — hand out a `?v=N` cache-busted link.
+**This session also shipped (non-home):** Pat + Telegram (`src/assistant/chat.py`
+`HERMES_SYSTEM_PROMPT`) response-format calibration (crisp-by-default / detail-on-demand).
 
-## 4. OPEN — next feedback
+**⚠ Cross-lane:** `a23b380 feat(markets): /dash/self-history` (NOT this lane) — a new lens ranking
+every metric vs each stock's OWN 3-year past. This IS the reference-point principle at the stock level
+→ the Pro reference layer (§2/§3) should ALIGN with / reuse it, not duplicate.
 
-**DONE + DEPLOYED this session:** ① section organization (scroll-stack) · ② Market-Pulse expanded
-(7-tile deck) · ③ watchlist + portfolio (featured card, reuses `watchlist` + `stocks_in_play`) · ④
-real-vs-demo honesty (sample badges; globals dropped) · **⑤ response-format calibration** (Pat ask
-box + Telegram `chat.py` prompt) · selectable **ticker feed** · **pin/collapse/hide** · **classic-site
-directory** in the top-right (whole classic site from `lens_registry`, one-way) · **analyst "today"
-additions**: **regime one-liner** (top) + **Today's conviction** (reuses `stock_rs.conviction_shortlist`)
-+ **Filings & ownership** rail card (insider + SAST). Commits: `3d5637d`·`3b41f73`·`a82330a`·`4f714b6`·`677203d`.
-Everything deployed to `/dash/home`; suite 833 pass; classic + old preview byte-untouched.
+---
 
-**DECIDED (owner, 2026-07-24):** Today's conviction stays **STRICT** — the full all-three-pillars
-definition (RS leader + accumulating + near entry). Do **NOT** widen it to near-misses to pad the
-count; a short list (2 names on 2026-07-24) is the selectivity working as designed. If it reads as
-"broken" to a viewer, the fix is legibility (a "N cleared all 3 pillars today" line), never loosening
-the gate. **→ that legibility line is now BUILT** (always-visible accent count atop the card; the gate
-is untouched; `conviction_now` returns the full qualifying set ≤40 for an honest count, top 8 shown).
+## 2. The FREE / PRO / PRO-ADS tiering plan (owner-approved structure; PRO-ADS needs one clarification)
 
-**STILL OPEN:**
-1. **Owner PIXEL-review** — the Browser pane was down this session, so structure+gates were verified,
-   not pixels. Hand a `?v=N` link (`https://srv1704897.hstgr.cloud/dash/home?v=N`); iterate on finish.
-2. ✅ **Response-format calibration** (item #5) — BUILT in `pat_dock.py` (Pat answers = terse title +
-   detail-on-demand `<details>`; typed ask box classifies + DOM-safely deep-links a symbol) AND in
-   `src/assistant/chat.py` `HERMES_SYSTEM_PROMPT` (owner follow-up "calibrate the Telegram assistant
-   too" — a RESPONSE FORMAT block: one-line for lookups, one-sentence + offer for explains, phone-chat
-   tuned; prompt-only, no model/cost change; restart hermes-telegram + hermes-api). All 5 items shipped.
-3. **Deferred, honest:** the Index featured view has NO sub-picker yet (v1 = NIFTY 50 focus) · no
-   per-watchlist-row sparks (no cheap per-symbol series) · the **model** ticker feed is demo/sample
-   until wired to the model-books estate · movers uses `bhavcopy_rows` day-change (confirm density).
-4. **Mood-vs-green reconcile** — the gauge is 200-DMA breadth (medium-term) vs today's adv/dec; add a
-   one-line explainer if the owner still finds it confusing on the live render.
-5. **Cutover (PARKED)** — promote `/dash/home` into nav + redirect old `/dash/preview` → `/dash/home`,
-   only after the Graphite stock page exists (old preview still uniquely serves `/dash/preview/stock`).
+**The principle (owner, binding):** *a number in isolation is useless — the reference point is the
+premium.* Free gives the number; Pro tells you whether it MATTERS (normal/unusual, which way,
+better/worse than before).
 
-## 5. Deploy recipe (this section's, verified)
+- **FREE** = a complete, honest glance. Every number, the map, your watchlist, today's reads. **Never
+  crippled** — a real page, not a teaser.
+- **PRO** (subscription) = the **REFERENCE LAYER** + depth:
+  - a consistent **reference chip** on every Free number: `82nd pct ↑ · typical 52%` (one grammar
+    everywhere). The breadth-gap `PRO` block is already the richer version of this.
+  - drill-downs, full history/universe, portfolio-aware analytics, and the **Markets journeys**
+    (6/12/24-month RRG on the new Markets page).
+  - **go DEEPER** (owner, this wrap): e.g. FII/DII — day → streak → 5-day cumulative → per-participant
+    (FII cash vs FII F&O vs DII) → percentile-vs-history. "add more detail if necessary."
+- **PRO-ADS** = the **upsell/teaser layer** — how Pro is advertised to FREE users. ⚠ **CONFIRM WITH
+  OWNER:** "Pro-Ads" = a *locked preview* of the Pro depth shown to free users (blurred/partial + an
+  "Unlock with Pro" CTA) to drive upgrades — vs the alt reading "Pro adds" = simply "what Pro adds."
+  Owner: "particularly to the pro ads … go a little deeper, like FII/DII in flows, add more detail."
+  → I read this as: **the free-tier teaser should show MORE of what they're missing** (a compelling
+  locked FII/DII-deep panel), not hide it entirely.
+  - **Mechanism note:** today `.pro-more` is `display:none` in Free. Pro-Ads needs a THIRD state — in
+    Free, show a `.pro-more` as a LOCKED TEASER (partial/blurred + CTA); in Pro, the full block. Add a
+    `.pro-ad` variant + CSS lock/blur + a small "PRO" CTA.
 
+---
+
+## 3. The component Free / Pro outline (owner LOVED it — this is the agreed split)
+
+Consistent pattern: in Pro, every Free number gains a **reference chip** (`Npct · typical X · ↑/↓`).
+
+| Component | FREE | PRO adds (reference + depth) |
+|---|---|---|
+| Ticker feed | values + day move | custom baskets; "vs 20-DMA" per chip |
+| Regime one-liner | mood + breadth/delivery/200-DMA + a watch | percentiles + streaks (breadth pct, FII selling day-N, mood streak) |
+| Featured · Watchlist | day move · RS phase · delivery | per-name reference (vs own avg deliv, RS-rank change), **add-date**, alerts, "which of yours are unusual today" |
+| Featured · Portfolio | holdings · day P&L · weight · since-entry | day-P&L **attribution**, sector exposure/concentration, risk |
+| Featured · Index | level + move + short traj | 1M/3M returns, dist to 200-DMA, full journey |
+| **Pulse deck (each tile)** | the number | **the reference:** percentile · typical · trend — mood/breadth/delivery/accumulation/52w/dispersion/sector-heat/VIX (all computable from `market_internals_daily`/`index_signals` history) |
+| Today's conviction | count + names + "N cleared" | "2 vs typical 5-8"; per-name pillar values + entry gap; hit-rate history |
+| What changed | count-band + rows | "18 vs 5-day avg 11"; magnitude rank; **yours first** |
+| FII/DII | today's net | **streak · 5-day cumulative · percentile · per-participant (cash/F&O, FII/DII)** — the "go deeper" ask |
+| Filings & ownership | recent events | "3 promoter buys = above typical"; filter to holdings; deeper SAST/pledge |
+| Calendars | agenda | flag holdings; high-impact results; historical reaction |
+| Delivery drawer | today's leaders | full leaderboard; each name vs own history |
+| Regime · RRG | short recent rotation | 6/12/24-mo journeys + per-sector detail (Markets page) |
+| Regime · Breadth gap | two bars + gap | typical gap · percentile · trend — **DONE ✓** (the demonstrator) |
+| Market map | map + labels + hover | **colour-by-delivery** mode; full universe (not just top 140); "is this move unusual for this stock?" |
+| Floating Pat | descriptive answers | portfolio-aware, symbol-specific depth |
+
+**Build priority (agreed):** (1) reference chip + Pulse-deck percentiles [proves the pattern across 8
+tiles]; (2) FII/DII streak+cumulative+per-participant; (3) Featured Watchlist per-name reference +
+Portfolio P&L attribution; (4) the Markets rotation page (RRG journeys).
+
+---
+
+## 4. Standing corrections — BINDING (violate none)
+1. Classic site FROZEN (byte-identical). New experience FROM SCRATCH (no legacy palette; carry only
+   doctrine + blue-up/grey-down candles). [[ramana-working-principles]]
+2. **Plan-first, study reference products, present, build on go.** For genuine forks, run the
+   counter-option and give the VERDICT before building — esp. on "any better way?" (§4 sharpened).
+3. Fixed-size boxes that scroll INTERNALLY — never a flat endless page.
+4. Generate demo when a live read is empty, but keep the real-vs-demo line HONEST (sample badge).
+5. Crisp by default; detail on demand; calibrate format to the question.
+6. Plain-English, clickable symbols, every number links to source, descriptive-only fences.
+7. **Argue back, no sycophancy.** He wants the spine + the honest verdict.
+8. **A number in isolation is useless — the reference is the premium** (the §2 principle; NEW, binding).
+9. Verify on the box (HTML/gates/data); pixels via owner (`?v=N` link). Browser pane DOWN.
+
+---
+
+## 5. OPEN — the queue (prioritized for the next session)
+
+**A. The Pro reference layer (the big one — §3 priority order):**
+- A1. The consistent **reference chip** component + wire the **Pulse-deck percentiles** (8 tiles) from
+  `market_internals_daily`/`index_signals` history. Align with `/dash/self-history` (a23b380).
+- A2. **FII/DII "go deeper"** — streak · 5-day cumulative · percentile · per-participant (cash vs F&O,
+  FII vs DII). Check what `fii_dii_flows` actually stores (categories/columns) FIRST.
+- A3. Featured Watchlist per-name reference + Portfolio P&L attribution.
+
+**B. Owner corrections from this wrap (do these — they're concrete):**
+- B1. **Watchlist Pro: show the ADD-DATE** per name. The read already reaches `stocks_in_play`
+  (`date_added`) + legacy `watchlist` (`added_at`) — surface the date (Pro tier).
+- B2. **Add-to-watchlist/portfolio is MISSING/non-functional** on the Graphite featured card (the "+
+  Add a symbol" I offered doesn't appear/work). The Graphite watchlist shows only basic info vs the
+  classic Tracker. WIRE IT: an add affordance that POSTs to the tracker (classic `POST /dash/track`
+  exists — but the home is currently READ-ONLY; adding a WRITE is a new consideration — decide:
+  reuse `/dash/track` vs a home-owned POST), RECORD the add-date, and give clear **positive/negative
+  feedback** (success toast / invalid-ticker error). Make the Graphite watchlist richer (add-date,
+  the tracker's info).
+- B3. **"When someone adds a name — when is its NEXT trigger?"** — FUTURE DISCUSSION (owner deferred).
+  Note: the next expected event/signal for a stock (results date, ex-date, cadence-overdue). Don't
+  build yet; raise it.
+
+**C. PRO-ADS layer (§2):** the locked-teaser mechanism (`.pro-ad` third state: Free shows a
+blurred/partial preview + "Unlock with Pro" CTA; Pro shows full). Owner wants these DEEPER. CONFIRM
+the "Pro-Ads" interpretation with the owner before building.
+
+**D. The Markets rotation page** (`/dash/home/rotation`, new isolated Graphite page): full RRG with a
+6/12/24-month period selector + the CLUTTER FIX (fixed ~10 dots per tail, period sets the spacing) +
+Pro-gated long journeys + per-sector depth. Reached via a "See the full rotation →" link from the
+Today RRG. Today RRG defaults to the SHORT view.
+
+**E. Heatmap enhancements (offered, owner may want):** colour-by-delivery toggle; full universe;
+per-tile "unusual move?" context (Pro).
+
+**F. Cutover (PARKED):** promote `/dash/home` into nav + retire old preview — only after the Graphite
+stock page exists (old preview uniquely serves `/dash/preview/stock`).
+
+---
+
+## 6. Deploy recipe (verified all session)
 `scp src/web/home/*.py hermes:/opt/hermes/src/web/home/` (new modules — full-scp fine) → on box
-`tr -d '\r'` each (NEVER `sed`) → `.venv/bin/python -m py_compile src/web/home/*.py` → import test
-(`import src.web.home`) → **writer-safe restart** (guard drops hermes-api's own PID, block only on a
-FOREIGN db writer; hermes-api startup is read-only so it's structurally safe) `systemctl restart
-hermes-api` → verify `curl "…/dash/home?v=N"` 200 + structure. The mount line in `v2_surfaces.py` is
-already deployed (anchored insert; the file is co-edited → NEVER full-scp it). Give the owner a
-`?v=N` link. See [[vps-deploy-reality]].
+`tr -d '\r'` each (NEVER sed) → `.venv/bin/python -m py_compile src/web/home/*.py` → import/hasattr
+check of new callees → **writer-safe restart** (`fuser /opt/hermes/data/hermes.db` must show no
+FOREIGN writer; hermes-api startup is read-only; NEVER restart ~14:01 UTC bhavcopy) `systemctl restart
+hermes-api` → `curl …/dash/home` 200 + structure grep → **the verify-curl warms the conviction cache**
+→ hand `?v=N`. The `_ROUTER_SPECS` mount line is deployed (anchored insert; `v2_surfaces.py` co-edited
+→ NEVER full-scp it). Chat/Telegram calibration lives in `src/assistant/chat.py` → restart
+`hermes-api` AND `hermes-telegram`. See [[vps-deploy-reality]].
 
-## 6. Takeover prompt (paste to start the next session)
+---
 
-> Resume the Patearn **Graphite Home** (`/dash/home`) — the from-scratch v3 dashboard, LIVE + isolated
-> at `https://srv1704897.hstgr.cloud/dash/home`. Boot: CLAUDE.md → `docs/graphite-home-carryforward.md`
-> (this file) + `docs/redesign-coordination.md`. State: 2-region dashboard (ribbon · main[pulse+news
-> hero] · sidebar[what-changed·FII/DII·corp-actions·results·+reserved watchlist]) built as the isolated
-> `src/web/home/` package; 6 gates + read-contract green; suite ~817 (only the research-lane
-> `test_rule_lab` red, not ours).
+## 7. AUTONOMOUS NEXT-SESSION TAKEOVER PROMPT (paste to start)
+
+> Resume the **Patearn Graphite Home** (`/dash/home`, LIVE + isolated at
+> `https://srv1704897.hstgr.cloud/dash/home?v=N`). Boot: `CLAUDE.md` →
+> `docs/graphite-home-carryforward.md` (THIS file) → `docs/redesign-coordination.md`. Run
+> autonomously (Guardrail #0); the Browser pane is DOWN so verify HTML/gates/data on the box and hand
+> `?v=N` links. Suite baseline **844** (only `test_rule_lab` red, not ours).
 >
-> BINDING corrections (see §3): classic FROZEN, new from-scratch; **plan-first + study reference
-> products before building**; **fixed-size internally-scrolling boxes, never a flat page**; generate
-> demo data but keep real-vs-demo honest; **crisp replies, detail on demand, calibrate format to the
-> question**; plain-English + clickable symbols; argue back; **the in-app browser is down — verify HTML,
-> get an owner screenshot for pixels, hand out `?v=N` links**.
+> **The mission this session: build the PRO REFERENCE LAYER.** Binding principle: *a number in
+> isolation is useless — the reference is the premium* (Free = the number; Pro = is-it-normal /
+> which-way / better-or-worse-than-before). The Free ⇄ Pro tier switch + `.pro-more` gating already
+> exist; the breadth-gap PRO block is the demonstrator.
 >
-> DO NEXT (plan each, get owner go, then build; deploy per §5): (1) **rearrange/organize the sections**;
-> (2) **Market Pulse — add more entries, fill the empty space, make it interactive/engaging** — decide
-> which first-page insights earn the space and how to present them; (3) **watchlist/portfolio** in the
-> reserved slot; (4) real-vs-demo honesty fixes; (5) response-format calibration for Pat + chat. Cutover
-> stays PARKED until the Graphite stock page exists. Report crisply.
+> **RESEARCH each segment first, then decide what to include (don't guess):** for EACH Today-page
+> component in §3, (a) trace its data source + what history is stored (grep the read + probe the box
+> DB), (b) compute the honest reference (percentile / typical / trend / streak) from that history,
+> (c) decide the Free vs Pro content + wire it via a CONSISTENT reference-chip pattern. **Cheapest
+> discriminating observation FIRST** (e.g. probe `fii_dii_flows` categories before designing the FII/DII
+> deepening; check `market_internals_daily` for the pulse percentiles). ALIGN with the parallel lane's
+> `/dash/self-history` (a23b380 — self-relative ranking) — reuse, don't duplicate.
+>
+> **Build order (§3/§5):** (A1) reference chip + Pulse-deck percentiles [8 tiles at once] → (A2) FII/DII
+> deeper (streak · 5-day cumulative · percentile · per-participant) → (A3) Featured watchlist per-name
+> reference + Portfolio P&L attribution → then the Markets rotation page (§5-D).
+>
+> **Also land the owner's concrete corrections (§5-B):** watchlist Pro **add-date**; **wire the missing
+> add-to-watchlist/portfolio affordance** on the featured card (records add-date, gives clear
+> success/error feedback; decide reuse `/dash/track` vs a home POST — the home is currently read-only);
+> make the Graphite watchlist richer than "basic info."
+>
+> **CONFIRM with the owner before building PRO-ADS (§2/§5-C):** is "Pro-Ads" the *locked-teaser* upsell
+> layer (Free shows a blurred/partial Pro preview + CTA; Pro shows full)? He wants it DEEPER. And note
+> the DEFERRED discussion: "when a name is added, when is its next trigger?" (§5-B3).
+>
+> Every change: additive, isolated (`data-ui-g`/`.g-*`, no preview/legacy import), DOM-safe,
+> reduced-motion-safe, defensive + demo/sample-honest, gate-tested, deployed writer-safe per §6, box-
+> verified, `?v=N` to the owner. Keep Free complete (never crippled). Argue back; give the verdict
+> before building on any genuine fork.
+
+---
+
+## 8. Session arc (2026-07-24) — what shipped, commit trail
+
+Scroll-stack rebuild (`3d5637d`) · Pat + Telegram calibration (`3b41f73`,`a82330a`) · classic-site
+directory (`4f714b6`) · analyst additions regime/conviction/filings (`677203d`) + 4 box-verified data
+fixes (`26f95db`,`9a86b1f`,`be8684c`,`43dc8e1`) · conviction legibility (`1e24c1a`) + STRICT decision
+(`52acba2`) · **market heatmap** (`04005ee`) + sector enrichment (`3d6ccdb`) + labels/hover (`c12360e`)
+· **regime band RRG + breadth** (`7874845`) + weekly tail (`ea1e638`) + taper/isolate (`4dffa90`) ·
+conviction perf cache (`cd6dc24`) · **breadth two-gauge** + featured bounded scroll (`a4c9946`) ·
+**Free/Pro tier switch** + heatmap colour fix + breadth PRO context (`7aaddc8`). Full arc in
+`PROJECT_STATE.md` §Session log (2026-07-24 entries).
