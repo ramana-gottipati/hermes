@@ -133,9 +133,12 @@ SECTOR_HEAT = [
 ]
 
 # ── featured card: watchlist · portfolio · movers ────────────────────────────────
+_WL_DATES = ("2026-05-12", "2026-06-03", "2026-04-28", "2026-06-19", "2026-03-15", "2026-06-25",
+             "2026-05-30", "2026-02-11", "2026-06-09", "2026-07-01", "2026-04-02", "2026-05-21",
+             "2026-06-14", "2026-03-27", "2026-07-08", "2026-05-06", "2026-06-30", "2026-04-16")
 WATCHLIST = [
-    {"symbol": s, "pct": p, "trend": t, "rank": r, "deliv": d}
-    for s, p, t, r, d in [
+    {"symbol": s, "pct": p, "trend": t, "rank": r, "deliv": d, "date_added": _WL_DATES[i % len(_WL_DATES)]}
+    for i, (s, p, t, r, d) in enumerate([
         ("RELIANCE", 1.24, "LEADING", 88, 61), ("TATASTEEL", 2.03, "IMPROVING", 74, 58),
         ("INFY", -0.42, "INSIDE", 52, 47), ("HDFCBANK", 0.38, "INSIDE", 55, 49),
         ("MARUTI", -0.91, "WEAKENING", 33, 44), ("TCS", 0.22, "INSIDE", 57, 52),
@@ -145,7 +148,7 @@ WATCHLIST = [
         ("HINDUNILVR", 0.51, "INSIDE", 50, 48), ("POLYCAB", 3.12, "LEADING", 91, 63),
         ("DIXON", 2.44, "LEADING", 90, 60), ("CDSL", 1.88, "IMPROVING", 76, 55),
         ("TITAN", 0.41, "INSIDE", 53, 47), ("ADANIENT", -1.31, "WEAKENING", 29, 42),
-    ]
+    ])
 ]
 PORTFOLIO = {
     "rows": [

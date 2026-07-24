@@ -551,20 +551,21 @@ def watchlist_rows(conn, limit: int = 50) -> list:
     AND the legacy `watchlist` table, deduped in that order. Reading only the legacy table meant a
     name added through the Tracker would never show up here. [] if both are empty — the caller then
     falls back to demo (marked sample)."""
-    syms = []
+    dates, order = {}, []   # symbol -> add-date (watch-tier first, then legacy); dedup preserves order
     if _has(conn, "stocks_in_play"):
-        syms += [r["symbol"] for r in _rows(
-            conn, "SELECT DISTINCT symbol FROM stocks_in_play WHERE status='watch' "
-                  "ORDER BY date_added DESC LIMIT ?", (int(limit),))]
+        for r in _rows(conn, "SELECT symbol, MAX(date_added) AS d FROM stocks_in_play "
+                             "WHERE status='watch' GROUP BY symbol ORDER BY d DESC LIMIT ?", (int(limit),)):
+            s = r.get("symbol")
+            if s and s not in dates:
+                dates[s] = r.get("d")
+                order.append(s)
     if _has(conn, "watchlist"):
-        syms += [r["symbol"] for r in _rows(
-            conn, "SELECT symbol FROM watchlist ORDER BY added_at DESC LIMIT ?", (int(limit),))]
-    seen, ordered = set(), []
-    for s in syms:
-        if s and s not in seen:
-            seen.add(s)
-            ordered.append(s)
-    syms = ordered[:limit]
+        for r in _rows(conn, "SELECT symbol, added_at FROM watchlist ORDER BY added_at DESC LIMIT ?", (int(limit),)):
+            s = r.get("symbol")
+            if s and s not in dates:
+                dates[s] = r.get("added_at")
+                order.append(s)
+    syms = order[:limit]
     if not syms:
         return []
     chg, rs = _day_change(conn, syms), _rs_of(conn, syms)
@@ -572,8 +573,35 @@ def watchlist_rows(conn, limit: int = 50) -> list:
     for s in syms:
         c, r = chg.get(s, {}), rs.get(s, {})
         out.append({"symbol": s, "pct": c.get("pct"), "deliv": c.get("deliv"),
-                    "rank": r.get("rank"), "trend": r.get("trend")})
+                    "rank": r.get("rank"), "trend": r.get("trend"), "date_added": dates.get(s)})
     return out
+
+
+def watch_add(conn, symbol: str) -> tuple:
+    """Add a name to the canonical D54 watch tier (`stocks_in_play` status='watch') — the SAME tier
+    watchlist_rows reads first, so a home add shows up immediately, and date_added is recorded
+    natively (owner ask B1/B2). Returns (code, symbol): 'added' | 'dup' (already watched) |
+    'bad' (not a recognised NSE cash symbol) | 'empty' | 'err'. Defensive — never raises. Isolated:
+    writes only stocks_in_play; touches no index/sector/RS table."""
+    sym = (symbol or "").strip().upper()
+    sym = re.sub(r"[^A-Z0-9&.\-]", "", sym)[:24]
+    if not sym:
+        return ("empty", "")
+    try:
+        # validate: a real, recently-traded NSE cash symbol
+        ok = conn.execute("SELECT 1 FROM bhavcopy_rows WHERE symbol=? AND series IN ('EQ','BE') "
+                          "LIMIT 1", (sym,)).fetchone()
+        if not ok:
+            return ("bad", sym)
+        dup = conn.execute("SELECT 1 FROM stocks_in_play WHERE symbol=? AND status='watch' LIMIT 1",
+                           (sym,)).fetchone()
+        if dup:
+            return ("dup", sym)
+        conn.execute("INSERT INTO stocks_in_play(symbol, strategy, status, book) "
+                     "VALUES (?, 'Manual', 'watch', 'Main')", (sym,))
+        return ("added", sym)
+    except sqlite3.Error:
+        return ("err", sym)
 
 
 def portfolio(conn) -> dict:

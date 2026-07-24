@@ -2201,6 +2201,30 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Graphite Home — 2026-07-24 — A3 + owner corrections B1/B2 (watchlist add-date · ADD affordance · portfolio attribution)
+Continued the PRO reference layer + landed the owner's concrete corrections. Additive/isolated,
+gate-passing (82 home tests), deployed writer-safe + box-verified (including a real add→appear→cleanup
+round-trip).
+- **B1 — watchlist add-date.** `reads.watchlist_rows` now carries `date_added` (MAX per symbol from
+  `stocks_in_play` watch tier / `watchlist.added_at`). Surfaced Pro-only in a per-name detail line:
+  `added 19 Jun 26 · RS #23 · ◆ your standout today` (standout = the single biggest absolute mover
+  among your names — cheap, honest, descriptive).
+- **B2 — the missing ADD affordance (the home was READ-ONLY).** New home-owned `POST
+  /dash/home/watch/add` + `reads.watch_add` — validates the symbol against `bhavcopy_rows` (EQ/BE),
+  dedupes, inserts the canonical `stocks_in_play` status='watch' tier (date_added native), redirects
+  back with a `?msg=` the GET turns into a success/error **toast** (added / already-watched /
+  not-recognised / empty). Plain HTML form (works JS-off); msg symbol hard-sanitised (injection-safe).
+  **VERDICT (write-path fork):** home-owned POST, NOT classic `/dash/track` — reusing the classic route
+  would couple the home to its contract + redirect to a classic page, breaking isolation; the Graphite
+  watchlist already reads the watch tier first, so an add shows immediately.
+- **A3 — portfolio P&L attribution (Pro).** `components._folio_attrib` on the portfolio view: top
+  contributor / top detractor + concentration (top / top-3 weight), computed from the already-read
+  holdings (no extra query). Attribution = **weight × day move (bps of book)** — a return attribution
+  normalised by book size, so it reads the same for a ₹1L or ₹1Cr book AND works on real + demo.
+  Watchlist per-name self-relative depth is intentionally LEFT to `/dash/self-history` (its engine is
+  a web-view module — importing it would break the home isolation gate), reached via the per-name
+  `sym` links.
+
 ### Graphite Home — 2026-07-24 — PRO REFERENCE LAYER A1+A2 (reference chip · pulse percentiles · FII/DII deeper)
 Built the PRO reference layer's first two increments (owner principle: *a number in isolation is
 useless — the reference is the premium*). Additive/isolated (`.g-refchip`, `.g-fd*`), Pro-only, gate-

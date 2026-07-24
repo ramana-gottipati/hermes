@@ -41,6 +41,35 @@ def sym_link(symbol) -> str:
     return '<a class="g-syma" href="/dash/stock?sym=' + s + '">' + s + "</a>"
 
 
+def add_toast(msg: str) -> str:
+    """The watchlist add success/error banner, rendered by the home GET from the `?msg=` set by the
+    add POST's redirect (owner B2 — 'clear positive/negative feedback'). `msg` is a query param, so
+    the symbol is HARD-sanitised to alnum before it is echoed (never trust the URL). '' when absent.
+    A tiny script strips the query after showing so a refresh doesn't re-toast."""
+    if not msg:
+        return ""
+    code, _, raw = str(msg).partition(":")
+    import re as _re
+    sym = _re.sub(r"[^A-Za-z0-9&.\-]", "", raw)[:24]
+    slink = sym_link(sym) if sym else ""
+    strip = ('<script>try{if(location.search.indexOf("msg=")>=0)'
+             'history.replaceState(null,"",location.pathname);}catch(e){}</script>')
+    if code == "added":
+        inner = '<div class="g-toast ok" role="status">✓ Added ' + slink + " to your watchlist.</div>"
+    elif code == "dup":
+        inner = '<div class="g-toast" role="status">' + slink + " is already on your watchlist.</div>"
+    elif code == "bad":
+        inner = ('<div class="g-toast err" role="alert">“' + esc(sym or "That")
+                 + "” isn't a recognised NSE cash symbol (EQ/BE). Check the spelling.</div>")
+    elif code == "empty":
+        inner = '<div class="g-toast err" role="alert">Enter a symbol to add to your watchlist.</div>'
+    elif code == "err":
+        inner = '<div class="g-toast err" role="alert">Couldn\'t add that name just now — please try again.</div>'
+    else:
+        return ""
+    return inner + strip
+
+
 def _num(v, dp: int = 2) -> str:
     try:
         return f"{float(v):,.{dp}f}"
@@ -649,8 +678,23 @@ _TREND_LEAD = ("LEADING", "IMPROVING", "UPTREND", "STRONG_UPTREND")
 _TREND_WEAK = ("WEAKENING", "LAGGING", "DOWNTREND", "STRONG_DOWNTREND")
 
 
+def _short_date(iso) -> str:
+    """'2026-06-19' → '19 Jun 26'. '' on any gap."""
+    s = ("" if iso is None else str(iso))[:10]
+    try:
+        y, m, d = s.split("-")
+        mon = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")[int(m) - 1]
+        return f"{int(d)} {mon} {y[2:]}"
+    except (ValueError, IndexError):
+        return ""
+
+
 def _wl_rows(rows) -> str:
     out = ""
+    # "your standout today" — the single biggest absolute mover among your names (cheap, honest,
+    # descriptive: not a signal, just 'your name that moved most'). Pro-only flag.
+    moves = [abs(float(_d(r).get("pct"))) for r in (rows or []) if _d(r).get("pct") is not None]
+    standout = max(moves) if moves else None
     for r in (rows or [])[:50]:                                # up to 50 names — the box scrolls internally
         r = _d(r)
         pct = r.get("pct")
@@ -660,20 +704,48 @@ def _wl_rows(rows) -> str:
         deliv, rank = r.get("deliv"), r.get("rank")
         tail = (f"Deliv {float(deliv):.0f}%" if deliv is not None
                 else (f"RS #{int(rank)}" if rank is not None else "—"))
+        # Pro per-name reference (owner B1 + A3): add-date · RS rank · standout flag. Pro-only.
+        bits = []
+        da = _short_date(r.get("date_added"))
+        if da:
+            bits.append("added " + da)
+        if rank is not None:
+            bits.append(f"RS #{int(rank)}")
+        star = ""
+        if standout is not None and pct is not None and abs(float(pct)) >= standout - 1e-9 and abs(float(pct)) > 0:
+            star = '<b class="g-wl-star">◆ your standout today</b>'
+        pro = ""
+        if bits or star:
+            pro = ('<div class="g-wl-pro pro-more">'
+                   + (esc(" · ".join(bits)) if bits else "")
+                   + ((" · " if bits else "") + star if star else "") + "</div>")
         out += ('<div class="g-wl"><span>' + sym_link(r.get("symbol")) + "</span>"
                 '<span class="g-wl-chg g-num ' + cls + '">' + txt + "</span>"
                 '<span class="g-phase ' + pc + '">' + esc(trend or "—") + "</span>"
-                '<span class="g-wl-ev">' + esc(tail) + "</span></div>")
+                '<span class="g-wl-ev">' + esc(tail) + "</span>" + pro + "</div>")
     return out
+
+
+def _wl_addform() -> str:
+    """The add-a-name affordance (owner B2) — a plain HTML POST (works with JS off), writes the
+    canonical watch tier and redirects back with a success/error toast. Available in Free (adding a
+    name is core, not premium)."""
+    return ('<form class="g-wl-addform" method="post" action="/dash/home/watch/add" autocomplete="off">'
+            '<input class="g-wl-in" type="text" name="symbol" maxlength="24" '
+            'placeholder="Add a symbol — e.g. TATAMOTORS" aria-label="Add a symbol to your watchlist" '
+            'pattern="[A-Za-z0-9&.\\-]{1,24}">'
+            '<button class="g-btn" type="submit">+ Add</button></form>')
 
 
 def watchlist_block(rows) -> str:
     body = _wl_rows(rows)
     if not body:
-        return (empty("Your watchlist is empty.")
-                + '<p class="g-wl-add"><span class="g-sub">Add names in the Tracker or via Telegram to follow them here.</span></p>')
-    return ('<div class="g-watch">' + body + "</div>"
-            '<p class="g-wl-add"><span class="g-sub">Followed names — day move, RS phase, delivery. Manage in the Tracker.</span></p>')
+        return (empty("Your watchlist is empty.") + _wl_addform()
+                + '<p class="g-wl-add"><span class="g-sub">Add a name above, or in the Tracker / via Telegram.</span></p>')
+    return ('<div class="g-watch">' + body + "</div>" + _wl_addform()
+            + '<p class="g-wl-add"><span class="g-sub">Followed names — day move, RS phase, delivery. '
+              '<span class="pro-more">Pro adds each name\'s add-date, RS rank, and your standout mover. </span>'
+              'Add above or manage in the Tracker.</span></p>')
 
 
 def portfolio_block(p) -> str:
@@ -705,7 +777,43 @@ def portfolio_block(p) -> str:
                  '<span class="g-wl-chg g-num ' + cls + '">' + txt + "</span>"
                  '<span class="g-phase">' + esc(wtx) + "</span>"
                  '<span class="g-wl-ev">' + stx + "</span></div>")
-    return summ + '<div class="g-watch">' + body + "</div>"
+    return summ + '<div class="g-watch">' + body + "</div>" + _folio_attrib(rows)
+
+
+def _folio_attrib(rows) -> str:
+    """Pro P&L attribution (owner A3) — computed entirely from the already-read holdings (no extra
+    query): which names drove today's book return, and how concentrated the book is. Contribution =
+    weight × day move (return attribution, in bps of the book) — normalised by book size, so it reads
+    the same for a ₹1L and a ₹1Cr book, and works on real AND demo data (both carry weight + day move).
+    Pro-only. Descriptive of today only, never advice."""
+    rr = [_d(r) for r in (rows or [])]
+    contribs = [(r.get("symbol"), float(r["weight"]) / 100.0 * float(r["pct"]))
+                for r in rr if r.get("weight") is not None and r.get("pct") is not None]
+    weights = sorted((float(r["weight"]) for r in rr if r.get("weight") is not None), reverse=True)
+    if not contribs and not weights:
+        return ""
+    inner = '<div class="g-ctx">'
+
+    def crow(lab, sym, pp):
+        c = "up" if pp >= 0 else "dn"
+        bps = ("+" if pp >= 0 else "−") + f"{abs(pp) * 100:.0f} bps"
+        return ('<div class="g-ctx-row"><span>' + esc(lab) + " " + sym_link(sym) + "</span>"
+                '<b class="g-num ' + c + '">' + bps + "</b></div>")
+
+    if contribs:
+        contribs.sort(key=lambda x: x[1], reverse=True)
+        top, bot = contribs[0], contribs[-1]
+        inner += crow("Top contributor", top[0], top[1])
+        if bot[0] != top[0] and bot[1] < 0:
+            inner += crow("Top detractor", bot[0], bot[1])
+    if weights:
+        top3 = sum(weights[:3])
+        inner += ('<div class="g-ctx-row"><span>Concentration</span>'
+                  '<b>' + f"top {weights[0]:.0f}% · top-3 {top3:.0f}%" + "</b></div>")
+    inner += "</div>"
+    note = ('<p class="g-fd-note">Today\'s book move, attributed — which names drove it (contribution = '
+            "weight × day move) and how concentrated the book is. Descriptive of today only.</p>")
+    return pro_more(inner + note)
 
 
 def index_focus_block(idx, series70) -> str:
@@ -1420,6 +1528,21 @@ def css() -> str:
 :root[data-ui-g] .g-phase.weak{color:var(--down);border-color:color-mix(in srgb,var(--down) 45%,transparent)}
 :root[data-ui-g] .g-wl-ev{font-size:11.5px;color:var(--ink-3);text-align:right}
 :root[data-ui-g] .g-wl-add{margin:11px 0 0;padding-top:11px;border-top:1px dashed var(--line-2)}
+/* watchlist Pro per-name reference (add-date · RS rank · standout) — spans the whole row */
+:root[data-ui-g] .g-wl-pro{grid-column:1/-1;font-size:10.5px;color:var(--ink-3);margin:-2px 0 1px;letter-spacing:.01em}
+:root[data-ui-g] .g-wl-star{color:var(--accent);font-weight:700}
+/* the add-a-name affordance */
+:root[data-ui-g] .g-wl-addform{display:flex;gap:8px;margin:11px 0 0;padding-top:11px;border-top:1px dashed var(--line-2)}
+:root[data-ui-g] .g-wl-in{flex:1;min-width:0;background:var(--bg-2);border:1px solid var(--line-2);border-radius:9px;
+  padding:8px 11px;color:var(--ink);font:500 12.5px var(--font);text-transform:uppercase}
+:root[data-ui-g] .g-wl-in::placeholder{color:var(--ink-3);text-transform:none;letter-spacing:0}
+:root[data-ui-g] .g-wl-in:focus{outline:2px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:1px;border-color:var(--accent)}
+/* the add success/error toast (rendered by the GET from ?msg=) */
+:root[data-ui-g] .g-toast{display:flex;align-items:center;gap:9px;margin:0 0 14px;padding:11px 14px;border-radius:11px;
+  font-size:13px;border:1px solid var(--line-2);background:var(--bg-2)}
+:root[data-ui-g] .g-toast.ok{border-color:color-mix(in srgb,var(--up) 50%,var(--line-2));background:color-mix(in srgb,var(--up) 9%,var(--bg-1))}
+:root[data-ui-g] .g-toast.err{border-color:color-mix(in srgb,var(--warn) 50%,var(--line-2));background:color-mix(in srgb,var(--warn) 9%,var(--bg-1))}
+:root[data-ui-g] .g-toast b{color:var(--ink)}
 /* ── index focus ── */
 :root[data-ui-g] .g-idx-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
 :root[data-ui-g] .g-idx-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-top:10px}

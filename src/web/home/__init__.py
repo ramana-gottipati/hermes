@@ -12,7 +12,7 @@ touch a legacy or existing-preview page, and those pages can never carry a Graph
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from src.web.home import components as C
@@ -31,6 +31,7 @@ def is_on(request: Request) -> bool:
 def home(request: Request) -> HTMLResponse:
     from src.core.db import get_conn
     on = is_on(request)
+    toast = C.add_toast(request.query_params.get("msg", ""))
     body, pat = "", ""
     try:
         with get_conn() as conn:
@@ -40,7 +41,23 @@ def home(request: Request) -> HTMLResponse:
             pat = pat_dock.dock_html(conn)
     except Exception:  # noqa: BLE001 — a busy/edge DB must never 500 the home
         body = C.zone("Market pulse", "index_signals", C.empty("Today's signals haven't landed yet."))
-    return HTMLResponse(shell.shell("Home", body, pat_html=pat))
+    return HTMLResponse(shell.shell("Home", toast + body, pat_html=pat))
+
+
+@router.post("/dash/home/watch/add", include_in_schema=False)
+def watch_add(symbol: str = Form("")) -> RedirectResponse:
+    """Add a name to the watch tier (owner B2). Home-owned WRITE (the home was read-only) — writes the
+    canonical `stocks_in_play` status='watch' tier that the featured watchlist reads first, so the add
+    shows immediately + records date_added natively. Validates + dedupes in reads.watch_add; redirects
+    back with a `?msg=` the GET turns into a success/error toast. Never 500s (defensive)."""
+    code, sym = "err", ""
+    try:
+        from src.core.db import get_conn
+        with get_conn() as conn:
+            code, sym = reads.watch_add(conn, symbol)
+    except Exception:  # noqa: BLE001 — a write hiccup must never crash the add
+        code, sym = "err", ""
+    return RedirectResponse("/dash/home?msg=" + code + ((":" + sym) if sym else ""), status_code=303)
 
 
 @router.post("/dash/home/toggle", include_in_schema=False)
