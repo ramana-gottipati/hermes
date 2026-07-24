@@ -65,14 +65,18 @@ MILESTONES: dict[str, tuple[str, str]] = {
     "M6":       ("Journey / guided + help layer", "PLANNED"),
     "M7":       ("Clusters & portfolios (Strategies + Tracker)", "PLANNED"),
     "M8":       ("Screener", "PLANNED"),
+    # Added 2026-07-24 (owner) to close the gap the parity ledger surfaced: the M6-M8 plan
+    # scoped journey/clusters/screener but not the Markets analytical estate. M-Markets carries it.
+    "M-Markets": ("Markets analytical estate (internals · anatomy · self-history · rotation · RS · "
+                  "seasonal · events · patterns · participants · compare · …)", "PLANNED"),
     "UNSCOPED": ("Not yet assigned to any Sideways milestone", "OPEN"),
 }
 
-# per-workspace DEFAULT milestone for a surface with no explicit disposition. Markets is
-# deliberately UNSCOPED: the current M6-M8 plan scopes journey/clusters/screener but NOT the
-# bulk of the Markets analytical estate — that gap is the board's loudest signal, on purpose.
+# per-workspace DEFAULT milestone for a surface with no explicit disposition. The Markets
+# analytical estate maps to M-Markets — the milestone the owner added 2026-07-24 to close the
+# gap the ledger surfaced (M6-M8 had scoped journey/clusters/screener but not the Markets estate).
 _WS_MILESTONE: dict[str, str] = {
-    "markets": "UNSCOPED", "screener": "M8", "strategies": "M7", "tracker": "M7", "trust": "M6",
+    "markets": "M-Markets", "screener": "M8", "strategies": "M7", "tracker": "M7", "trust": "M6",
 }
 
 # ── EXPLICIT dispositions — the human decisions. (status, target, note) ───────────────
