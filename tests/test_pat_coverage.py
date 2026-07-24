@@ -150,6 +150,13 @@ NAV_ONLY: dict[str, tuple[str, str]] = {
                                       "board sibling of move-anatomy/market-internals; its jargon "
                                       "(self-relative percentile / coil) is glossary-defined so Pat "
                                       "explains it, and nav names+links the page"),
+    "fno":                ("markets", "F&O positioning board — per-stock quadrant/PCR/OI/max-pain ranked "
+                                      "vs the stock's OWN history + reality-check flags (e.g. a short-cover "
+                                      "on a still-crowded book); a market-wide scan board sibling of "
+                                      "self-history/participants. Its jargon (OI percentile / PCR percentile "
+                                      "/ max-pain distance / build-up streak) is glossary-defined so Pat "
+                                      "explains it, and nav names+links the page. Per-symbol OI is also "
+                                      "covered inline by the participants flow"),
     "seasonal-divergence": ("markets", "two-index calendar co-movement — a descriptive board; the "
                                        "per-symbol seasonal base rate is covered by the seasonal flow"),
     "seasonal-calendar":  ("markets", "expiry/holiday return conditioning (X-10) — a descriptive board "

@@ -189,6 +189,14 @@ LENSES: tuple[Lens, ...] = (
          group="Patterns", aliases=("wolfe",)),
     Lens("participants", "Participants", "market", "markets", "/dash/participants",
          dossier_tab="fno", screener_col=None, group="Events & flow"),
+    # F&O positioning board (2026-07-24) — every per-stock OI read (quadrant/PCR/OI/max-pain)
+    # ranked vs the stock's OWN history + auto reality-check flags (hollow short-cover on a
+    # still-crowded book, crowded short buildup, fresh long on a thin book). The self-relative
+    # F&O sibling of /dash/self-history; compute-on-read from fno_oi_signals. Descriptive-only
+    # (D62; Phase-0 found only PCR carries a small fwd-test-only edge). Sits beside Participants.
+    Lens("fno", "F&O positioning", "market", "markets", "/dash/fno",
+         group="Events & flow", aliases=("f&o", "oi", "open-interest", "positioning", "buildup",
+                                         "derivatives", "pcr", "max-pain")),
     Lens("wire", "News / Wire", "market", "markets", "/dash/wire",
          group="Events & flow", aliases=("news",)),
     Lens("compare", "Compare", "market", "markets", "/dash/compare"),

@@ -182,6 +182,13 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Max-pain.** The expiry price at which option *writers* pay out the least — often cited as a magnet into expiry. *Source:* `max_pain`.
 - **Put wall / call wall.** The strike with the most put OI (**put wall = the support buyers defend**) and the most call OI (**call wall = the resistance sellers cap**). *Source:* `sup_strike`, `res_strike`.
 
+> The next four are **self-relative** F&O reads (the `/dash/fno` board): each ranks today's value against the *same stock's own* F&O history, so "is this real or noise?" gets a number. Compute-on-read, descriptive-only.
+
+- **OI percentile (own history).** Today's total stock-futures open interest ranked 0–100 against the stock's own history — **the crowdedness of the futures book.** The missing context behind a build-up tag: a short-covering day on a **90th-percentile** book means the shorts merely trimmed a still-huge position (rolled, not left), so a squeeze is unlikely; the same tag on a 20th-percentile book is a genuine exit. *Source:* `/dash/fno` (derived from `fut_oi`).
+- **PCR percentile (own history).** Today's put/call OI ratio ranked 0–100 vs the stock's own history — **how extreme the hedging/fear is for THIS name**, not a fixed threshold that treats every stock alike. The one F&O read the Phase-0 gate found a small forward edge in (contrarian; forward-test-only). *Source:* `/dash/fno` (derived from `pcr`).
+- **Max-pain distance (signed).** The signed % gap of spot from max-pain: (spot − max-pain) ÷ max-pain. **Positive = spot ABOVE max-pain** (the level often cited as an into-expiry magnet pulling price down); negative = below. Ranked against its own range so you see whether today's stray is unusual for this name. *Source:* `/dash/fno` (derived from `und_price`, `max_pain`).
+- **Build-up streak.** How many consecutive trading days the stock has stayed in the **same** positioning quadrant — persistence, not a one-day blip. A day-3 short-buildup streak on a crowded book reads very differently from a single red-OI day. *Source:* `/dash/fno` (derived from `quadrant`).
+
 ## Oscillators — momentum (RSI / MACD)
 
 > The standard TA momentum family from the close history (RSI-14 Wilder, MACD-12/26/9). Stored in `stock_oscillators`.

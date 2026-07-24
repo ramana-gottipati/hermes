@@ -183,7 +183,7 @@ is whether layering them on Tier 1 **adds alpha or cuts drawdown** (QUAL_MOM hin
 | MEP / DVPT | signed accumulation / distribution | deployed (confirmation, not prediction) |
 | RS suite (RRG, RSI-of-RS, Mansfield, capture, RS-band) | relative strength vs index | deployed (descriptive) |
 | Concall Intelligence | management guidance-accuracy / credibility | **RETURN-TESTED 2026-06-25 → NO validated factor** (see section below); descriptive dossier only |
-| F&O OI / participant positioning | FII/DII/Pro/Client long-short | deployed (descriptive) |
+| F&O OI / participant positioning | FII/DII/Pro/Client long-short + per-stock quadrant/PCR/OI/max-pain | deployed (descriptive); board `/dash/fno` ranks each read vs the stock's own history. **Phase-0 gate (2026-07-24, 2024-07→now, 273 stocks): PCR SELECTS** (δ0.061, both halves, forward-test-only); maxpain-dist/basis/OI-chg FAIL. Still descriptive-only until the full DSR gate. |
 | Wolfe / Ignition / theme tags | geometry / ML challenger / classification | **Wolfe: winner-profile RETURN-TESTED → BULL *selection* edge / BEAR fails the primary OOS bar, descriptive-only (OOS re-validated 2026-07-11 — see § below)**; Ignition / tags built |
 
 ---
