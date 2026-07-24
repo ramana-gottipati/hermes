@@ -2233,6 +2233,12 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   reads `conviction_now`/`filings_recent`; builders `regime_banner`/`conviction_block`/`filings_block`;
   read-contract extended (conviction signature + filings columns at source); `test_home_featured`
   extended. Suite 833 pass (only the pre-existing `test_rule_lab` red).
+  **Box verification caught a real defect (owner asked "verify they have content"):** both cards render
+  REAL data on the VPS (conviction ASTRAMICRO/FLUOROCHEM; filings VIJIFIN/AFCONS; 0 demo symbols), but
+  the filings feed was **12/12 stake events** — SAST Reg-29 fires far more often than insider trades
+  (281 vs 158 in 21d, to-the-minute timestamps), so a pure newest-first merge **buried every insider
+  buy**. Fixed: per-source quotas into the candidate pool before the merge + near-duplicate collapse
+  (`filings_recent`), gated by `test_filings_feed_is_balanced_across_sources_and_deduped`.
 
 ### Session 214 — 2026-07-23 — EMA-CROSSOVER FAMILY carried to a VERDICT: both crossover strategies FAIL (momentum = par/beta, reversal = dead); the only fundable output is a SEPARATE low-vol factor (quarterly+hysteresis, scales to ~₹500cr); `ema_crossover_forward.py` forward test ARMED + a quarterly VPS→Telegram checkpoint LIVE
 (Renumbered S210→S214 on push contact — origin held 210–213.) The 16BD momentum-band+RSI lane S209 flagged as a parallel sibling — carried to a full verdict. All research ran on the VPS (`.venv-research`; the laptop has only synthetic fixtures). Reconciled by cherry-picking ONLY my 15 disjoint commits onto origin/main (the chart/wolfe local commits left untouched for their owner — no cross-absorption).

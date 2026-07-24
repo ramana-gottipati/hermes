@@ -75,6 +75,31 @@ def test_regime_conviction_filings_builders():
     assert "g-empty" in C.filings_block([])
 
 
+def test_filings_feed_is_balanced_across_sources_and_deduped():
+    """Box-verified defect: stake disclosures fire far more often than insider trades, so a pure
+    newest-first merge buried every insider buy. Each source must survive a flood from another."""
+    import sqlite3
+    from src.web.home import reads
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    c.execute("CREATE TABLE insider_events(symbol TEXT,disclosure_dt TEXT,txn_class TEXT,"
+              "signal_class TEXT,promoter_group_flag INT)")
+    c.execute("CREATE TABLE sast_pledge_events(symbol TEXT,broadcast_dt TEXT,event_type TEXT,event_pct REAL)")
+    c.execute("CREATE TABLE sast_reg29_events(symbol TEXT,broadcast_dt TEXT,acq_sale TEXT,promoter_flag INT)")
+    c.execute("INSERT INTO insider_events VALUES('INFY',date('now'),'BUY','conviction',1)")
+    c.execute("INSERT INTO sast_pledge_events VALUES('TATAPOWER',date('now'),'released',1.5)")
+    for i in range(20):                                   # a flood of NEWER stake events
+        c.execute("INSERT INTO sast_reg29_events VALUES(?,datetime('now'),'acquired',0)", (f"SYM{i}",))
+    rows = reads.filings_recent(c, days=7, limit=12)
+    details = " | ".join(r["detail"] for r in rows)
+    assert "Promoter buy" in details, ("insider filings must survive a stake-disclosure flood", details)
+    assert "Pledge released" in details, ("pledge filings must survive too", details)
+    # near-duplicates (same symbol + same event line) collapse
+    c.execute("INSERT INTO insider_events VALUES('INFY',date('now'),'BUY','conviction',1)")
+    again = reads.filings_recent(c, days=7, limit=12)
+    assert sum(1 for r in again if r["symbol"] == "INFY" and r["detail"] == "Promoter buy") == 1
+
+
 def test_today_additions_escape_untrusted():
     fl = C.filings_block([{"symbol": "<script>", "detail": "<b>x", "date": "2026-07-23", "cls": "warn"}])
     cv = C.conviction_block([{"symbol": "<script>", "rs_rank": 1, "primary_sector": "<i>"}])

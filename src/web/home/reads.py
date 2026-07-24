@@ -381,24 +381,36 @@ def _reg29_ev(r: dict) -> dict:
 
 def filings_recent(conn, days: int = 21, limit: int = 12) -> list:
     """Recent ownership/insider filings — insider transactions + SAST pledge + Reg-29 stake events,
-    unified and newest-first, each a plain-English descriptive line. [] if the tables are absent/empty
-    (the caller falls back to demo). Descriptive only, never a recommendation."""
+    unified newest-first, each a plain-English descriptive line. [] if the tables are absent/empty
+    (the caller falls back to demo). Descriptive only, never a recommendation.
+
+    BALANCED BY SOURCE (box-verified 2026-07-23): stake disclosures fire far more often than insider
+    trades (281 vs 158 in 21 days, and to-the-minute timestamps), so a pure newest-first merge served
+    12/12 stake events and buried every insider buy — the highest-signal filing here. Each source now
+    contributes its own newest `per` rows to the candidate pool before the merge, and near-duplicates
+    (same symbol + same event line) collapse."""
+    per = max(4, int(limit) // 2)
+    win = (f"-{int(days)} day", per)
     out = []
     if _has(conn, "insider_events"):
         out += [_insider_ev(r) for r in _rows(
             conn, "SELECT symbol, disclosure_dt, txn_class, signal_class, promoter_group_flag FROM insider_events "
-                  "WHERE disclosure_dt >= date('now', ?) ORDER BY disclosure_dt DESC LIMIT ?",
-            (f"-{int(days)} day", limit))]
+                  "WHERE disclosure_dt >= date('now', ?) ORDER BY disclosure_dt DESC LIMIT ?", win)]
     if _has(conn, "sast_pledge_events"):
         out += [_pledge_ev(r) for r in _rows(
             conn, "SELECT symbol, broadcast_dt, event_type, event_pct FROM sast_pledge_events "
-                  "WHERE broadcast_dt >= date('now', ?) ORDER BY broadcast_dt DESC LIMIT ?",
-            (f"-{int(days)} day", limit))]
+                  "WHERE broadcast_dt >= date('now', ?) ORDER BY broadcast_dt DESC LIMIT ?", win)]
     if _has(conn, "sast_reg29_events"):
         out += [_reg29_ev(r) for r in _rows(
             conn, "SELECT symbol, broadcast_dt, acq_sale, promoter_flag FROM sast_reg29_events "
-                  "WHERE broadcast_dt >= date('now', ?) ORDER BY broadcast_dt DESC LIMIT ?",
-            (f"-{int(days)} day", limit))]
+                  "WHERE broadcast_dt >= date('now', ?) ORDER BY broadcast_dt DESC LIMIT ?", win)]
     out = [e for e in out if e.get("symbol")]
     out.sort(key=lambda x: x.get("date") or "", reverse=True)
-    return out[:limit]
+    seen, deduped = set(), []
+    for e in out:
+        key = (e.get("symbol"), e.get("detail"))
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(e)
+    return deduped[:limit]
