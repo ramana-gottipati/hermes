@@ -151,9 +151,14 @@ Portfolio P&L attribution; (4) the Markets rotation page (RRG journeys).
 - B3. **"When a name is added — when is its NEXT trigger?"** — STILL DEFERRED (owner). The next
   expected event/signal (results date · ex-date · cadence-overdue). Raise; don't build yet.
 
-**C. PRO-ADS layer (§2):** the locked-teaser mechanism (`.pro-ad` third state: Free shows a
-blurred/partial preview + "Unlock with Pro" CTA; Pro shows full). Owner wants these DEEPER. CONFIRM
-the "Pro-Ads" interpretation with the owner before building.
+**C. PRO-ADS layer — ✅ DONE + DEPLOYED (owner CONFIRMED the locked-teaser reading, commit `91e20d0`):**
+`components.pro_teaser` = the third `.g-proad` state (Free: blurred real Pro block + 'Unlock with Pro'
+CTA button that flips to Pro in place; two modes — `advertise=False` clean-in-Pro / `advertise=True`
+`.free-only`, gone-in-Pro). Applied v1 to (1) the **FII/DII deep block** (owner's example) + (2) a
+**pulse-deck reference teaser** (real breadth chip blurred + live-value CTA). `ref_chip(bare=True)`
+lets a real chip sit inside a teaser. Free stays complete; only DEPTH is teased. RM-safe (static blur).
+DEFERRED: CTA flips the preview tier — no subscription/payment flow yet (a real launch routes to
+checkout); MORE teaser spots can be added (currently 2).
 
 **D. The Markets rotation page** (`/dash/home/rotation`, new isolated Graphite page): full RRG with a
 6/12/24-month period selector + the CLUTTER FIX (fixed ~10 dots per tail, period sets the spacing) +
