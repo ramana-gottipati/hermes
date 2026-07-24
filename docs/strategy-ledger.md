@@ -2091,6 +2091,19 @@ transfer to defensive low-vol names (likely institutions chasing already-rich "s
 broad-universe long-short/ranking overlay, NOT a low-vol conditioner.** (⚠ caught + fixed a window-fairness
 bug first: base-on-83mo vs split-on-31mo was apples-to-oranges; the fair read is 0.76 vs 0.60.)
 
+**LONG-SHORT FOLLOW-UP (`inst_flow_ls.py`) — the broad-universe flow long-short is NOT fundable; the
+signal is UNSTABLE across windows.** Long top-quintile Δ(DII+FII), short bottom-quintile (short leg
+restricted to liquid ≥₹25cr + 4%/yr borrow), quarterly, PIT. Fair window only 10 quarters (2023+, report_date
+recent-only). Result: **SPREAD gross R/V −0.84 / CAGR −8.1%** (net post-borrow −1.73 / −15.7%) — the RAW
+spread is negative BEFORE borrow cost. Why: the SHORT leg (institutions selling, liquid) returned **+24.3%**
+gross vs the LONG leg (buying) **+14.4%** — the "distribution" names went UP MORE, so shorting them loses.
+**This INVERTS the full-window event study (δ +0.07, Q5>Q1 over 2019-26)** → the +0.07 is weak enough to
+flip sign on the recent liquid subset = noise-dominated, not tradeable. VERDICT: REJECTED. **Institutional
+flow is now closed as REAL-but-weak-and-unstable — NOT fundable in ANY of the 3 forms tested: long-only
+(Q5 0.51), low-vol tilt (hurts 0.60<0.76), long-short (spread −8% gross).** Only bright spot: the long leg
+alone on 2023+ (14.4%/qtr-excess +1.15%/R/V 0.70) — short, sub-hurdle, non-robust. India short costs are a
+secondary nail; the primary problem is the signal's instability. [[failure-models-ledger]].
+
 ### EMA-crossover family — VERDICT (2026-07-23, explicit)
 
 **The EMA CROSSOVER ITSELF PRODUCES NOTHING FUNDABLE.** Both crossover strategies fail:
