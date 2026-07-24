@@ -160,10 +160,21 @@ lets a real chip sit inside a teaser. Free stays complete; only DEPTH is teased.
 DEFERRED: CTA flips the preview tier — no subscription/payment flow yet (a real launch routes to
 checkout); MORE teaser spots can be added (currently 2).
 
-**D. The Markets rotation page** (`/dash/home/rotation`, new isolated Graphite page): full RRG with a
-6/12/24-month period selector + the CLUTTER FIX (fixed ~10 dots per tail, period sets the spacing) +
-Pro-gated long journeys + per-sector depth. Reached via a "See the full rotation →" link from the
-Today RRG. Today RRG defaults to the SHORT view.
+**D. The Markets rotation page** (`/dash/home/rotation`, new isolated Graphite page) — ⭐ THE NEXT UNIT.
+Full RRG with a 6/12/24-month period selector + the CLUTTER FIX (fixed ~10 dots per tail, period sets
+the spacing) + Pro-gated long journeys + per-sector depth. Reached via a "See the full rotation →"
+link from the Today RRG. Today RRG defaults to the SHORT view.
+- **FEASIBILITY — box-probed 2026-07-24: GO.** `ratio_rows` holds **14 years** per RRG sector
+  (2012-02-21 → 2026-07-24, ~3,545 rows each), so 6/12/24-mo journeys are trivially supported — reuse
+  the canonical `rrg._rs_ratio_momentum`/`quadrant` (same as `reads.rrg_sectors`) over a longer window.
+- **RECOMMENDED clutter-fix (this session's verdict on the fork):** fixed ~10 dots per tail; the period
+  selector sets the SPACING between them (6mo → ~2.5-week block-means · 12mo → ~5-week · 24mo →
+  ~2.4-month), exactly the block-mean pattern `rrg_sectors` already uses for the weekly tail — just
+  parameterise the block size by period. Consistent readable comet at every horizon. (Alt considered:
+  show-all-dots-thinned — rejected, denser/noisier at long periods.)
+- **SURFACE-PLAYBOOK required (binding):** new isolated route in the home package + a "See the full
+  rotation →" link from the Today RRG (default short) + registration/Pat coverage/glossary/education/
+  fence per `docs/SURFACE-PLAYBOOK.md`. Keep it `data-ui-g`/`.g-*` isolated; Pro-gate the long journeys.
 
 **E. Heatmap enhancements (offered, owner may want):** colour-by-delivery toggle; full universe;
 per-tile "unusual move?" context (Pro).
@@ -191,38 +202,33 @@ hermes-api` → `curl …/dash/home` 200 + structure grep → **the verify-curl 
 > `https://srv1704897.hstgr.cloud/dash/home?v=N`). Boot: `CLAUDE.md` →
 > `docs/graphite-home-carryforward.md` (THIS file) → `docs/redesign-coordination.md`. Run
 > autonomously (Guardrail #0); the Browser pane is DOWN so verify HTML/gates/data on the box and hand
-> `?v=N` links. Suite baseline **844** (only `test_rule_lab` red, not ours).
+> `?v=N` links. Suite baseline **~844** (only `test_rule_lab` red, not ours — deselect it; 821 pass).
 >
-> **The mission this session: build the PRO REFERENCE LAYER.** Binding principle: *a number in
-> isolation is useless — the reference is the premium* (Free = the number; Pro = is-it-normal /
-> which-way / better-or-worse-than-before). The Free ⇄ Pro tier switch + `.pro-more` gating already
-> exist; the breadth-gap PRO block is the demonstrator.
+> **DONE + LIVE (2026-07-24, do NOT rebuild — verify first):** the ENTIRE **Pro reference layer**
+> (A1 reference chip on 5 pulse tiles · A2 FII/DII deeper · A3 portfolio attribution), the owner
+> corrections (B1 watchlist add-date · B2 the **+ Add** affordance / home-owned `POST
+> /dash/home/watch/add`), and the **Pro-Ads** locked-teaser layer (`components.pro_teaser`). Commits
+> `7c62e64 · 705c1ed · 91e20d0`. Details + verdicts in §5-A/B/C. `market_internals_daily` staleness
+> self-resolved (now current to 07-24).
 >
-> **RESEARCH each segment first, then decide what to include (don't guess):** for EACH Today-page
-> component in §3, (a) trace its data source + what history is stored (grep the read + probe the box
-> DB), (b) compute the honest reference (percentile / typical / trend / streak) from that history,
-> (c) decide the Free vs Pro content + wire it via a CONSISTENT reference-chip pattern. **Cheapest
-> discriminating observation FIRST** (e.g. probe `fii_dii_flows` categories before designing the FII/DII
-> deepening; check `market_internals_daily` for the pulse percentiles). ALIGN with the parallel lane's
-> `/dash/self-history` (a23b380 — self-relative ranking) — reuse, don't duplicate.
+> **THE MISSION THIS SESSION: build the Markets rotation page (§5-D).** A NEW isolated Graphite page
+> (`/dash/home/rotation`), full RRG with a 6/12/24-month period selector + the CLUTTER FIX (**fixed
+> ~10 dots per tail; the period sets the SPACING** — 6mo ~2.5-wk / 12mo ~5-wk / 24mo ~2.4-mo
+> block-means; parameterise the block size `rrg_sectors` already uses) + Pro-gated long journeys +
+> per-sector depth. Reached via a "See the full rotation →" link from the Today RRG (which defaults
+> SHORT). **Feasibility box-probed: GO** — `ratio_rows` holds 14y per sector (2012→2026). Reuse the
+> canonical `rrg._rs_ratio_momentum`/`quadrant`; do NOT re-derive. Land the full **SURFACE-PLAYBOOK**
+> checklist (registration · Pat coverage · glossary · education · fence) in the SAME session.
 >
-> **Build order (§3/§5):** (A1) reference chip + Pulse-deck percentiles [8 tiles at once] → (A2) FII/DII
-> deeper (streak · 5-day cumulative · percentile · per-participant) → (A3) Featured watchlist per-name
-> reference + Portfolio P&L attribution → then the Markets rotation page (§5-D).
->
-> **Also land the owner's concrete corrections (§5-B):** watchlist Pro **add-date**; **wire the missing
-> add-to-watchlist/portfolio affordance** on the featured card (records add-date, gives clear
-> success/error feedback; decide reuse `/dash/track` vs a home POST — the home is currently read-only);
-> make the Graphite watchlist richer than "basic info."
->
-> **CONFIRM with the owner before building PRO-ADS (§2/§5-C):** is "Pro-Ads" the *locked-teaser* upsell
-> layer (Free shows a blurred/partial Pro preview + CTA; Pro shows full)? He wants it DEEPER. And note
-> the DEFERRED discussion: "when a name is added, when is its next trigger?" (§5-B3).
+> **Then (§5-E/F, if time):** heatmap colour-by-delivery + full-universe + per-tile "unusual?" (Pro);
+> cutover (PARKED until a Graphite stock page exists). **DEFERRED (§5-B3):** "when a name is added,
+> when is its next trigger?" (results date · ex-date · cadence-overdue) — raise, don't build yet.
 >
 > Every change: additive, isolated (`data-ui-g`/`.g-*`, no preview/legacy import), DOM-safe,
 > reduced-motion-safe, defensive + demo/sample-honest, gate-tested, deployed writer-safe per §6, box-
 > verified, `?v=N` to the owner. Keep Free complete (never crippled). Argue back; give the verdict
-> before building on any genuine fork.
+> before building on any genuine fork. **Multi-session:** a parallel self-history/markets lane commits
+> alongside — stage only YOUR hunks (selective patch), never absorb foreign PROJECT_STATE/charter edits.
 
 ---
 
