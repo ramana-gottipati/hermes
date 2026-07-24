@@ -2080,6 +2080,17 @@ selection edge lives.** NEXT (not built): use Δinst as a CONDITIONER/tilt insid
 pure-MF breakout (vs DII aggregate); more history. Caveats: DII = MF-dominated domestic institutions (not
 pure MF); ~28 quarters 2019+.
 
+**TILT FOLLOW-UP (`lowvol_flow_tilt.py`) — the `low-vol × accumulation` synthesis does NOT lift the fundable
+book; it HURTS.** Within the sealed low-vol held set each quarter, split by PIT Δ(DII+FII) into ACCUM
+(buying) vs DISTRIB (selling), all on the SAME fair window (2024-01→2026-07, 31 mo — short, because PIT
+report_date is well-populated only recently). Result: BASE (all held, EW) R/V 0.76/CAGR 10.7%/DD −19.0% >
+**ACCUM 0.60/8.4%/−20.2%** > and even DISTRIB 0.74/11.8%/−20.9% edged the accum half. Tilting low-vol toward
+institutional accumulation LOWERS return/vol — the flow edge (weakly +0.07 in the BROAD universe) does NOT
+transfer to defensive low-vol names (likely institutions chasing already-rich "safety"). Accum tilt churns
+~200%/yr → net worse. **VERDICT: keep the two separate — low-vol stays equal-weight; flow, if used, is a
+broad-universe long-short/ranking overlay, NOT a low-vol conditioner.** (⚠ caught + fixed a window-fairness
+bug first: base-on-83mo vs split-on-31mo was apples-to-oranges; the fair read is 0.76 vs 0.60.)
+
 ### EMA-crossover family — VERDICT (2026-07-23, explicit)
 
 **The EMA CROSSOVER ITSELF PRODUCES NOTHING FUNDABLE.** Both crossover strategies fail:
