@@ -101,6 +101,10 @@ _ROUTER_SPECS = [
     # 3-year history) for a bounded universe; compute-on-read, split/bonus-adjusted. New
     # self-contained module, additive; durably mounted so a clean clone renders it.
     ("self-history", "src.web.self_history_view", "/dash/self-history"),
+    # Sideways migration parity (2026-07-24) — the internal governance board guaranteeing no classic
+    # element is silently missed in the modern-app rebuild. Derived inventory + disposition manifest;
+    # gate = tests/test_sideways_parity.py. INTERNAL_DEV route (deliberately unlinked, an ops board).
+    ("sideways-parity", "src.web.sideways_parity", "/dash/sideways-parity"),
     # Sector economics (deep-data value sprint) — median ROCE/OPM by sector × year over a decade
     # (research.db fundamentals ⋈ hermes company_tags). Aggregate, descriptive; the fundamental
     # complement to the RS-based Sectors lens.
