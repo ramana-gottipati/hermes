@@ -125,26 +125,31 @@ Portfolio P&L attribution; (4) the Markets rotation page (RRG journeys).
 
 ## 5. OPEN — the queue (prioritized for the next session)
 
-**A. The Pro reference layer (the big one — §3 priority order):**
-- A1. The consistent **reference chip** component + wire the **Pulse-deck percentiles** (8 tiles) from
-  `market_internals_daily`/`index_signals` history. Align with `/dash/self-history` (a23b380).
-- A2. **FII/DII "go deeper"** — streak · 5-day cumulative · percentile · per-participant (cash vs F&O,
-  FII vs DII). Check what `fii_dii_flows` actually stores (categories/columns) FIRST.
-- A3. Featured Watchlist per-name reference + Portfolio P&L attribution.
+**A. The Pro reference layer — ✅ DONE + DEPLOYED (2026-07-24, commits `7c62e64`, `705c1ed`):**
+- A1. ✅ `components.ref_chip` (the ONE grammar: `Npct · band · typ X · ↑/↓`, Pro-only) on the **5
+  pulse tiles that earn an honest reference** — breadth/delivery/accumulation/dispersion
+  (`reads.internals_reference`, 22y `market_internals_daily`) + India VIX (`reads.vix_reference`,
+  ~12y). VERDICT: NOT "8 tiles" — Mood (no stored history), New-52w (per-date COUNT over 5.9M-row
+  `stock_signals` = too heavy), Sector-heat (already relative) get NO fabricated percentile. Aligns
+  with `/dash/self-history` (descriptive-only, percentile-vs-own-past).
+- A2. ✅ `reads.fii_dii_deep` + `components._flows_deep_html` (Pro flows block): per participant —
+  gross buy/sell · buy/sell **streak** · **5-day cumulative** · **1-month-range** position. VERDICT:
+  store has ONLY `FII/FPI` + `DII` aggregate over ~24 sessions — **no cash-vs-F&O split exists**, so
+  none fabricated (disclosed); "percentile" honestly framed as a range position (24 pts too thin).
+- A3. ✅ `components._folio_attrib` (Pro portfolio): top contributor/detractor + concentration,
+  attribution = **weight × day move (bps of book)** (real + demo, no extra query). Watchlist per-name
+  self-relative depth LEFT to `/dash/self-history` (importing its web-view engine breaks the home
+  isolation gate) — reached via per-name `sym` links.
 
-**B. Owner corrections from this wrap (do these — they're concrete):**
-- B1. **Watchlist Pro: show the ADD-DATE** per name. The read already reaches `stocks_in_play`
-  (`date_added`) + legacy `watchlist` (`added_at`) — surface the date (Pro tier).
-- B2. **Add-to-watchlist/portfolio is MISSING/non-functional** on the Graphite featured card (the "+
-  Add a symbol" I offered doesn't appear/work). The Graphite watchlist shows only basic info vs the
-  classic Tracker. WIRE IT: an add affordance that POSTs to the tracker (classic `POST /dash/track`
-  exists — but the home is currently READ-ONLY; adding a WRITE is a new consideration — decide:
-  reuse `/dash/track` vs a home-owned POST), RECORD the add-date, and give clear **positive/negative
-  feedback** (success toast / invalid-ticker error). Make the Graphite watchlist richer (add-date,
-  the tracker's info).
-- B3. **"When someone adds a name — when is its NEXT trigger?"** — FUTURE DISCUSSION (owner deferred).
-  Note: the next expected event/signal for a stock (results date, ex-date, cadence-overdue). Don't
-  build yet; raise it.
+**B. Owner corrections — ✅ B1/B2 DONE + DEPLOYED; B3 still deferred:**
+- B1. ✅ Watchlist add-date — `reads.watchlist_rows` carries `date_added`; Pro per-name line
+  `added 19 Jun 26 · RS #23 · ◆ your standout today` (standout = biggest absolute mover among yours).
+- B2. ✅ The ADD affordance (the home was READ-ONLY) — home-owned `POST /dash/home/watch/add` +
+  `reads.watch_add` (validate vs `bhavcopy_rows` EQ/BE · dedupe · insert canonical `stocks_in_play`
+  watch tier · date_added native · success/error **toast**; plain HTML form, injection-safe). VERDICT:
+  home-owned POST, NOT classic `/dash/track` (isolation). Box-verified add→appear→cleanup round-trip.
+- B3. **"When a name is added — when is its NEXT trigger?"** — STILL DEFERRED (owner). The next
+  expected event/signal (results date · ex-date · cadence-overdue). Raise; don't build yet.
 
 **C. PRO-ADS layer (§2):** the locked-teaser mechanism (`.pro-ad` third state: Free shows a
 blurred/partial preview + "Unlock with Pro" CTA; Pro shows full). Owner wants these DEEPER. CONFIRM
