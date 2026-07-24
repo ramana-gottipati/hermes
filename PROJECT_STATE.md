@@ -2269,6 +2269,18 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   qualifying set (≤40) for an honest count while the card still shows the top 8. Gated in
   `test_home_featured`. Decision + rationale in `docs/graphite-home-carryforward.md` §4.
 
+### Graphite Home — 2026-07-24 — RRG tail → WEEKLY (owner Q on Auto: "is this a real rotation or a spike?")
+Owner read the live RRG (Auto in Leading with a long tail) and asked if Auto was "previously lagging /
+now constantly leading." Traced the REAL trajectory: Auto was genuinely Lagging through mid-July then
+surged into Leading over ~8 sessions — but the tail was only 8 DAILY points (~2 weeks), too short to
+tell rotation from a spike, and the legend overclaimed "recent weeks." Fix in `reads.rrg_sectors`: the
+tail is now WEEKLY — each older point = the AVERAGE of that week's ~5 sessions (block-mean, not
+every-5th-sample which reads jagged from daily noise), spanning ~8 weeks, bright head still today's
+EXACT position; canonical JdK math untouched. Legend corrected. Now Bank shows a clean clockwise arc
+(Improving→Leading→Weakening), IT a dip-and-recover, and Auto reads honestly as chop-then-recent-spike.
+Also reinforced to the owner: RRG is DESCRIPTIVE of the past, never "constant leading" — clockwise
+rotation means stretched Leading names tend to roll into Weakening. Suite 841.
+
 ### Graphite Home — 2026-07-24 — PERF: the home page was 4.1s — conviction query cached by date (→ 90ms)
 🔴 Profiling the whole page (prompted by the regime-band work) exposed a defect I'd shipped earlier and
 never timed: **`conviction_now` = 3.9s on EVERY call** (the canonical `stock_rs.conviction_shortlist`

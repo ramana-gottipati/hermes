@@ -139,9 +139,23 @@ def rrg_sectors(conn, benchmark: str = "Nifty 500", tail: int = 8, limit: int = 
         pts = [(rr[i], rm[i]) for i in range(len(ratio)) if rr[i] is not None and rm[i] is not None]
         if len(pts) < 2:
             continue
-        pts = pts[-int(tail):]
+        # WEEKLY tail (textbook RRG): each older point is the AVERAGE of that week's ~5 sessions
+        # (block-mean, not every-5th-sample — a single sampled daily point carries day-to-day noise
+        # and reads jagged), so the tail spans ~`tail` weeks and reads as a smooth rotation arc; the
+        # bright head stays today's EXACT position. The JdK math itself is untouched/canonical (daily
+        # NORM_WIN/SMOOTH); only the tail is weekly-aggregated. Falls back to a daily tail if sparse.
+        step = 5
+        base = pts[:-1]                                        # history before today
+        blocks, end = [], len(base)
+        while end > 0 and len(blocks) < int(tail) - 1:
+            blk = base[max(0, end - step):end]
+            blocks.append((sum(p[0] for p in blk) / len(blk), sum(p[1] for p in blk) / len(blk)))
+            end -= step
+        weekly = blocks[::-1] + [pts[-1]]                      # weekly means (oldest→newest) + today
+        if len(weekly) < 2:
+            weekly = pts[-int(tail):]
         out.append({"label": name.replace("Nifty ", "").replace(" Index", "").strip(),
-                    "points": pts, "quadrant": quadrant(pts[-1][0], pts[-1][1])})
+                    "points": weekly, "quadrant": quadrant(weekly[-1][0], weekly[-1][1])})
         if len(out) >= int(limit):
             break
     return out

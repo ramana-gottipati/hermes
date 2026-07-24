@@ -961,7 +961,7 @@ def rrg_map(sectors) -> str:
                  + '<text class="g-rrg-lbl" x="%.1f" y="%.1f">%s</text>' % (hx + 6, hy + 3, esc(s.get("label"))))
     leg = ('<div class="g-rrg-leg"><span class="q-lead">Leading</span><span class="q-impr">Improving</span>'
            '<span class="q-weak">Weakening</span><span class="q-lag">Lagging</span>'
-           '<span class="g-rrg-note">bright dot = today · tail = recent weeks · vs Nifty 500</span></div>')
+           '<span class="g-rrg-note">bright dot = today · tail ≈ 8 weeks (weekly steps) · vs Nifty 500</span></div>')
     return ('<div class="g-rrg"><svg viewBox="0 0 460 380" preserveAspectRatio="xMidYMid meet" '
             'role="img" aria-label="Sector rotation map (RRG)">' + quads + cross + qlab + dots + "</svg></div>" + leg)
 
