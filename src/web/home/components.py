@@ -96,6 +96,54 @@ def pro_more(inner_html: str) -> str:
     return '<div class="g-pro-more pro-more">' + inner_html + "</div>"
 
 
+def _ord(n) -> str:
+    """1→1st, 2→2nd, 3→3rd, 11→11th, 82→82nd — for percentile phrasing."""
+    try:
+        i = int(round(float(n)))
+    except (TypeError, ValueError):
+        return "—"
+    if 10 <= (i % 100) <= 20:
+        suf = "th"
+    else:
+        suf = {1: "st", 2: "nd", 3: "rd"}.get(i % 10, "th")
+    return f"{i}{suf}"
+
+
+def ref_chip(ref: dict, unit: str = "", dp: int = 0, trend: str = None) -> str:
+    """THE reference chip — one consistent grammar on every Free number (owner's binding principle:
+    a number in isolation is useless; the reference is the premium). Pro-only (carries `.pro-more`,
+    so it is hidden in Free and revealed in Pro). Renders a compact two-line micro-block:
+        `82nd pct`  unusually high
+        typ 52%  ·  ↑ rising
+    `ref` = {'pctile','typical','n'} from reads.*_reference. `trend` ∈ {'up','down','flat'|None}
+    (a factual direction from the recent series — not a judgment). Extremity (≥80 / ≤20 pct) is the
+    ONLY thing emphasised — deliberately NOT good/bad colour, because a self-relative percentile is
+    descriptive context, never a verdict. '' when there is no honest reference (thin/absent history)."""
+    r = _d(ref)
+    p = r.get("pctile")
+    if p is None:
+        return ""
+    p = max(0.0, min(100.0, float(p)))
+    band = "unusually high" if p >= 80 else ("unusually low" if p <= 20 else "about typical")
+    ext = " hi" if (p >= 80 or p <= 20) else ""
+    typ = ""
+    t = r.get("typical")
+    if t is not None:
+        typ = "typ " + f"{float(t):.{dp}f}{esc(unit)}"
+    tr = ""
+    if trend in ("up", "down", "flat"):
+        arr, word = {"up": ("↑", "rising"), "down": ("↓", "falling"), "flat": ("→", "steady")}[trend]
+        tr = '<span class="g-rc-tr">' + arr + " " + word + "</span>"
+    sep = " · " if (typ and tr) else ""
+    n = r.get("n")
+    ttl = "%s percentile vs its own %s history — descriptive context, not a signal" % (
+        _ord(p), (f"{int(n):,}-session" if n else "full"))
+    return ('<div class="g-refchip pro-more" title="' + esc(ttl) + '">'
+            '<div class="g-rc-1"><span class="g-rc-p' + ext + '">' + _ord(p) + ' pct</span>'
+            '<span class="g-rc-b">' + esc(band) + '</span></div>'
+            '<div class="g-rc-2">' + typ + sep + tr + "</div></div>")
+
+
 # ── atoms ─────────────────────────────────────────────────────────────────────
 def tile(lab: str, big: str, sub: str = "") -> str:
     return ('<div class="g-tile"><span class="g-lab">' + esc(lab) + '</span>'
@@ -162,7 +210,7 @@ def changed_rows(rows: list) -> str:
 
 
 # ── zone 3: FII/DII flows (net flow is a SIGNED value -> up/down colour is correct) ──
-def flows_block(rows: list) -> str:
+def flows_block(rows: list, deep=None) -> str:
     if not rows:
         return empty("FII/DII flows haven't landed for today yet.")
     latest, asof = {}, ""
@@ -190,7 +238,54 @@ def flows_block(rows: list) -> str:
                  '<span class="g-fval g-num ' + ("up" if pos else "dn") + '">' + val_txt + "</span></div>")
     foot = ('<div class="g-flow-foot"><span>← net sell · net buy →</span>'
             '<span>₹ crore · cash segment · provisional · as of ' + esc(asof) + "</span></div>")
-    return '<div class="g-flow">' + bars + foot + "</div>"
+    return '<div class="g-flow">' + bars + foot + _flows_deep_html(deep) + "</div>"
+
+
+def _flows_deep_html(deep) -> str:
+    """The Pro 'go deeper' block for FII/DII (owner ask) — per participant: gross buy/sell, the
+    consecutive buy/sell streak, the 5-day cumulative net, and today's spot in its ~1-month range.
+    Pro-only (`.pro-more`). Honest about the data limit: only cash-segment FII/FPI + DII exist —
+    there is no F&O/derivatives split to show, so none is invented."""
+    d = _d(deep)
+    if not d:
+        return ""
+    n = int(d.get("_n") or 0)
+    parts = ""
+    for key, label in (("FII", "FII/FPI"), ("DII", "DII")):
+        p = _d(d.get(key))
+        if not p or p.get("net") is None:
+            continue
+        net = float(p["net"])
+        pos_net = net >= 0
+        net_txt = ("+" if pos_net else "−") + "₹" + f"{abs(net):,.0f} cr"
+        buy, sell = p.get("buy"), p.get("sell")
+        gross = ""
+        if buy is not None and sell is not None:
+            gross = "buy ₹%s · sell ₹%s cr" % (f"{float(buy):,.0f}", f"{float(sell):,.0f}")
+        sn, sg = int(p.get("streak_n") or 0), int(p.get("streak_sign") or 0)
+        streak = (f"{sn}-day " + ("buying" if sg > 0 else "selling") + " streak") if (sn and sg) else ""
+        cum5 = p.get("cum5")
+        cum_txt = ""
+        if cum5 is not None:
+            c = float(cum5)
+            cum_txt = "5-day " + ("+" if c >= 0 else "−") + "₹" + f"{abs(c):,.0f} cr"
+        pos = p.get("pos")
+        rng = ""
+        if pos is not None and n:
+            band = "upper end" if pos >= 70 else ("lower end" if pos <= 30 else "mid")
+            rng = f"{band} of {n}-session range"
+        meta = " · ".join(x for x in (streak, cum_txt, rng) if x)
+        parts += ('<div class="g-fd-row"><div class="g-fd-top"><span class="g-fd-nm">' + esc(label) + "</span>"
+                  '<span class="g-fd-net g-num ' + ("up" if pos_net else "dn") + '">' + net_txt + "</span></div>"
+                  + ('<div class="g-fd-gross">' + esc(gross) + "</div>" if gross else "")
+                  + ('<div class="g-fd-meta">' + esc(meta) + "</div>" if meta else "")
+                  + "</div>")
+    if not parts:
+        return ""
+    return pro_more('<div class="g-fd">' + parts + "</div>"
+                    + '<p class="g-fd-note">Per participant — FII vs DII, gross flows, and the run + '
+                      "5-day pressure behind today's net. Only cash-segment FII/FPI and DII are reported "
+                      "to the exchange; no derivatives split exists, so none is shown.</p>")
 
 
 def spark(series: list, cls: str = "accent") -> str:
@@ -418,18 +513,19 @@ def _breadth_tile(breadth) -> str:
     return '<div class="g-cell"><span class="g-lab">Breadth · today</span>' + empty("Breadth pending.") + "</div>"
 
 
-def _deck_cell(lab, big, sub, series, exp_id, tone="", hint="trend ›") -> str:
+def _deck_cell(lab, big, sub, series, exp_id, tone="", hint="trend ›", ref="") -> str:
     return ('<div class="g-cell click" data-exp="' + esc(exp_id) + '" tabindex="0" role="button">'
             '<span class="g-hint">' + esc(hint) + '</span><span class="g-lab">' + esc(lab) + "</span>"
             '<span class="g-big g-num ' + tone + '">' + esc(big) + "</span>"
-            + _sparkdiv(series, "g-tspark " + tone) + '<span class="g-sub">' + esc(sub) + "</span></div>")
+            + _sparkdiv(series, "g-tspark " + tone) + '<span class="g-sub">' + esc(sub) + "</span>"
+            + ref + "</div>")
 
 
-def _deck_static(lab, big, sub, exp_id, tone="") -> str:
+def _deck_static(lab, big, sub, exp_id, tone="", ref="") -> str:
     return ('<div class="g-cell click" data-exp="' + esc(exp_id) + '" tabindex="0" role="button">'
             '<span class="g-hint">detail ›</span><span class="g-lab">' + esc(lab) + "</span>"
             '<span class="g-big g-num ' + tone + '">' + esc(big) + "</span>"
-            '<span class="g-sub">' + esc(sub) + "</span></div>")
+            '<span class="g-sub">' + esc(sub) + "</span>" + ref + "</div>")
 
 
 def _exp(exp_id, title, series, tone, text) -> str:
@@ -454,10 +550,28 @@ def _sector_tile(sectors) -> str:
             '<div class="g-heat">' + chips + "</div></div>")
 
 
-def pulse_deck(idx, mood, mood_pct, breadth, series, internals, highs, sectors, vix=None) -> str:
+def _trend_of(series, back: int = 5) -> str:
+    """A factual direction (not a judgment) from a recent series: latest vs ~`back` sessions ago,
+    with a 2%-of-level dead-band so noise reads 'steady'. None if too few points."""
+    s = [float(x) for x in (series or []) if x is not None]
+    if len(s) < back + 1:
+        return None
+    now, prev = s[-1], s[-1 - back]
+    eps = abs(prev) * 0.02 if prev else 0.01
+    return "up" if (now - prev) > eps else ("down" if (now - prev) < -eps else "flat")
+
+
+def pulse_deck(idx, mood, mood_pct, breadth, series, internals, highs, sectors, vix=None,
+               refs=None, vixref=None) -> str:
     """The market in one glance: a headline index + a deck of internals tiles (breadth · delivery
     conviction · accumulation · 52w highs · dispersion · sector heat). Each metric tile opens its
-    30-session trend. Every read is bounded; a missing feed just drops its tile."""
+    30-session trend. Every read is bounded; a missing feed just drops its tile.
+
+    PRO reference layer: `refs` (reads.internals_reference) + `vixref` (reads.vix_reference) attach a
+    consistent reference chip — percentile vs the metric's OWN full history + typical + trend — to the
+    tiles whose history is real and cheap (breadth · delivery · accumulation · dispersion · VIX). The
+    chip is Pro-only; Free shows the number, Pro shows whether it's normal. Descriptive-only."""
+    refs = refs or {}
     head = empty("Index signals pending.")
     if idx:
         r0 = _d(idx[0])
@@ -470,19 +584,23 @@ def pulse_deck(idx, mood, mood_pct, breadth, series, internals, highs, sectors, 
     mep, disp = _col(internals, "mep_net"), _col(internals, "disp")
     tiles = _mood_tile(mood_pct, mood) + _breadth_tile(breadth)
     if padv and padv[-1] is not None:
-        tiles += _deck_cell("Breadth trend", f"{float(padv[-1]):.0f}%", "advancing · recent sessions", padv, "e-breadth", tone="up")
+        tiles += _deck_cell("Breadth trend", f"{float(padv[-1]):.0f}%", "advancing · recent sessions", padv,
+                            "e-breadth", tone="up", ref=ref_chip(refs.get("breadth"), unit="%", trend=_trend_of(padv)))
     if adp and adp[-1] is not None:
-        tiles += _deck_cell("Delivery conviction", f"{float(adp[-1]):.0f}%", "of turnover delivered", adp, "e-deliv")
+        tiles += _deck_cell("Delivery conviction", f"{float(adp[-1]):.0f}%", "of turnover delivered", adp,
+                            "e-deliv", ref=ref_chip(refs.get("delivery"), unit="%", trend=_trend_of(adp)))
     if mep and mep[-1] is not None:
         v = float(mep[-1])
         tiles += _deck_cell("Accumulation tape", ("+" if v >= 0 else "−") + f"{abs(v):.1f}",
-                            "net accumulating · MEP", mep, "e-accum", tone=("up" if v >= 0 else "dn"))
+                            "net accumulating · MEP", mep, "e-accum", tone=("up" if v >= 0 else "dn"),
+                            ref=ref_chip(refs.get("accum"), dp=1, trend=_trend_of(mep)))
     hi = _d(highs)
     if hi and hi.get("highs") is not None:
         tiles += _deck_static("New 52-wk highs", str(int(hi.get("highs") or 0)),
                               f"{int(hi.get('near') or 0)} within 2% of high", "e-52w", tone="up")
     if disp and disp[-1] is not None:
-        tiles += _deck_cell("Dispersion", f"{float(disp[-1]):.2f}", "stock-pickers' spread", disp, "e-disp", hint="what's this ›")
+        tiles += _deck_cell("Dispersion", f"{float(disp[-1]):.2f}", "stock-pickers' spread", disp,
+                            "e-disp", hint="what's this ›", ref=ref_chip(refs.get("disp"), dp=2, trend=_trend_of(disp)))
     v = _d(vix)
     if v and v.get("close_value") is not None:
         chg = v.get("ret_1d_pct")
@@ -491,7 +609,8 @@ def pulse_deck(idx, mood, mood_pct, breadth, series, internals, highs, sectors, 
         except (TypeError, ValueError):
             sub = "expected swing"
         # NEUTRAL by design: a higher VIX is a wider expected move, not a "good" or "bad" reading.
-        tiles += _deck_static("Volatility · India VIX", f"{float(v['close_value']):.1f}", sub, "e-vix")
+        tiles += _deck_static("Volatility · India VIX", f"{float(v['close_value']):.1f}", sub, "e-vix",
+                              ref=ref_chip(vixref, dp=1))
     tiles += _sector_tile(sectors)
     exps = ""
     if padv:
@@ -1187,6 +1306,16 @@ def css() -> str:
 :root[data-ui-g] .g-fval.up{color:var(--up)}
 :root[data-ui-g] .g-fval.dn{color:var(--down)}
 :root[data-ui-g] .g-flow-foot{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--ink-3);margin-top:2px;flex-wrap:wrap}
+/* FII/DII Pro 'go deeper' block */
+:root[data-ui-g] .g-fd{display:flex;flex-direction:column;gap:11px}
+:root[data-ui-g] .g-fd-row{display:flex;flex-direction:column;gap:2px}
+:root[data-ui-g] .g-fd-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+:root[data-ui-g] .g-fd-nm{font:700 12px var(--mono);letter-spacing:.04em;color:var(--ink-2)}
+:root[data-ui-g] .g-fd-net{font-weight:800;font-size:14px}
+:root[data-ui-g] .g-fd-net.up{color:var(--up)} :root[data-ui-g] .g-fd-net.dn{color:var(--down)}
+:root[data-ui-g] .g-fd-gross{font-size:11.5px;color:var(--ink-3)}
+:root[data-ui-g] .g-fd-meta{font-size:11.5px;color:var(--ink-2)}
+:root[data-ui-g] .g-fd-note{font-size:10.5px;color:var(--ink-3);line-height:1.5;margin:9px 0 0}
 :root[data-ui-g] .g-spark{height:38px;margin-top:2px;color:var(--accent)}
 :root[data-ui-g] .g-spark.up{color:var(--up)}
 :root[data-ui-g] .g-spark.dn{color:var(--down)}
@@ -1457,6 +1586,20 @@ def css() -> str:
 :root[data-ui-g] .g-ctx-row{display:flex;justify-content:space-between;gap:10px}
 :root[data-ui-g] .g-ctx b{color:var(--ink)}
 :root[data-ui-g] .g-ctx .warn{color:var(--warn)} :root[data-ui-g] .g-ctx .ok{color:var(--up)}
+/* the reference chip — the ONE grammar on every Free number (Pro-only). Compact, muted, extremity is
+   the only emphasis (a self-relative percentile is descriptive context, never good/bad). */
+:root[data-ui-g] .g-refchip{margin-top:9px;padding:7px 9px 6px;border-radius:9px;
+  border:1px solid color-mix(in srgb,var(--accent) 26%,var(--line-2));
+  background:color-mix(in srgb,var(--accent) 5%,var(--bg-0));position:relative}
+:root[data-ui-g] .g-refchip::before{content:"PRO";position:absolute;top:-7px;right:9px;
+  font:800 7px/1 var(--mono);letter-spacing:.13em;color:var(--on-accent);
+  background:linear-gradient(120deg,var(--accent),var(--accent-hi));padding:2px 5px;border-radius:4px}
+:root[data-ui-g] .g-rc-1{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+:root[data-ui-g] .g-rc-p{font:800 12.5px var(--mono);color:var(--ink-2);letter-spacing:.01em}
+:root[data-ui-g] .g-rc-p.hi{color:var(--accent)}
+:root[data-ui-g] .g-rc-b{font-size:10.5px;color:var(--ink-3)}
+:root[data-ui-g] .g-rc-2{margin-top:2px;font-size:10.5px;color:var(--ink-3);display:flex;gap:1px;flex-wrap:wrap}
+:root[data-ui-g] .g-rc-tr{color:var(--ink-2)}
 </style>"""
 
 

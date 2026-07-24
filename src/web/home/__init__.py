@@ -124,6 +124,8 @@ def _compose(conn, on: bool) -> str:
     highs = reads.new_highs(conn) or demo.NEW_HIGHS
     sectors = reads.sector_heat(conn) or demo.SECTOR_HEAT
     vix = reads.vix_latest(conn) or demo.VIX
+    pulse_refs = reads.internals_reference(conn)   # Pro reference layer (percentile vs own history)
+    vix_ref = reads.vix_reference(conn)
     mmap, mmap_demo = _pick(reads.market_map(conn), demo.MARKET_MAP)
     sev = reads.severity_counts(conn)
     if not sev.get("total"):
@@ -151,7 +153,8 @@ def _compose(conn, on: bool) -> str:
     # ── MAIN column: featured · pulse deck · what-changed · news (all visible) ──
     pulse = C.zone("Market pulse", "market internals · nightly",
                    C.pulse_deck(idx, mood, (b_in if b_in is not None else 0), breadth,
-                                series70[-30:], internals, highs, sectors, vix=vix),
+                                series70[-30:], internals, highs, sectors, vix=vix,
+                                refs=pulse_refs, vixref=vix_ref),
                    sub="the market in one glance", sample=idx_demo)
     trig = C.zone("What changed today", "Signal engine · nightly",
                   C.count_band(sev) + C.changed_rows(reads.what_changed(conn) or demo.WHATCHANGED)
@@ -167,7 +170,8 @@ def _compose(conn, on: bool) -> str:
     main = '<div class="g-main">' + regime + featured + hmap + pulse + conviction + trig + news + "</div>"
 
     # ── RAIL: flows · filings · calendars · go-deeper · toggle ──
-    flows = C.zone("FII / DII flows", "FII/DII cash · post-close", C.flows_block(fd),
+    flows = C.zone("FII / DII flows", "FII/DII cash · post-close",
+                   C.flows_block(fd, deep=(reads.fii_dii_deep(conn) if not fd_demo else None)),
                    sub="foreign vs domestic", sample=fd_demo)
     filings = C.zone("Filings & ownership", "SEBI disclosures · daily", C.filings_block(fil),
                      sub="insider · pledge · stake", sample=fil_demo, name="Filings")

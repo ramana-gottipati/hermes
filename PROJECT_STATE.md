@@ -2201,6 +2201,33 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Graphite Home — 2026-07-24 — PRO REFERENCE LAYER A1+A2 (reference chip · pulse percentiles · FII/DII deeper)
+Built the PRO reference layer's first two increments (owner principle: *a number in isolation is
+useless — the reference is the premium*). Additive/isolated (`.g-refchip`, `.g-fd*`), Pro-only, gate-
+passing (82 home tests green), deployed writer-safe + box-verified.
+- **A1 — the reusable reference chip + pulse-deck percentiles.** New `components.ref_chip(ref, unit,
+  dp, trend)` = the ONE grammar on every Free number: `Npct · band · typ X · ↑/↓`, Pro-only
+  (`.pro-more`), extremity-only emphasis (a self-relative percentile is CONTEXT, never good/bad —
+  aligns with `/dash/self-history` a23b380). Wired into **5 pulse-deck tiles that earn an honest
+  reference**: breadth · delivery · accumulation · dispersion (`reads.internals_reference`, 22y of
+  `market_internals_daily`) + India VIX (`reads.vix_reference`, ~12y of `index_signals`, FRESH).
+  **VERDICT (fork):** the queue said "8 tiles" — only 5 have cheap real history; Mood (no stored
+  series), New-52w-highs (a daily series = per-date COUNT over 5.9M-row `stock_signals`, too heavy),
+  Sector-heat (already a relative distribution) get **no fabricated percentile**. Reference is keyed to
+  the SAME latest row the tile shows, so number + reference can never disagree.
+- **A2 — FII/DII 'go deeper'.** New `reads.fii_dii_deep` + `components._flows_deep_html` (Pro block on
+  the flows rail): per participant — gross buy/sell, consecutive buy/sell **streak**, **5-day
+  cumulative**, and today's spot in its **~1-month range**. Only shows on REAL flows (not demo).
+  **VERDICT (fork):** the queue promised "per-participant (cash vs F&O)" — box-probe proved the store
+  holds ONLY `FII/FPI` + `DII` aggregate net + gross, ~24 sessions; **no cash-vs-F&O split exists**, so
+  none is fabricated (disclosed in the block). Percentile framed honestly as a range position, not a
+  deep percentile (24 pts too thin).
+- **⚠ Cross-lane flag (spawned):** `market_internals_daily`'s nightly fill **stalled at 2026-07-10**
+  while bhavcopy/signals/index reach 07-24 — the deck's internals tiles (breadth/delivery/accum/disp)
+  silently show 07-10 data; the "Breadth · today" label is then 2 weeks stale. Not this lane's pipeline
+  — flagged for the internals-ingestion owner. The 22y percentile reference is unaffected (a
+  distribution statement about the latest-available value).
+
 ### Graphite Home — 2026-07-24 — SESSION WRAP: FREE/PRO/PRO-ADS plan + reference-layer queue + owner corrections
 Full handoff (state · plan · open items · deploy recipe · **autonomous next-session takeover prompt**):
 **`docs/graphite-home-carryforward.md`** (rewritten this wrap). Highlights:

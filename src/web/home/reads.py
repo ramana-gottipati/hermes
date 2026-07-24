@@ -243,6 +243,59 @@ def fii_dii_recent(conn, limit: int = 10) -> list:
                  "WHERE category IN ('FII/FPI','DII') ORDER BY trade_date DESC LIMIT ?", (limit * 2,))
 
 
+def _flow_depth(nets: list, latest: dict) -> dict:
+    """From a chronological net series (oldest→newest) + the latest day's gross buy/sell, derive the
+    honest 'go deeper' reads: consecutive same-sign STREAK, 5-day cumulative net, and where today's
+    net sits in the stored range (a RANGE POSITION over ~N sessions — NOT a deep percentile: the
+    stored history is only ~1 month, too thin for that, so it is labelled as a range)."""
+    series = [float(v) for v in nets if v is not None]
+    if not series:
+        return {}
+    today = series[-1]
+    sign = 1 if today > 0 else (-1 if today < 0 else 0)
+    streak = 0
+    if sign != 0:
+        for v in reversed(series):
+            if (v > 0 and sign > 0) or (v < 0 and sign < 0):
+                streak += 1
+            else:
+                break
+    cum5 = sum(series[-5:])
+    lo, hi = min(series), max(series)
+    pos = (100.0 * (today - lo) / (hi - lo)) if hi > lo else 50.0
+    return {"net": today, "buy": latest.get("buy_value"), "sell": latest.get("sell_value"),
+            "streak_sign": sign, "streak_n": streak, "cum5": cum5,
+            "lo": lo, "hi": hi, "pos": pos, "n": len(series)}
+
+
+def fii_dii_deep(conn) -> dict:
+    """FII/DII 'go deeper' (the owner ask). REALITY (box-verified 2026-07-24): the store holds only
+    TWO participants — FII/FPI and DII — each with gross buy/sell/net over ~24 sessions. There is NO
+    cash-vs-F&O split, so it is not fabricated. Per participant: today's net + gross buy/sell, the
+    consecutive buy/sell STREAK, the 5-day cumulative net, and today's position in its ~1-month range.
+    {} if absent. Descriptive-only."""
+    if not _has(conn, "fii_dii_flows"):
+        return {}
+    rows = _rows(conn, "SELECT trade_date, category, buy_value, sell_value, net_value "
+                       "FROM fii_dii_flows WHERE category IN ('FII/FPI','DII') ORDER BY trade_date")
+    if not rows:
+        return {}
+    out, asof = {}, ""
+    for cat, key in (("FII/FPI", "FII"), ("DII", "DII")):
+        crows = [r for r in rows if r.get("category") == cat]
+        if not crows:
+            continue
+        nets = [r.get("net_value") for r in crows]
+        depth = _flow_depth(nets, crows[-1])
+        if depth:
+            out[key] = depth
+            asof = asof or (crows[-1].get("trade_date") or "")
+    if out:
+        out["_asof"] = asof
+        out["_n"] = max((v.get("n", 0) for k, v in out.items() if k != "_asof"), default=0)
+    return out
+
+
 # ── zone 6: news wire ───────────────────────────────────────────────────────────
 def recent_news(conn, limit: int = 8) -> list:
     """Recent headlines, near-duplicates collapsed (same story from two sources → one row)."""
@@ -349,6 +402,73 @@ def internals_series(conn, n: int = 30) -> list:
     rows = _rows(conn, "SELECT d, adv, dec, pct_adv, avg_dp, mep_net, disp FROM market_internals_daily "
                        "WHERE pct_adv IS NOT NULL ORDER BY d DESC LIMIT ?", (int(n),))
     return rows[::-1]  # oldest→newest for the sparklines
+
+
+# ── the PRO reference layer: a value's percentile vs its OWN full history ──────────
+# The owner's binding principle — a number in isolation is useless; the reference is the premium.
+# This is the MARKET-LEVEL twin of /dash/self-history (a23b380, which ranks each STOCK's metric vs its
+# own 3-year past): same grammar, wider scope. STRICTLY DESCRIPTIVE — a self-relative percentile is
+# CONTEXT, never a signal (no forward claim, no ranking, no advice).
+def _pctile(vals: list, x) -> Optional[float]:
+    """Percentile 0..100 of x within `vals` (share of history <= x). None if <250 usable points
+    (too thin to be an honest reference) or x is None."""
+    v = [float(f) for f in vals if f is not None]
+    if x is None or len(v) < 250:
+        return None
+    return 100.0 * sum(1 for f in v if f <= float(x)) / len(v)
+
+
+def _median(vals: list) -> Optional[float]:
+    v = sorted(float(f) for f in vals if f is not None)
+    if not v:
+        return None
+    n = len(v)
+    return v[n // 2] if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2.0
+
+
+def internals_reference(conn) -> dict:
+    """Full-history (22y) distribution reference for the pulse-deck internals tiles. For each of
+    breadth (pct_adv) · delivery (avg_dp) · accumulation (mep_net) · dispersion (disp): the LATEST
+    row's value, its percentile vs the whole history, and the typical (median). KEYED TO THE SAME
+    LATEST ROW the deck displays (both read market_internals_daily's newest pct_adv-present row), so
+    the shown number and its reference can never disagree. {} if the table/history is absent.
+
+    NOTE (box 2026-07-24): market_internals_daily's nightly fill is 2 weeks behind bhavcopy — the
+    percentile is still an honest statement about that latest-available value vs 22 years; it does
+    not depend on how fresh 'latest' is. Descriptive-only (aligns with /dash/self-history)."""
+    if not _has(conn, "market_internals_daily"):
+        return {}
+    rows = _rows(conn, "SELECT d, pct_adv, avg_dp, mep_net, disp FROM market_internals_daily "
+                       "WHERE pct_adv IS NOT NULL ORDER BY d")
+    if len(rows) < 250:
+        return {}
+    latest = rows[-1]
+    out = {}
+    for key, col in (("breadth", "pct_adv"), ("delivery", "avg_dp"),
+                     ("accum", "mep_net"), ("disp", "disp")):
+        today = latest.get(col)
+        vals = [r.get(col) for r in rows if r.get(col) is not None]
+        if today is None or len(vals) < 250:
+            continue
+        out[key] = {"today": float(today), "pctile": _pctile(vals, today),
+                    "typical": _median(vals), "n": len(vals)}
+    return out
+
+
+def vix_reference(conn) -> dict:
+    """India VIX's latest close ranked vs its own ~12-year history + the typical (median). FRESH
+    (VIX is current on the box, unlike the internals archive). NEUTRAL by design — a higher VIX is a
+    wider expected move, never 'good'/'bad'. {} if <250 points."""
+    if not _has(conn, "index_signals"):
+        return {}
+    rows = _rows(conn, "SELECT close_value FROM index_signals WHERE UPPER(index_name)='INDIA VIX' "
+                       "AND close_value IS NOT NULL ORDER BY trade_date")
+    vals = [r.get("close_value") for r in rows]
+    if len(vals) < 250:
+        return {}
+    today = vals[-1]
+    return {"today": float(today), "pctile": _pctile(vals, today),
+            "typical": _median(vals), "n": len(vals)}
 
 
 def new_highs(conn) -> dict:
