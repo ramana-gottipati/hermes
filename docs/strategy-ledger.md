@@ -2074,6 +2074,18 @@ PCR is a fundable NET book (quintile long, monthly, net of cost) BEFORE committi
 (Phase 1).** Selection ≠ fundability (the flow lesson). If PCR survives cost → the IV build is justified; if
 it dies like flow → the OI dimension isn't tradeable and we save 2-3 sessions. Forward-test-only regardless.
 
+**NET-BOOK TEST (Phase 1.5, `fno_oi_pcr_book.py`) — PCR is NOT a fundable book; TURNOVER kills it.** Top-PCR
+quintile long, F&O, monthly, net of 0.5% RT, 24 mo. **Long-only net R/V 0.28 / CAGR 3.6% / DD −21%** (gross
+0.49/7.9%) — beats the flat index on return but is nowhere near the 0.89 hurdle. **Killer = 815%/yr turnover**
+(PCR churns ~68% of the quintile monthly) → cost eats gross 7.9% → net 3.6%. The long-short spread looks
+great GROSS (R/V 1.55/12.2%/−4.4%) but that 815% turnover ×2 legs + India borrow would eat it to ~0 net
+(flow precedent). **THE FLOW LESSON REPEATS A 3RD TIME: weak selection (δ+0.06) → not fundable, this time via
+churn.** Base rate now: 2 orthogonal signals tested (flow, PCR), both weakly selected, ZERO reached
+fundability. NUANCE: the turnover killer is PCR-SPECIFIC (noisy daily signal) — IV-rank/skew are slower, so
+this does NOT directly condemn the IV build; but the base rate is discouraging. NEXT (recommended, cheap):
+test a SLOWED PCR (quarterly / smoothed) — if even that fails, the OI-positioning dimension is priced and IV
+won't differ → stop; if it clears, real finding + de-risks the IV build. [[failure-models-ledger]].
+
 ### Study 2026-07-23 — INSTITUTIONAL FLOW: the FIRST orthogonal-data signal is REAL but weak/relative — long-short, not a fundable long-only book (REJECTED)
 
 The first study to mine OWNERSHIP not price. Data ALREADY on the box: `research.db.shareholding_history` —
