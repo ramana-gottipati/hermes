@@ -160,21 +160,19 @@ lets a real chip sit inside a teaser. Free stays complete; only DEPTH is teased.
 DEFERRED: CTA flips the preview tier — no subscription/payment flow yet (a real launch routes to
 checkout); MORE teaser spots can be added (currently 2).
 
-**D. The Markets rotation page** (`/dash/home/rotation`, new isolated Graphite page) — ⭐ THE NEXT UNIT.
-Full RRG with a 6/12/24-month period selector + the CLUTTER FIX (fixed ~10 dots per tail, period sets
-the spacing) + Pro-gated long journeys + per-sector depth. Reached via a "See the full rotation →"
-link from the Today RRG. Today RRG defaults to the SHORT view.
-- **FEASIBILITY — box-probed 2026-07-24: GO.** `ratio_rows` holds **14 years** per RRG sector
-  (2012-02-21 → 2026-07-24, ~3,545 rows each), so 6/12/24-mo journeys are trivially supported — reuse
-  the canonical `rrg._rs_ratio_momentum`/`quadrant` (same as `reads.rrg_sectors`) over a longer window.
-- **RECOMMENDED clutter-fix (this session's verdict on the fork):** fixed ~10 dots per tail; the period
-  selector sets the SPACING between them (6mo → ~2.5-week block-means · 12mo → ~5-week · 24mo →
-  ~2.4-month), exactly the block-mean pattern `rrg_sectors` already uses for the weekly tail — just
-  parameterise the block size by period. Consistent readable comet at every horizon. (Alt considered:
-  show-all-dots-thinned — rejected, denser/noisier at long periods.)
-- **SURFACE-PLAYBOOK required (binding):** new isolated route in the home package + a "See the full
-  rotation →" link from the Today RRG (default short) + registration/Pat coverage/glossary/education/
-  fence per `docs/SURFACE-PLAYBOOK.md`. Keep it `data-ui-g`/`.g-*` isolated; Pro-gate the long journeys.
+**D. The Markets rotation page — ✅ DONE + DEPLOYED (commit `7e32500`) at `/dash/home/rotation`.**
+Full RRG with a 6/12/24-month period selector + the CLUTTER FIX + Pro-gated long journeys + per-sector
+depth. Reached via the new "See the full rotation →" link on the Today RRG.
+- ✅ `reads.rrg_journey(months)` reuses the CANONICAL `rrg._rs_ratio_momentum`/`quadrant` over a
+  ~21×months-day window; `reads._block_means` downsamples to a **FIXED ~10-dot tail** — the horizon
+  sets the SPACING (box-verified: dots/sector = {10} at 6/12/24mo; the head is the EXACT today point,
+  identical across horizons). A sector appears at a horizon ONLY with that much history (box-verified:
+  24mo drops Chemicals → 17 sectors; no fabricated partial tail). Render 0.34s, 3 journeys.
+- ✅ `components.rotation_view`: period selector · 3 maps (6M Free · 12M/24M `pro_teaser` locked) ·
+  per-sector table (quadrant Free, RS-ratio/momentum `pro-more`) · RRG education · fence. Client toggle
+  DOM-safe; quadrant palette reuses canonical `--qc`.
+- ✅ Registered in `test_dash_route_registry` INTERNAL_DEV (graphite-home; declared child, no lens/nav
+  until cutover — same as `/dash/home`). 89 gates green.
 
 **E. Heatmap enhancements (offered, owner may want):** colour-by-delivery toggle; full universe;
 per-tile "unusual move?" context (Pro).
@@ -207,21 +205,17 @@ hermes-api` → `curl …/dash/home` 200 + structure grep → **the verify-curl 
 > **DONE + LIVE (2026-07-24, do NOT rebuild — verify first):** the ENTIRE **Pro reference layer**
 > (A1 reference chip on 5 pulse tiles · A2 FII/DII deeper · A3 portfolio attribution), the owner
 > corrections (B1 watchlist add-date · B2 the **+ Add** affordance / home-owned `POST
-> /dash/home/watch/add`), and the **Pro-Ads** locked-teaser layer (`components.pro_teaser`). Commits
-> `7c62e64 · 705c1ed · 91e20d0`. Details + verdicts in §5-A/B/C. `market_internals_daily` staleness
-> self-resolved (now current to 07-24).
+> /dash/home/watch/add`), the **Pro-Ads** locked-teaser layer (`components.pro_teaser`), AND the
+> **Markets rotation page** (§5-D, `/dash/home/rotation` — 6/12/24-mo RRG, fixed-10-dot clutter-fix,
+> Pro-gated long journeys, `reads.rrg_journey`/`_block_means`). Commits `7c62e64 · 705c1ed · 91e20d0 ·
+> 7e32500`. Details + verdicts in §5-A/B/C/D. `market_internals_daily` staleness self-resolved (07-24).
 >
-> **THE MISSION THIS SESSION: build the Markets rotation page (§5-D).** A NEW isolated Graphite page
-> (`/dash/home/rotation`), full RRG with a 6/12/24-month period selector + the CLUTTER FIX (**fixed
-> ~10 dots per tail; the period sets the SPACING** — 6mo ~2.5-wk / 12mo ~5-wk / 24mo ~2.4-mo
-> block-means; parameterise the block size `rrg_sectors` already uses) + Pro-gated long journeys +
-> per-sector depth. Reached via a "See the full rotation →" link from the Today RRG (which defaults
-> SHORT). **Feasibility box-probed: GO** — `ratio_rows` holds 14y per sector (2012→2026). Reuse the
-> canonical `rrg._rs_ratio_momentum`/`quadrant`; do NOT re-derive. Land the full **SURFACE-PLAYBOOK**
-> checklist (registration · Pat coverage · glossary · education · fence) in the SAME session.
->
-> **Then (§5-E/F, if time):** heatmap colour-by-delivery + full-universe + per-tile "unusual?" (Pro);
-> cutover (PARKED until a Graphite stock page exists). **DEFERRED (§5-B3):** "when a name is added,
+> **THE MISSION THIS SESSION: §5-E heatmap enhancements** — the market-map (`components.heatmap` /
+> `reads.market_map`) gains (1) a **colour-by-delivery** toggle (vs the current colour-by-move), (2)
+> **full-universe** beyond the top-140-by-turnover, (3) a Pro per-tile **"is this move unusual for this
+> stock?"** context (align with `/dash/self-history` — reuse, don't duplicate the isolation-gated
+> engine). Then **§5-F cutover** (PARKED until a Graphite stock page exists — old `/dash/preview`
+> uniquely serves `/dash/preview/stock`). **DEFERRED (§5-B3):** "when a name is added,
 > when is its next trigger?" (results date · ex-date · cadence-overdue) — raise, don't build yet.
 >
 > Every change: additive, isolated (`data-ui-g`/`.g-*`, no preview/legacy import), DOM-safe,
