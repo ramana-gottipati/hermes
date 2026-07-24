@@ -293,11 +293,27 @@ def _rs_of(conn, symbols) -> dict:
 
 # ── featured card: watchlist · portfolio · movers · ticker feeds ───────────────────
 def watchlist_rows(conn, limit: int = 10) -> list:
-    """The user's followed names (the light `watchlist` table) enriched with day change +
-    RS phase. [] if the table is empty — the caller falls back to demo (marked sample)."""
-    if not _has(conn, "watchlist"):
-        return []
-    syms = [r["symbol"] for r in _rows(conn, "SELECT symbol FROM watchlist ORDER BY added_at DESC LIMIT ?", (int(limit),))]
+    """The user's followed names, enriched with day change + RS phase.
+
+    Reads BOTH watchlist tiers (box-verified 2026-07-23): the lifecycle tracker's lightweight tier
+    (`stocks_in_play` status='watch' — the canonical D54 tier that /dash/tracker/watchlists writes)
+    AND the legacy `watchlist` table, deduped in that order. Reading only the legacy table meant a
+    name added through the Tracker would never show up here. [] if both are empty — the caller then
+    falls back to demo (marked sample)."""
+    syms = []
+    if _has(conn, "stocks_in_play"):
+        syms += [r["symbol"] for r in _rows(
+            conn, "SELECT DISTINCT symbol FROM stocks_in_play WHERE status='watch' "
+                  "ORDER BY date_added DESC LIMIT ?", (int(limit),))]
+    if _has(conn, "watchlist"):
+        syms += [r["symbol"] for r in _rows(
+            conn, "SELECT symbol FROM watchlist ORDER BY added_at DESC LIMIT ?", (int(limit),))]
+    seen, ordered = set(), []
+    for s in syms:
+        if s and s not in seen:
+            seen.add(s)
+            ordered.append(s)
+    syms = ordered[:limit]
     if not syms:
         return []
     chg, rs = _day_change(conn, syms), _rs_of(conn, syms)

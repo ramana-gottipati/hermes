@@ -75,6 +75,26 @@ def test_regime_conviction_filings_builders():
     assert "g-empty" in C.filings_block([])
 
 
+def test_watchlist_reads_both_tiers():
+    """Box-verified: the legacy `watchlist` table is empty while the Tracker writes the D54 watch tier
+    (`stocks_in_play` status='watch'). Reading only the legacy table meant a name added through the
+    Tracker would never appear on the home."""
+    import sqlite3
+    from src.web.home import reads
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    c.execute("CREATE TABLE stocks_in_play(symbol TEXT,status TEXT,date_added TEXT,qty REAL,"
+              "entry_price REAL,book TEXT)")
+    c.execute("CREATE TABLE watchlist(symbol TEXT, note TEXT, added_at TEXT, added_by TEXT)")
+    c.execute("INSERT INTO stocks_in_play VALUES('TRACKED','watch',date('now'),NULL,NULL,'Main')")
+    c.execute("INSERT INTO watchlist VALUES('LEGACY','n',date('now'),'r')")
+    syms = {r["symbol"] for r in reads.watchlist_rows(c)}
+    assert syms == {"TRACKED", "LEGACY"}, ("both watchlist tiers must surface", syms)
+    # an 'open' position is a holding, not a watchlist entry
+    c.execute("INSERT INTO stocks_in_play VALUES('HELD','open',date('now'),10,100.0,'Main')")
+    assert "HELD" not in {r["symbol"] for r in reads.watchlist_rows(c)}
+
+
 def test_index_reads_match_index_name_case_insensitively():
     """Box-verified defect: index_signals stores MIXED casing — 'Nifty 50' / 'Nifty Bank' / 'Nifty 500'
     / 'Nifty Smallcap 250' but 'NIFTY Midcap 100'. An exact-match IN(...) returned NOTHING, so the whole

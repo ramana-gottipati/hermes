@@ -2256,6 +2256,13 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   mine:** I had dropped VIX saying "no feed" — **India VIX IS in `index_signals`** (13.5, +1.43); it is
   now a neutral-toned deck tile (`vix_latest`), never coloured, since a higher VIX is a wider expected
   move, not good or bad news.
+  **Fourth fix — watchlist read the WRONG tier:** the legacy `watchlist` table is empty (0 rows) while
+  the Tracker writes the canonical D54 lightweight tier (`stocks_in_play` status='watch'), so a name
+  added through the Tracker would never have appeared on the home. `watchlist_rows` now reads BOTH,
+  deduped ('open' stays a holding, not a watchlist entry); gated by `test_watchlist_reads_both_tiers`.
+  **Final box state:** every stack zone renders REAL data (0 sample badges); the ONE remaining demo is
+  the featured Watchlist, which is honest — Ramana has 2 `open` positions and genuinely no watch-tier
+  names yet. Home suite 62.
 
 ### Session 214 — 2026-07-23 — EMA-CROSSOVER FAMILY carried to a VERDICT: both crossover strategies FAIL (momentum = par/beta, reversal = dead); the only fundable output is a SEPARATE low-vol factor (quarterly+hysteresis, scales to ~₹500cr); `ema_crossover_forward.py` forward test ARMED + a quarterly VPS→Telegram checkpoint LIVE
 (Renumbered S210→S214 on push contact — origin held 210–213.) The 16BD momentum-band+RSI lane S209 flagged as a parallel sibling — carried to a full verdict. All research ran on the VPS (`.venv-research`; the laptop has only synthetic fixtures). Reconciled by cherry-picking ONLY my 15 disjoint commits onto origin/main (the chart/wolfe local commits left untouched for their owner — no cross-absorption).
