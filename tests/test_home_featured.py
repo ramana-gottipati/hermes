@@ -201,6 +201,19 @@ def test_regime_band_rrg_and_breadth_render_safely():
         assert "pv3" not in h and "data-ui-v3" not in h and "uk-sub" not in h
 
 
+def test_breadth_pro_context_adds_the_reference_points():
+    """Pro tier turns the bare gap into a decision: what's TYPICAL, which way, better-or-worse than
+    before. The block is a `.pro-more` (hidden in Free, shown in Pro) with a 'PRO' ribbon."""
+    rows = [{"d": "d%02d" % i, "price": p, "effort": e} for i, (p, e) in enumerate(
+        [(55, 52), (60, 55), (58, 54), (52, 50), (57, 53), (63, 55), (66, 54), (61, 53),
+         (59, 52), (64, 54), (70, 55), (67, 54), (62, 52), (58, 50), (74, 63)])]
+    bg = C.breadth_gauges(rows)
+    assert "g-pro-more" in bg and "pro-more" in bg                  # the gated premium block
+    assert "Typical gap" in bg and "th pct" in bg and "last week" in bg  # the reference points
+    # a short series (no history) shows the free bars but NOT the pro context
+    assert "g-pro-more" not in C.breadth_gauges([{"d": "a", "price": 74, "effort": 63}])
+
+
 def test_featured_watchlist_scrolls_many_names_in_a_bounded_box():
     """Owner: a 50-60 name watchlist must not push the Market map off the page — the list sits in a
     fixed-height box that scrolls internally (like the filings card), not a flat 50-row expansion."""
@@ -248,7 +261,7 @@ def test_heatmap_squarify_tiles_the_box_and_renders_safely():
             {"symbol": "<script>", "sector": "IT", "pct": -0.4, "turnover": 2200},
             {"symbol": "SBIN", "sector": "Bank", "pct": -0.5, "turnover": 2600}]
     hm = C.heatmap(rows)
-    assert "<script>" not in hm and "g-hm-t" in hm and "tile size = turnover" in hm
+    assert "<script>" not in hm and "g-hm-t" in hm and "= turnover" in hm and "brighter = bigger" in hm
     tiles = re.findall(r"left:([\d.]+)%;top:([\d.]+)%;width:([\d.]+)%;height:([\d.]+)%", hm)
     assert len(tiles) == 3
     for l, t, w, h in ((float(a) for a in tup) for tup in tiles):

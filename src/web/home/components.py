@@ -85,8 +85,15 @@ def fence(text: str) -> str:
 
 
 def learn(text: str) -> str:
-    """A beginner explainer — shown only in the 'New here' persona (Codex #3 depth)."""
-    return '<p class="g-learn new-only">' + esc(text) + "</p>"
+    """A guided explainer — shown in the FREE tier (hidden in Pro, which reads denser)."""
+    return '<p class="g-learn free-only">' + esc(text) + "</p>"
+
+
+def pro_more(inner_html: str) -> str:
+    """A premium (Pro-tier) RELATIVE-CONTEXT block — hidden in Free, shown in Pro. This is where a bare
+    number gains its reference (average · percentile · trend) so it becomes decision-useful. Carries a
+    'PRO' ribbon so the value of upgrading is legible on the surface."""
+    return '<div class="g-pro-more pro-more">' + inner_html + "</div>"
 
 
 # ── atoms ─────────────────────────────────────────────────────────────────────
@@ -892,9 +899,9 @@ def heatmap(rows) -> str:
     n_other = len(secs.get("Other", []))
     other_note = (" · " + str(n_other) + " unclassified") if n_other else ""
     legend = ('<div class="g-hm-leg"><span><i class="dn"></i> down</span>'
-              '<span><i class="up"></i> up</span><span>tile size = turnover · '
-              + str(len(rows)) + " most-traded · sectors: NSE + Screener" + other_note
-              + " · click any tile</span></div>")
+              '<span><i class="up"></i> up</span>'
+              '<span><b>size</b> = turnover · <b>colour</b> = today\'s move (brighter = bigger) · click → its page</span>'
+              '<span>' + str(len(rows)) + " most-traded · sectors NSE + Screener" + other_note + "</span></div>")
     return '<div class="g-hm">' + tiles + "</div>" + legend
 
 
@@ -1056,7 +1063,28 @@ def breadth_gauges(rows) -> str:
                    "advances are backed by real delivery"))
         read = ('<p class="g-bg-read"><b class="' + tone + '">' + f"{abs(gap):.0f}-pt gap"
                 + "</b> — " + esc(phrase) + ".</p>")
-    return ('<div class="g-bg">' + body + read + "</div>"
+    # PRO — the relative context that turns the gap from a bare number into a decision (owner's
+    # principle: a value in isolation is useless; the reference is the premium). What's TYPICAL, which
+    # WAY, and BETTER-OR-WORSE than before — computed over the recent breadth history.
+    ctx = ""
+    gaps = [float(r["price"]) - float(r["effort"]) for r in rows if r.get("effort") is not None]
+    if ev is not None and len(gaps) >= 10:
+        tg = gaps[-1]
+        avg = sum(gaps) / len(gaps)
+        rank = 100.0 * sum(1 for g in gaps if g <= tg) / len(gaps)
+        prev = gaps[-6] if len(gaps) >= 6 else gaps[0]
+        band = "unusually wide" if rank >= 80 else ("unusually narrow" if rank <= 20 else "about typical")
+        bcls = "warn" if rank >= 80 else ("ok" if rank <= 20 else "")
+        trend = "widening" if (tg - prev) > 1 else ("narrowing" if (tg - prev) < -1 else "steady")
+        verdict = ("delivery isn't keeping up with the rally" if tg > avg + 2 else
+                   ("conviction is running ahead of price" if tg < avg - 2 else "conviction is about where it usually sits"))
+        ctx = pro_more(
+            '<div class="g-ctx">'
+            '<div class="g-ctx-row"><span>Typical gap (60d)</span><b class="g-num">%+.0f pt</b></div>' % avg
+            + '<div class="g-ctx-row"><span>Today vs typical</span><b class="%s">%s · %.0fth pct</b></div>' % (bcls, esc(band), rank)
+            + '<div class="g-ctx-row"><span>Trend</span><b>%s</b></div>' % esc("%s (was %+.0f pt last week)" % (trend, prev))
+            + "</div><p class=\"g-bg-read\" style=\"margin-top:9px\">" + esc("So: today's gap is " + band + " and " + trend + " — " + verdict + ".") + "</p>")
+    return ('<div class="g-bg">' + body + read + ctx + "</div>"
             + learn("How many stocks rose, vs how many did it on REAL delivery — actual buying taken to "
                     "the books, not intraday churn. A wide gap means the rally is thinner than it looks."))
 
@@ -1331,8 +1359,12 @@ def css() -> str:
 :root[data-ui-g] .g-hm{position:relative;width:100%;aspect-ratio:1000/525;min-height:300px;border-radius:var(--r-sm);overflow:hidden;background:var(--bg-0);border:1px solid var(--line)}
 :root[data-ui-g] .g-hm-t{position:absolute;overflow:hidden;display:flex;align-items:center;justify-content:center;
   border:1px solid color-mix(in srgb,var(--bg-0) 55%,transparent);text-decoration:none;transition:filter .12s,outline-color .12s;outline:1px solid transparent}
-:root[data-ui-g] .g-hm-t.up{background:color-mix(in srgb,var(--up) calc(var(--i,.3)*70% + 14%),var(--bg-3))}
-:root[data-ui-g] .g-hm-t.dn{background:color-mix(in srgb,var(--down) calc(var(--i,.3)*70% + 14%),var(--bg-3))}
+/* clean single-hue ramps (dark-muted -> vivid by move size); mixing the signed hue with the BLUE-GREY
+   bg muddied small moves into brown — fixed by ramping within one hue. bigger move = more vivid. */
+:root[data-ui-g] .g-hm-t.up{background:color-mix(in srgb,#3ee38a calc(var(--i,.3)*100%),#163a2b)}
+:root[data-ui-g] .g-hm-t.dn{background:color-mix(in srgb,#ff5a72 calc(var(--i,.3)*100%),#3a1820)}
+:root[data-ui-g][data-theme="light"] .g-hm-t.up{background:color-mix(in srgb,#0e8a57 calc(var(--i,.3)*100%),#c7ead7)}
+:root[data-ui-g][data-theme="light"] .g-hm-t.dn{background:color-mix(in srgb,#d13a52 calc(var(--i,.3)*100%),#f4ccd3)}
 :root[data-ui-g] .g-hm-t:hover{filter:brightness(1.28);z-index:3;outline-color:var(--ink)}
 :root[data-ui-g] .g-hm-l{padding:0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;
   font:700 9px/1.05 var(--font);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.55);letter-spacing:.01em}
@@ -1398,6 +1430,15 @@ def css() -> str:
 :root[data-ui-g] .g-bg-fill.eff{background:var(--candle-up)}
 :root[data-ui-g] .g-bg-read{font-size:12.5px;color:var(--ink-2);margin:3px 0 0;line-height:1.5}
 :root[data-ui-g] .g-bg-read b.warn{color:var(--warn)} :root[data-ui-g] .g-bg-read b.ok{color:var(--up)} :root[data-ui-g] .g-bg-read b.acc{color:var(--candle-up)}
+/* premium (Pro) relative-context block */
+:root[data-ui-g] .g-pro-more{margin-top:12px;padding:11px 13px 10px;border:1px solid color-mix(in srgb,var(--accent) 34%,var(--line-2));
+  border-radius:11px;background:color-mix(in srgb,var(--accent) 6%,var(--bg-0));position:relative}
+:root[data-ui-g] .g-pro-more::before{content:"PRO";position:absolute;top:-8px;left:12px;font:800 8px/1 var(--mono);letter-spacing:.14em;
+  color:var(--on-accent);background:linear-gradient(120deg,var(--accent),var(--accent-hi));padding:3px 7px;border-radius:5px}
+:root[data-ui-g] .g-ctx{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-2);margin-top:2px}
+:root[data-ui-g] .g-ctx-row{display:flex;justify-content:space-between;gap:10px}
+:root[data-ui-g] .g-ctx b{color:var(--ink)}
+:root[data-ui-g] .g-ctx .warn{color:var(--warn)} :root[data-ui-g] .g-ctx .ok{color:var(--up)}
 </style>"""
 
 

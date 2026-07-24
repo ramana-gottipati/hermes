@@ -1,8 +1,9 @@
-"""test_home_persona.py — the Beginner⇄Pro persona gate (Codex #3, spec §7/§8).
+"""test_home_persona.py — the Free ⇄ Pro TIER gate (formerly the Beginner/Pro persona).
 
-The persona control is a real toggle (aria-pressed, persisted); Beginner adds plain-English
-explainers that are persona-gated so Pro renders denser — a distinct DOM per persona, not just a
-label swap.
+The tier control is a real toggle (aria-pressed, persisted). FREE shows the guided explainers
+(`.free-only`); PRO hides them (denser) AND reveals the premium relative-context blocks (`.pro-more`)
+— the reference points that make a bare number decision-useful. A distinct DOM per tier, not a label
+swap. (Preview only — the switch previews both tiers; it's the entitlement seam for later.)
 """
 from __future__ import annotations
 
@@ -18,25 +19,24 @@ def _home() -> str:
     return r.text
 
 
-def test_persona_control_present_with_aria_pressed():
+def test_tier_control_present_with_aria_pressed():
     h = _home()
-    assert 'id="g-mnew"' in h and 'id="g-mpro"' in h
-    assert 'aria-pressed="true"' in h and 'data-persona="new"' in h
+    assert 'id="g-tfree"' in h and 'id="g-tpro"' in h
+    assert 'aria-pressed="true"' in h and 'data-tier="free"' in h
 
 
-def test_persona_mechanism_produces_distinct_dom_per_persona():
+def test_tier_mechanism_produces_distinct_dom_per_tier():
     h = _home()
-    # the CSS mechanism that makes Beginner and Pro render differently
-    assert '[data-persona="new"] .new-only{display:revert}' in h
-    assert '[data-persona="pro"] .pro-only' in h
-    assert "new-only" in h                                   # beginner explainer content is present + gated
+    assert '[data-tier="free"] .free-only{display:revert}' in h    # Free reveals guided explainers
+    assert '[data-tier="pro"] .pro-more{display:revert}' in h      # Pro reveals premium context
+    assert "free-only" in h and "pro-more" in h                    # both layers present in the DOM
 
 
-def test_persona_persists_across_visits():
+def test_tier_persists_across_visits():
     h = _home()
-    assert "pvgmode" in h and 'setAttribute("data-persona"' in h
+    assert "pvgtier" in h and 'setAttribute("data-tier"' in h
 
 
-def test_learn_component_is_beginner_only():
-    out = C.learn("FII means foreign institutions.")
-    assert "new-only" in out and "foreign institutions" in out
+def test_learn_is_free_tier_and_pro_more_is_pro_tier():
+    assert "free-only" in C.learn("FII means foreign institutions.")
+    assert "pro-more" in C.pro_more("<span>context</span>") and "context" in C.pro_more("<span>context</span>")

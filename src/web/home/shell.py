@@ -46,10 +46,12 @@ _SHELL_CSS = """<style>/* g-shell */
 :root[data-ui-g] .g-seg{display:inline-flex;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-pill);padding:3px;gap:2px}
 :root[data-ui-g] .g-seg button{border:0;background:transparent;color:var(--ink-3);font:700 11.5px var(--font);padding:6px 12px;border-radius:var(--r-pill);cursor:pointer}
 :root[data-ui-g] .g-seg button[aria-pressed="true"]{color:var(--on-accent);background:linear-gradient(120deg,var(--accent),var(--accent-hi))}
-:root[data-ui-g] .new-only{display:none}
-:root[data-ui-g][data-persona="new"] .new-only{display:revert}
-:root[data-ui-g] .pro-only{display:none}
-:root[data-ui-g][data-persona="pro"] .pro-only{display:revert}
+/* tier mechanism: Free shows the guided explainers (.free-only); Pro hides them (denser) AND reveals
+   the premium relative-context blocks (.pro-more) — the reference points that make a bare number useful. */
+:root[data-ui-g] .free-only{display:none}
+:root[data-ui-g][data-tier="free"] .free-only{display:revert}
+:root[data-ui-g] .pro-more{display:none}
+:root[data-ui-g][data-tier="pro"] .pro-more{display:revert}
 /* the classic-site directory (top-right dropdown) */
 :root[data-ui-g] .g-classic{position:relative}
 :root[data-ui-g] .g-classic>summary{list-style:none;cursor:pointer}
@@ -69,17 +71,17 @@ _SHELL_CSS = """<style>/* g-shell */
 @media(max-width:560px){:root[data-ui-g] .g-classic-menu{position:fixed;left:2vw;right:2vw;width:96vw}}
 </style>"""
 
-_PERSONA_JS = """<script>(function(){var r=document.documentElement,k="pvgmode";
-try{if(localStorage.getItem(k)==="pro")r.setAttribute("data-persona","pro");}catch(e){}
-function set(m){r.setAttribute("data-persona",m);
-var n=document.getElementById("g-mnew"),p=document.getElementById("g-mpro");
-if(n)n.setAttribute("aria-pressed",m==="new");if(p)p.setAttribute("aria-pressed",m==="pro");
+_TIER_JS = """<script>(function(){var r=document.documentElement,k="pvgtier";
+try{if(localStorage.getItem(k)==="pro")r.setAttribute("data-tier","pro");}catch(e){}
+function set(m){r.setAttribute("data-tier",m);
+var f=document.getElementById("g-tfree"),p=document.getElementById("g-tpro");
+if(f)f.setAttribute("aria-pressed",m==="free");if(p)p.setAttribute("aria-pressed",m==="pro");
 try{localStorage.setItem(k,m);}catch(e){}}
 document.addEventListener("DOMContentLoaded",function(){
-var n=document.getElementById("g-mnew"),p=document.getElementById("g-mpro");
-if(n)n.addEventListener("click",function(){set("new");});
+var f=document.getElementById("g-tfree"),p=document.getElementById("g-tpro");
+if(f)f.addEventListener("click",function(){set("free");});
 if(p)p.addEventListener("click",function(){set("pro");});
-set(r.getAttribute("data-persona")||"new");});})();</script>"""
+set(r.getAttribute("data-tier")||"free");});})();</script>"""
 
 _THEME_JS = """<script>(function(){var r=document.documentElement,k="pvgtheme";
 try{if(localStorage.getItem(k)==="light")r.setAttribute("data-theme","light");}catch(e){}
@@ -156,16 +158,16 @@ def shell(title: str, body_html: str, rail_html: str = "", extra_head: str = "",
     grid_cls = "g-grid has-rail" if rail_html else "g-grid"
     rail = ('<aside class="g-rail" aria-label="Context">' + rail_html + "</aside>") if rail_html else ""
     return (
-        '<!doctype html><html lang="en" data-ui-g data-persona="new"><head><meta charset="utf-8">'
+        '<!doctype html><html lang="en" data-ui-g data-tier="free"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         '<meta name="robots" content="noindex">'
         "<title>" + t + " — patearn</title>"
         + tokens_css() + C.css() + _SHELL_CSS + extra_head + "</head><body>"
         '<header class="g-top"><span class="g-brand">patearn<small>Indian-equity evidence</small></span>'
         '<span class="g-badge">PREVIEW</span><span class="g-sp"></span>'
-        '<span class="g-seg" role="group" aria-label="Experience mode">'
-        '<button id="g-mnew" type="button" aria-pressed="true">✦ New here</button>'
-        '<button id="g-mpro" type="button" aria-pressed="false">⚡ Pro</button></span>'
+        '<span class="g-seg" role="group" aria-label="Plan">'
+        '<button id="g-tfree" type="button" aria-pressed="true">✦ Free</button>'
+        '<button id="g-tpro" type="button" aria-pressed="false">⚡ Pro</button></span>'
         '<button class="g-btn" style="margin:0" onclick="pvgTheme()" aria-label="Switch light/dark theme">◑ Theme</button>'
         + _classic_directory()
         + "</header>"
@@ -173,5 +175,5 @@ def shell(title: str, body_html: str, rail_html: str = "", extra_head: str = "",
         '<main class="g-wrap">' + C.fence(_FENCE)
         + '<div class="' + grid_cls + '"><div class="g-focus">' + body_html + "</div>" + rail + "</div></main>"
         '<footer class="g-foot">' + _html.escape(_FENCE) + "</footer>"
-        + pat_html + _THEME_JS + _PERSONA_JS + _CLASSIC_JS + C.assets() + "</body></html>"
+        + pat_html + _THEME_JS + _TIER_JS + _CLASSIC_JS + C.assets() + "</body></html>"
     )

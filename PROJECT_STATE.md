@@ -2269,6 +2269,22 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   qualifying set (≤40) for an honest count while the card still shows the top 8. Gated in
   `test_home_featured`. Decision + rationale in `docs/graphite-home-carryforward.md` §4.
 
+### Graphite Home — 2026-07-24 — FREE⇄PRO tier switch + heatmap colour fix + breadth PRO relative-context
+- **Heatmap colour fixed (owner: "browns, confusing"):** the muddy browns came from color-mixing the
+  signed rose/mint with the BLUE-GREY bg — now clean single-hue ramps (dark-muted → vivid by move size,
+  both themes). Legend spells it out: **size = turnover · colour = today's move (brighter = bigger) ·
+  click → its page**. Tiles already deep-link to /dash/stock.
+- **Free⇄Pro tier switch (owner-approved):** retired the Beginner/Pro persona → `data-tier` free/pro
+  (`shell.py`). Free shows guided explainers (`.free-only`); Pro hides them (denser) AND reveals premium
+  relative-context blocks (`.pro-more`, PRO ribbon). `learn()`→free-only; new `pro_more()`. Preview-only
+  (previews both), the entitlement seam for later.
+- **First PRO demonstrator = the breadth gap context (owner's own example + principle 'a number in
+  isolation is useless — the reference is the premium'):** Free = the bare 74/63/11-pt gap; Pro adds the
+  TYPICAL gap (60d avg), today's percentile (unusually wide/narrow), and the trend (widening vs last
+  week) + a plain verdict. Computed from the breadth history. Gates: test_home_persona rewritten for
+  tiers; test_breadth_pro_context_adds_the_reference_points. Suite 843. **NEXT: the full component
+  free/pro OUTLINE (delivered in chat) → wire per-component PRO context → the Markets page.**
+
 ### Graphite Home — 2026-07-24 — breadth → TWO-GAUGE read (owner: "can't understand the chart") + featured card bounded scroll
 - **Breadth-vs-delivery was unreadable** (two near-identical wiggly lines + the abstract "effort-breadth").
   Replaced on the today page with a plain TWO-GAUGE read (`components.breadth_gauges`): two labelled bars —
