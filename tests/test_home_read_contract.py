@@ -115,8 +115,8 @@ def test_stock_signals_pulse_and_featured_columns():
 def test_bhavcopy_rows_day_change_columns():
     from src.core.db import SCHEMA_BASE
     have = _cols(_mem(SCHEMA_BASE), "bhavcopy_rows")
-    for col in ("symbol", "trade_date", "series", "close", "prev_close", "deliv_per"):
-        assert col in have, ("bhavcopy_rows dropped a column the home's day-change/movers read uses", col)
+    for col in ("symbol", "trade_date", "series", "close", "prev_close", "deliv_per", "value"):
+        assert col in have, ("bhavcopy_rows dropped a column the home's day-change/movers/heatmap read uses", col)
 
 
 def test_watchlist_and_holdings_columns():
@@ -185,6 +185,8 @@ def test_home_reads_execute_against_the_real_schemas():
     assert reads.movers(c) == {}
     assert reads.filings_recent(c) == []                 # filings tables absent from this schema set
     assert isinstance(reads.conviction_now(), list)      # defensive: opens its own conn, never raises
+    assert reads.market_map(c) == []                     # bhavcopy present but empty -> no tiles
+    assert reads.vix_latest(c) == {}
 
 
 def test_conviction_shortlist_helper_signature():

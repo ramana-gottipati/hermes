@@ -732,6 +732,117 @@ def conviction_block(rows) -> str:
                     "accumulating now, near a buyable entry, with quality as a ✓. Described from the data, never a recommendation."))
 
 
+# ── the market heatmap: a server-computed SQUARIFIED treemap (Bruls et al.) ───────
+# Computed in Python (no client layout lib, CSP-safe); tiles are absolute-positioned by percentage,
+# coloured by day-move via color-mix on the signed --up/--down tokens (theme-aware). Geometry is
+# gate-tested (tests/test_home_featured.py) since it can't be pixel-verified this session.
+def _hm_layout(sizes, x, y, dx, dy):
+    """Lay a run of areas as a single row or column inside (x,y,dx,dy). Returns rects in order."""
+    rects = []
+    total = sum(sizes)
+    if total <= 0 or dx <= 0 or dy <= 0:
+        return [{"x": x, "y": y, "dx": 0.0, "dy": 0.0} for _ in sizes]
+    if dx >= dy:                                   # a row: fixed width, stacked vertically
+        w = total / dy
+        yy = y
+        for s in sizes:
+            hh = s / w if w else 0.0
+            rects.append({"x": x, "y": yy, "dx": w, "dy": hh})
+            yy += hh
+    else:                                          # a column: fixed height, laid horizontally
+        h = total / dx
+        xx = x
+        for s in sizes:
+            ww = s / h if h else 0.0
+            rects.append({"x": xx, "y": y, "dx": ww, "dy": h})
+            xx += ww
+    return rects
+
+
+def _hm_worst(sizes, dx, dy):
+    worst = 0.0
+    for r in _hm_layout(sizes, 0.0, 0.0, dx, dy):
+        a, b = r["dx"], r["dy"]
+        if a <= 0 or b <= 0:
+            return float("inf")
+        worst = max(worst, a / b, b / a)
+    return worst
+
+
+def _squarify(sizes, x, y, dx, dy):
+    """Squarified treemap. `sizes` must be pre-scaled so sum(sizes)==dx*dy and sorted DESCENDING.
+    Returns one rect per size, in the same order."""
+    sizes = [float(s) for s in sizes]
+    if not sizes:
+        return []
+    if len(sizes) == 1:
+        return _hm_layout(sizes, x, y, dx, dy)
+    i = 1
+    while i < len(sizes) and _hm_worst(sizes[:i], dx, dy) >= _hm_worst(sizes[:i + 1], dx, dy):
+        i += 1
+    current, remaining = sizes[:i], sizes[i:]
+    row = _hm_layout(current, x, y, dx, dy)
+    cov = sum(current)
+    if dx >= dy:
+        w = cov / dy if dy else 0.0
+        rest = _squarify(remaining, x + w, y, dx - w, dy)
+    else:
+        h = cov / dx if dx else 0.0
+        rest = _squarify(remaining, x, y + h, dx, dy - h)
+    return row + rest
+
+
+_HM_W, _HM_H = 1000.0, 525.0
+
+
+def _hm_tile(stk, r) -> str:
+    try:
+        p = float(stk.get("pct"))
+    except (TypeError, ValueError):
+        p = 0.0
+    cls = "up" if p >= 0 else "dn"
+    inten = min(1.0, abs(p) / 4.0)                 # saturate the colour at ±4%
+    left, top = r["x"] / _HM_W * 100, r["y"] / _HM_H * 100
+    w, h = r["dx"] / _HM_W * 100, r["dy"] / _HM_H * 100
+    sym = esc(stk.get("symbol"))
+    title = sym + " " + ("+" if p >= 0 else "−") + f"{abs(p):.1f}%"
+    label = ('<span class="g-hm-l">' + sym + "</span>") if (w >= 4.2 and h >= 4.6) else ""
+    return ('<a class="g-hm-t ' + cls + '" href="/dash/stock?sym=' + sym + '" title="' + title + '" '
+            'style="left:' + f"{left:.2f}" + "%;top:" + f"{top:.2f}" + "%;width:" + f"{w:.2f}"
+            + "%;height:" + f"{h:.2f}" + "%;--i:" + f"{inten:.2f}" + '">' + label + "</a>")
+
+
+def heatmap(rows) -> str:
+    """The whole market as one treemap: sector blocks (sized by sector turnover), each subdivided into
+    its stocks (sized by turnover, coloured by day-move). Descriptive of the tape, never a signal."""
+    rows = [_d(r) for r in (rows or [])]
+    rows = [r for r in rows if r.get("turnover")]
+    if not rows:
+        return empty("Market map data hasn't landed yet.")
+    secs = {}
+    for r in rows:
+        secs.setdefault(r.get("sector") or "Other", []).append(r)
+    sec_list = sorted(secs.items(), key=lambda kv: sum(x["turnover"] for x in kv[1]), reverse=True)
+    area = _HM_W * _HM_H
+    totals = [sum(x["turnover"] for x in v) for _, v in sec_list]
+    grand = sum(totals) or 1.0
+    sec_rects = _squarify([t / grand * area for t in totals], 0.0, 0.0, _HM_W, _HM_H)
+    tiles = ""
+    for (_name, stocks), rect in zip(sec_list, sec_rects):
+        stocks = sorted(stocks, key=lambda x: x["turnover"], reverse=True)
+        st = [x["turnover"] for x in stocks]
+        sgrand = sum(st) or 1.0
+        srect_area = rect["dx"] * rect["dy"]
+        st_rects = _squarify([s / sgrand * srect_area for s in st],
+                             rect["x"], rect["y"], rect["dx"], rect["dy"])
+        for stk, sr in zip(stocks, st_rects):
+            tiles += _hm_tile(stk, sr)
+    legend = ('<div class="g-hm-leg"><span><i class="dn"></i> down</span>'
+              '<span><i class="up"></i> up</span><span>tile size = turnover · '
+              + str(len(rows)) + " most-traded · click any tile</span></div>")
+    return '<div class="g-hm">' + tiles + "</div>" + legend
+
+
 def filings_block(rows) -> str:
     if not rows:
         return empty("No fresh ownership filings in this window.")
@@ -995,6 +1106,19 @@ def css() -> str:
 :root[data-ui-g] .g-fl-dot.warn{background:var(--warn)}
 :root[data-ui-g] .g-fl-d{color:var(--ink-2)}
 :root[data-ui-g] .g-fl-when{font-size:11px;color:var(--ink-3);text-align:right}
+/* ── market heatmap (squarified treemap) ── */
+:root[data-ui-g] .g-hm{position:relative;width:100%;aspect-ratio:1000/525;min-height:300px;border-radius:var(--r-sm);overflow:hidden;background:var(--bg-0);border:1px solid var(--line)}
+:root[data-ui-g] .g-hm-t{position:absolute;overflow:hidden;display:flex;align-items:center;justify-content:center;
+  border:1px solid color-mix(in srgb,var(--bg-0) 55%,transparent);text-decoration:none;transition:filter .12s,outline-color .12s;outline:1px solid transparent}
+:root[data-ui-g] .g-hm-t.up{background:color-mix(in srgb,var(--up) calc(var(--i,.3)*70% + 14%),var(--bg-3))}
+:root[data-ui-g] .g-hm-t.dn{background:color-mix(in srgb,var(--down) calc(var(--i,.3)*70% + 14%),var(--bg-3))}
+:root[data-ui-g] .g-hm-t:hover{filter:brightness(1.28);z-index:3;outline-color:var(--ink)}
+:root[data-ui-g] .g-hm-l{padding:0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;
+  font:700 9px/1.05 var(--font);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.55);letter-spacing:.01em}
+:root[data-ui-g][data-theme="light"] .g-hm-l{color:#0b1a12;text-shadow:0 1px 1px rgba(255,255,255,.45)}
+:root[data-ui-g] .g-hm-leg{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:9px;font-size:11px;color:var(--ink-3)}
+:root[data-ui-g] .g-hm-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle}
+:root[data-ui-g] .g-hm-leg i.up{background:var(--up)} :root[data-ui-g] .g-hm-leg i.dn{background:var(--down)}
 </style>"""
 
 

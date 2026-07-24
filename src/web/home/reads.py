@@ -60,6 +60,34 @@ def index_pulse(conn, names=_PULSE_NAMES, limit: int = 5) -> list:
                  (d, *names, *names, limit))
 
 
+def market_map(conn, limit: int = 140) -> list:
+    """The whole market for the heatmap: the top-`limit` liquid EQ/BE names by TURNOVER, each with its
+    day-move % (sizing = turnover, colour = move) and sector (from stock_signals.primary_sector, the
+    canonical sector label; 'Other' when unmapped). [] if absent → caller falls back to demo."""
+    if not _has(conn, "bhavcopy_rows"):
+        return []
+    d = _latest_date(conn, "bhavcopy_rows", "trade_date")
+    if not d:
+        return []
+    sd = _latest_date(conn, "stock_signals", "trade_date")
+    rows = _rows(conn,
+                 "SELECT b.symbol, b.close, b.prev_close, b.value, s.primary_sector AS sector "
+                 "FROM bhavcopy_rows b LEFT JOIN stock_signals s "
+                 "  ON s.symbol=b.symbol AND s.trade_date=? "
+                 "WHERE b.trade_date=? AND b.series IN ('EQ','BE') "
+                 "  AND b.value IS NOT NULL AND b.value>0 AND b.prev_close>0 "
+                 "ORDER BY b.value DESC LIMIT ?", (sd, d, int(limit)))
+    out = []
+    for r in rows:
+        try:
+            pct = (r["close"] - r["prev_close"]) / r["prev_close"] * 100.0
+        except (TypeError, ZeroDivisionError):
+            continue
+        sector = (r.get("sector") or "").replace("Nifty ", "").strip() or "Other"
+        out.append({"symbol": r["symbol"], "pct": pct, "turnover": float(r["value"] or 0.0), "sector": sector})
+    return out
+
+
 def vix_latest(conn) -> dict:
     """India VIX — the expected-swing gauge. It IS carried in index_signals (box-verified); higher
     means a wider expected move, so it is rendered NEUTRAL (a rising VIX is not 'good'). {} if absent."""

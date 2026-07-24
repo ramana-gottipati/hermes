@@ -2269,6 +2269,20 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   qualifying set (≤40) for an honest count while the card still shows the top 8. Gated in
   `test_home_featured`. Decision + rationale in `docs/graphite-home-carryforward.md` §4.
 
+### Graphite Home — 2026-07-24 — MARKET HEATMAP (the "impress at a glance" hero) + India VIX + conviction legibility
+- **Market heatmap** (`/dash/home` hero, after the featured card) — the whole market as a **squarified
+  treemap** (Bruls et al.), SERVER-computed in Python (no client layout lib → CSP-safe), tiles
+  absolute-positioned by %, coloured by day-move via `color-mix` on the signed `--up`/`--down` tokens
+  (theme-aware, intensity saturates at ±4%), sized by turnover, grouped into sector blocks, every tile
+  a deep-link. Read `market_map` = top-140 EQ/BE by turnover ⨝ `stock_signals.primary_sector`; builder
+  `heatmap` + `_squarify`/`_hm_layout`/`_hm_tile`. **Geometry is GATE-TESTED** (can't pixel-verify this
+  session): `test_heatmap_squarify_tiles_the_box_and_renders_safely` + a 30-stock integration check
+  (0 out-of-bounds, 100% coverage, symbols escaped incl. `M&M`). Defensive + demo/sample-honest.
+- Also this session: **India VIX** neutral deck tile (real feed, `index_signals`), **conviction "N
+  cleared all 3 pillars today"** legibility line (gate stays strict), and the four box-verified data
+  fixes (mixed-case index names · filings noise/balance · watchlist two-tier). Suite 837 pass (only
+  the pre-existing `test_rule_lab` red). Full session detail in `docs/graphite-home-carryforward.md`.
+
 ### Session 214 — 2026-07-23 — EMA-CROSSOVER FAMILY carried to a VERDICT: both crossover strategies FAIL (momentum = par/beta, reversal = dead); the only fundable output is a SEPARATE low-vol factor (quarterly+hysteresis, scales to ~₹500cr); `ema_crossover_forward.py` forward test ARMED + a quarterly VPS→Telegram checkpoint LIVE
 (Renumbered S210→S214 on push contact — origin held 210–213.) The 16BD momentum-band+RSI lane S209 flagged as a parallel sibling — carried to a full verdict. All research ran on the VPS (`.venv-research`; the laptop has only synthetic fixtures). Reconciled by cherry-picking ONLY my 15 disjoint commits onto origin/main (the chart/wolfe local commits left untouched for their owner — no cross-absorption).
 - **The EMA crossover itself produces NOTHING fundable.** MOMENTUM (`momentum_band_rsi`, T=EMA5(HLC) crosses ABOVE U=EMA13(high), with-trend + RSI≥70): event-study **FAIL-null** (Cliff's δ −0.01 vs placebo, 22d median excess −0.90%, worsening by horizon), Cell B net 8.4% (gross 19.4%, cost −11pp), `CELL_B_TREND_STRONG` net R/V 0.71 / CAGR 13.2% / DD −63% ≈ index → **par-with-index BETA, not alpha**, capacity-dead at ₹4.6cr median trade ADV. REVERSAL (`reversal_oversold` REVDD oversold-bounce; + the earlier EMA-band reclaim, 07-13): net **−0.13 / −9.0% / −86%**, worse than its own random control, Gate-1 δ≈0 → REJECTED. Both descriptive-only.

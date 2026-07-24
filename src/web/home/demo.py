@@ -74,6 +74,39 @@ INTERNALS = [
 ]
 NEW_HIGHS = {"highs": 84, "near": 213}
 VIX = {"close_value": 13.5, "ret_1d_pct": 1.43}          # India VIX — real feed lives in index_signals
+# Representative market-map set (heatmap): symbol · sector · day-move% · turnover (₹cr, sizing).
+MARKET_MAP = [
+    {"symbol": "RELIANCE", "sector": "Energy", "pct": 1.2, "turnover": 4200},
+    {"symbol": "HDFCBANK", "sector": "Bank", "pct": 0.4, "turnover": 3800},
+    {"symbol": "ICICIBANK", "sector": "Bank", "pct": 0.7, "turnover": 3100},
+    {"symbol": "SBIN", "sector": "Bank", "pct": -0.5, "turnover": 2600},
+    {"symbol": "TCS", "sector": "IT", "pct": 0.2, "turnover": 2400},
+    {"symbol": "INFY", "sector": "IT", "pct": -0.4, "turnover": 2200},
+    {"symbol": "HCLTECH", "sector": "IT", "pct": -0.9, "turnover": 1300},
+    {"symbol": "BHARTIARTL", "sector": "Telecom", "pct": 1.6, "turnover": 2000},
+    {"symbol": "LT", "sector": "Capital Goods", "pct": 0.9, "turnover": 1800},
+    {"symbol": "TATAMOTORS", "sector": "Auto", "pct": 2.4, "turnover": 1700},
+    {"symbol": "MARUTI", "sector": "Auto", "pct": -0.9, "turnover": 1200},
+    {"symbol": "M&M", "sector": "Auto", "pct": 1.1, "turnover": 1100},
+    {"symbol": "SUNPHARMA", "sector": "Pharma", "pct": -0.5, "turnover": 1400},
+    {"symbol": "CIPLA", "sector": "Pharma", "pct": -0.3, "turnover": 900},
+    {"symbol": "TATASTEEL", "sector": "Metal", "pct": 2.0, "turnover": 1600},
+    {"symbol": "HINDALCO", "sector": "Metal", "pct": 0.6, "turnover": 1000},
+    {"symbol": "ITC", "sector": "FMCG", "pct": -0.2, "turnover": 1500},
+    {"symbol": "HINDUNILVR", "sector": "FMCG", "pct": 0.5, "turnover": 1100},
+    {"symbol": "NESTLEIND", "sector": "FMCG", "pct": 0.3, "turnover": 700},
+    {"symbol": "ADANIENT", "sector": "Energy", "pct": -1.3, "turnover": 1500},
+    {"symbol": "NTPC", "sector": "Energy", "pct": 0.3, "turnover": 1000},
+    {"symbol": "POWERGRID", "sector": "Energy", "pct": -0.1, "turnover": 800},
+    {"symbol": "BAJFINANCE", "sector": "Fin Services", "pct": 1.4, "turnover": 1900},
+    {"symbol": "BAJAJFINSV", "sector": "Fin Services", "pct": 0.8, "turnover": 900},
+    {"symbol": "DMART", "sector": "Consumer", "pct": -0.7, "turnover": 800},
+    {"symbol": "TITAN", "sector": "Consumer", "pct": 0.4, "turnover": 900},
+    {"symbol": "ASIANPAINT", "sector": "Consumer", "pct": -1.1, "turnover": 850},
+    {"symbol": "ULTRACEMCO", "sector": "Cement", "pct": 0.6, "turnover": 1000},
+    {"symbol": "GRASIM", "sector": "Cement", "pct": 0.2, "turnover": 600},
+    {"symbol": "POLYCAB", "sector": "Capital Goods", "pct": 3.1, "turnover": 700},
+]
 SECTOR_HEAT = [
     {"sector": "Nifty IT", "rs": 1.2}, {"sector": "Nifty Auto", "rs": 0.9},
     {"sector": "Nifty Metal", "rs": 0.6}, {"sector": "Nifty Energy", "rs": 0.3},

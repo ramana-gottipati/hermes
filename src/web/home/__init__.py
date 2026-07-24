@@ -124,6 +124,7 @@ def _compose(conn, on: bool) -> str:
     highs = reads.new_highs(conn) or demo.NEW_HIGHS
     sectors = reads.sector_heat(conn) or demo.SECTOR_HEAT
     vix = reads.vix_latest(conn) or demo.VIX
+    mmap, mmap_demo = _pick(reads.market_map(conn), demo.MARKET_MAP)
     sev = reads.severity_counts(conn)
     if not sev.get("total"):
         sev = demo.SEVERITY
@@ -161,7 +162,9 @@ def _compose(conn, on: bool) -> str:
     news_rows, news_demo = _pick(reads.recent_news(conn, limit=20), demo.NEWS)
     news = C.zone("Market news", "Newswire · 2× daily", C.wire(news_rows),
                   sub="headlines, symbol-tagged", sample=news_demo)
-    main = '<div class="g-main">' + regime + featured + pulse + conviction + trig + news + "</div>"
+    hmap = C.zone("Market map — today", "NSE bhav copy · EOD", C.heatmap(mmap),
+                  sub="the whole market in one look", sample=mmap_demo, name="Market map")
+    main = '<div class="g-main">' + regime + featured + hmap + pulse + conviction + trig + news + "</div>"
 
     # ── RAIL: flows · filings · calendars · go-deeper · toggle ──
     flows = C.zone("FII / DII flows", "FII/DII cash · post-close", C.flows_block(fd),

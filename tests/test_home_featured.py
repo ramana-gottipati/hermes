@@ -155,6 +155,33 @@ def test_today_additions_escape_untrusted():
         assert "<script>" not in h and "<i>" not in h and "<b>x" not in h
 
 
+def test_heatmap_squarify_tiles_the_box_and_renders_safely():
+    """The treemap is server-computed and can't be pixel-verified this session, so pin its GEOMETRY:
+    squarify must tile the whole box (areas sum to dx*dy) with every rect inside the bounds, and the
+    rendered tiles must stay within 0-100% and escape untrusted symbols."""
+    import re
+    sizes = [40.0, 25.0, 15.0, 12.0, 8.0]                  # descending, as squarify requires
+    area = 100.0 * 60.0
+    rects = C._squarify([s / sum(sizes) * area for s in sizes], 0.0, 0.0, 100.0, 60.0)
+    assert len(rects) == len(sizes)
+    covered = sum(r["dx"] * r["dy"] for r in rects)
+    assert abs(covered - area) / area < 0.02, ("squarify must tile the whole box", covered, area)
+    for r in rects:
+        assert r["dx"] >= 0 and r["dy"] >= 0
+        assert r["x"] >= -0.01 and r["y"] >= -0.01
+        assert r["x"] + r["dx"] <= 100.01 and r["y"] + r["dy"] <= 60.01
+    rows = [{"symbol": "RELIANCE", "sector": "Energy", "pct": 1.2, "turnover": 4200},
+            {"symbol": "<script>", "sector": "IT", "pct": -0.4, "turnover": 2200},
+            {"symbol": "SBIN", "sector": "Bank", "pct": -0.5, "turnover": 2600}]
+    hm = C.heatmap(rows)
+    assert "<script>" not in hm and "g-hm-t" in hm and "tile size = turnover" in hm
+    tiles = re.findall(r"left:([\d.]+)%;top:([\d.]+)%;width:([\d.]+)%;height:([\d.]+)%", hm)
+    assert len(tiles) == 3
+    for l, t, w, h in ((float(a) for a in tup) for tup in tiles):
+        assert l + w <= 100.5 and t + h <= 100.5, ("a tile escaped the box", l, t, w, h)
+    assert "g-empty" in C.heatmap([])
+
+
 def test_new_builders_escape_and_leak_no_markers():
     outs = [
         C.watchlist_block([{"symbol": "<script>x</script>", "pct": 1.0, "trend": "<b>"}]),
