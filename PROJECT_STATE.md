@@ -2269,6 +2269,13 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   qualifying set (≤40) for an honest count while the card still shows the top 8. Gated in
   `test_home_featured`. Decision + rationale in `docs/graphite-home-carryforward.md` §4.
 
+### Graphite Home — 2026-07-24 — heatmap: sector-block labels + rich hover card (owner)
+- **Sector labels** drawn on each big-enough treemap block (`components.heatmap`, pointer-events:none so
+  clicks pass through) — orient at a glance. **Rich hover card** (`.g-hm-tip`, assets JS): pointerover a
+  tile shows symbol · move · turnover · **delivery %** (DOM-safe, built via textContent from data-*),
+  cursor-following + edge-clamped; replaced the bare native title with aria-label. `market_map` read now
+  also returns `deliv_per`. Gate `test_heatmap_has_sector_labels_and_rich_hover_data`. Suite 844.
+
 ### Graphite Home — 2026-07-24 — FREE⇄PRO tier switch + heatmap colour fix + breadth PRO relative-context
 - **Heatmap colour fixed (owner: "browns, confusing"):** the muddy browns came from color-mixing the
   signed rose/mint with the BLUE-GREY bg — now clean single-hue ramps (dark-muted → vivid by move size,

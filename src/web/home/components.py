@@ -864,9 +864,13 @@ def _hm_tile(stk, r) -> str:
     left, top = r["x"] / _HM_W * 100, r["y"] / _HM_H * 100
     w, h = r["dx"] / _HM_W * 100, r["dy"] / _HM_H * 100
     sym = esc(stk.get("symbol"))
-    title = sym + " " + ("+" if p >= 0 else "−") + f"{abs(p):.1f}%"
+    pct_s = ("+" if p >= 0 else "−") + f"{abs(p):.1f}%"
+    turn = _rupee(stk.get("turnover"))
+    dv = stk.get("deliv")
+    deliv_s = f"{float(dv):.0f}%" if dv is not None else ""
     label = ('<span class="g-hm-l">' + sym + "</span>") if (w >= 4.2 and h >= 4.6) else ""
-    return ('<a class="g-hm-t ' + cls + '" href="/dash/stock?sym=' + sym + '" title="' + title + '" '
+    return ('<a class="g-hm-t ' + cls + '" href="/dash/stock?sym=' + sym + '" aria-label="' + sym + " " + esc(pct_s) + '" '
+            'data-sym="' + sym + '" data-pct="' + esc(pct_s) + '" data-turn="' + esc(turn) + '" data-deliv="' + esc(deliv_s) + '" '
             'style="left:' + f"{left:.2f}" + "%;top:" + f"{top:.2f}" + "%;width:" + f"{w:.2f}"
             + "%;height:" + f"{h:.2f}" + "%;--i:" + f"{inten:.2f}" + '">' + label + "</a>")
 
@@ -886,8 +890,8 @@ def heatmap(rows) -> str:
     totals = [sum(x["turnover"] for x in v) for _, v in sec_list]
     grand = sum(totals) or 1.0
     sec_rects = _squarify([t / grand * area for t in totals], 0.0, 0.0, _HM_W, _HM_H)
-    tiles = ""
-    for (_name, stocks), rect in zip(sec_list, sec_rects):
+    tiles, sec_labels = "", ""
+    for (name, stocks), rect in zip(sec_list, sec_rects):
         stocks = sorted(stocks, key=lambda x: x["turnover"], reverse=True)
         st = [x["turnover"] for x in stocks]
         sgrand = sum(st) or 1.0
@@ -896,13 +900,19 @@ def heatmap(rows) -> str:
                              rect["x"], rect["y"], rect["dx"], rect["dy"])
         for stk, sr in zip(stocks, st_rects):
             tiles += _hm_tile(stk, sr)
+        lw, lh = rect["dx"] / _HM_W * 100, rect["dy"] / _HM_H * 100
+        if lw >= 9 and lh >= 6.5:                              # label only blocks big enough to read
+            lx, ly = rect["x"] / _HM_W * 100, rect["y"] / _HM_H * 100
+            sec_labels += ('<div class="g-hm-sec" style="left:' + f"{lx:.2f}" + "%;top:" + f"{ly:.2f}"
+                           + "%;max-width:" + f"{lw:.2f}" + '%">' + esc(name) + "</div>")
     n_other = len(secs.get("Other", []))
     other_note = (" · " + str(n_other) + " unclassified") if n_other else ""
     legend = ('<div class="g-hm-leg"><span><i class="dn"></i> down</span>'
               '<span><i class="up"></i> up</span>'
               '<span><b>size</b> = turnover · <b>colour</b> = today\'s move (brighter = bigger) · click → its page</span>'
               '<span>' + str(len(rows)) + " most-traded · sectors NSE + Screener" + other_note + "</span></div>")
-    return '<div class="g-hm">' + tiles + "</div>" + legend
+    return ('<div class="g-hm">' + tiles + sec_labels
+            + '<div class="g-hm-tip" role="status" aria-live="polite" hidden></div></div>' + legend)
 
 
 def filings_block(rows) -> str:
@@ -1372,6 +1382,14 @@ def css() -> str:
 :root[data-ui-g] .g-hm-leg{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:9px;font-size:11px;color:var(--ink-3)}
 :root[data-ui-g] .g-hm-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle}
 :root[data-ui-g] .g-hm-leg i.up{background:var(--up)} :root[data-ui-g] .g-hm-leg i.dn{background:var(--down)}
+:root[data-ui-g] .g-hm-sec{position:absolute;z-index:2;pointer-events:none;font:800 9px/1 var(--font);letter-spacing:.07em;
+  text-transform:uppercase;color:rgba(255,255,255,.92);text-shadow:0 1px 3px rgba(0,0,0,.78);padding:3px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:root[data-ui-g][data-theme="light"] .g-hm-sec{color:rgba(10,20,15,.82);text-shadow:0 1px 2px rgba(255,255,255,.6)}
+:root[data-ui-g] .g-hm-tip{position:absolute;z-index:10;pointer-events:none;background:var(--bg-2);border:1px solid var(--line-2);
+  border-radius:9px;padding:8px 11px;box-shadow:0 12px 30px rgba(0,0,0,.5);min-width:132px;font-size:12px}
+:root[data-ui-g] .g-hm-tip-s{font-weight:800;font-size:13px;color:var(--ink);margin-bottom:5px}
+:root[data-ui-g] .g-hm-tip-r{display:flex;justify-content:space-between;gap:16px;color:var(--ink-3);padding:1px 0}
+:root[data-ui-g] .g-hm-tip-r b{color:var(--ink-2);font-family:var(--mono);font-variant-numeric:tabular-nums}
 /* ── regime band (below the today-core): RRG + breadth divergence ── */
 :root[data-ui-g] .g-rband{margin-top:20px;background:linear-gradient(165deg,var(--bg-2),var(--bg-1) 66%);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px 18px;position:relative;overflow:hidden}
 :root[data-ui-g] .g-rband::before{content:"";position:absolute;inset:0 auto auto 0;width:60px;height:2px;background:linear-gradient(90deg,var(--accent-hi),transparent)}
@@ -1580,5 +1598,23 @@ document.querySelectorAll(".g-cell.click").forEach(function(c){
   rrg.addEventListener("click",function(e){ var g=grp(e.target);
     if(g){ if(pinned===g){ pinned=null; clear(); } else { pinned=g; iso(g); } }
     else { pinned=null; clear(); } });
+})();
+/* ── heatmap: rich hover card (symbol · move · turnover · delivery) ── */
+(function(){
+  var hm=document.querySelector(".g-hm"); if(!hm) return;
+  var tip=hm.querySelector(".g-hm-tip"); if(!tip) return;
+  function row(k,v){ if(!v) return; var r=document.createElement("div"); r.className="g-hm-tip-r";
+    var a=document.createElement("span"); a.textContent=k; var b=document.createElement("b"); b.textContent=v;
+    r.appendChild(a); r.appendChild(b); tip.appendChild(r); }
+  function fill(t){ tip.textContent="";
+    var s=document.createElement("div"); s.className="g-hm-tip-s"; s.textContent=t.getAttribute("data-sym")||""; tip.appendChild(s);
+    row("Move",t.getAttribute("data-pct")); row("Turnover",t.getAttribute("data-turn")); row("Delivery",t.getAttribute("data-deliv")); }
+  function place(e){ var r=hm.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top, tw=tip.offsetWidth, th=tip.offsetHeight;
+    x=(x+tw+16>r.width)?x-tw-14:x+14; y=(y+th+16>r.height)?y-th-6:y+16;
+    tip.style.left=Math.max(2,x)+"px"; tip.style.top=Math.max(2,y)+"px"; }
+  function hit(e){ return e.target && e.target.closest ? e.target.closest(".g-hm-t") : null; }
+  hm.addEventListener("pointerover",function(e){ var t=hit(e); if(t){ fill(t); tip.hidden=false; place(e); } });
+  hm.addEventListener("pointermove",function(e){ if(!tip.hidden){ var t=hit(e); if(t) place(e); } });
+  hm.addEventListener("pointerout",function(e){ if(hit(e)) tip.hidden=true; });
 })();
 })();</script>"""

@@ -269,6 +269,17 @@ def test_heatmap_squarify_tiles_the_box_and_renders_safely():
     assert "g-empty" in C.heatmap([])
 
 
+def test_heatmap_has_sector_labels_and_rich_hover_data():
+    rows = [{"symbol": "RELIANCE", "sector": "Energy", "pct": 1.2, "turnover": 4.2e10, "deliv": 61},
+            {"symbol": "ONGC", "sector": "Energy", "pct": -0.5, "turnover": 2.1e10, "deliv": 55},
+            {"symbol": "TCS", "sector": "IT", "pct": 0.3, "turnover": 1.8e10, "deliv": 48}]
+    hm = C.heatmap(rows)
+    assert 'class="g-hm-sec"' in hm                             # sector-block labels
+    assert 'data-sym="RELIANCE"' in hm and 'data-deliv="61%"' in hm and "data-turn=" in hm  # hover payload
+    assert 'class="g-hm-tip"' in hm                             # the hover card container
+    assert 'closest(".g-hm-t")' in C.assets()                  # the hover wiring is present
+
+
 def test_new_builders_escape_and_leak_no_markers():
     outs = [
         C.watchlist_block([{"symbol": "<script>x</script>", "pct": 1.0, "trend": "<b>"}]),

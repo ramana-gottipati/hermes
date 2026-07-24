@@ -79,7 +79,7 @@ def market_map(conn, limit: int = 140) -> list:
     sec_expr = "COALESCE(s.primary_sector, a.screener_industry)" if has_about else "s.primary_sector"
     join_about = "LEFT JOIN company_about a ON a.symbol=b.symbol" if has_about else ""
     rows = _rows(conn,
-                 f"SELECT b.symbol, b.close, b.prev_close, b.value, {sec_expr} AS sector "
+                 f"SELECT b.symbol, b.close, b.prev_close, b.value, b.deliv_per, {sec_expr} AS sector "
                  f"FROM bhavcopy_rows b LEFT JOIN stock_signals s ON s.symbol=b.symbol AND s.trade_date=? "
                  f"{join_about} "
                  f"WHERE b.trade_date=? AND b.series IN ('EQ','BE') "
@@ -92,6 +92,7 @@ def market_map(conn, limit: int = 140) -> list:
         except (TypeError, ZeroDivisionError):
             continue
         out.append({"symbol": r["symbol"], "pct": pct, "turnover": float(r["value"] or 0.0),
+                    "deliv": r.get("deliv_per"),              # delivery % — for the hover card
                     "sector": r.get("sector")})              # raw label — components._canon_sector buckets it
     return out
 
