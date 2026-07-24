@@ -190,6 +190,12 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 
 ### Key file paths
 
+**Orthogonal-data exploration (S214-cont, 2026-07-23) — descriptive lever tests, all NON-price/volume:**
+- `research/explosive_moves/regime_overlay.py` — de-risk overlay (index-200DMA / India VIX regime, PIT) on the low-vol + momentum books; a DRAWDOWN lever not alpha (trend cuts momentum DD −63→−42 at flat CAGR; VIX loses to trend; hurts defensive low-vol).
+- `research/explosive_moves/inst_flow.py` (seal `d582445`) — institutional accumulation Δ(DII+FII) event-study from `shareholding_history` (PIT); `inst_flow_ls.py` = the long-short; `lowvol_flow_tilt.py` = the low-vol × accumulation tilt. Signal real-but-weak (δ+0.07), NOT fundable in any form.
+- `research/explosive_moves/fno_oi_phase0.py` / `fno_oi_pcr_book.py` / `fno_oi_pcr_slow.py` — options-positioning from `fno_oi_signals` (OI/PCR/max-pain/basis): event-study gate → PCR net-book → slowed-PCR. Only PCR selects (δ+0.06) but not fundable (turnover); OI-positioning priced.
+- `docs/options-implied-scope.md` — the options-implied dimension scope; **PARKED** (IV/skew build not justified on current evidence: 2yr window + the orthogonal base rate).
+
 **EMA-crossover family + low-vol factor + forward test (S214, 2026-07-23) — new:**
 - `research/explosive_moves/momentum_band_rsi.py` — the UPPER-band breakout (buy strength: T=EMA5(HLC) crosses above U=EMA13(high)) + RSI/fractal managed exit; cells B/A/A2/C; event-study gate + gross/net books → `mbr_book`/`mbr_trades`/`mbr_events`. Seal `0e90bf2c`. VERDICT par-with-index BETA (FAIL-null), capacity-dead. `--build`/`--selftest`.
 - `research/explosive_moves/reversal_oversold.py` — CLEAN oversold-bounce reversal (≥25% below the 252d high + RSI crosses up through 30); two-gate frame → `rev_book`/`rev_trades`/`rev_events`. Seal `4d932089`. VERDICT net-negative, worse than random → REJECTED.
@@ -608,6 +614,21 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 ---
 
 ## Decision log (the big ones)
+
+### D147 — Orthogonal-data base rate: every signal selects weakly but NONE is fundable; low-vol is the sole fundable product (2026-07-23, session 214-cont)
+After the EMA-crossover verdict (D146), a systematic push tested whether NON-price/volume data lifts the
+book — REGIME (index-200DMA / India VIX), INSTITUTIONAL FLOW (long-only / low-vol tilt / long-short),
+OPTIONS-POSITIONING (PCR + slowed). **Result: every orthogonal signal that passed a cross-sectional
+SELECTION gate FAILED to reach FUNDABILITY** — momentum/reversal (no edge, beta), flow (δ+0.07 but
+unstable/not tradeable), PCR (δ+0.06 but turnover-killed, worse when slowed). Regime is a DRAWDOWN lever
+(cuts a beta book's DD at flat CAGR), NOT a return source. **BINDING:** (a) the fundable product is the
+**standalone low-vol book** (forward test armed, `ema_crossover_forward`); (b) **selection ≠ fundability** —
+a +0.05–0.07 δ over a short window does not survive cost; treat weak-δ selection results as descriptive; (c)
+the options **IV/skew build is SCOPED-but-PARKED** (`docs/options-implied-scope.md`), NOT justified on current
+evidence (2yr window + this base rate) — a future dedicated effort only if explicitly prioritised. All data
+used was ALREADY on the box + primary (NSE-XBRL shareholding, `fno_oi_signals`, India VIX) — no scrape, no
+vendor. Numbers: `docs/strategy-ledger.md` Studies 2026-07-23 (REGIME / INSTITUTIONAL FLOW / OPTIONS-IMPLIED
+PHASE 0 + follow-ups).
 
 ### D146 — The EMA crossover produces nothing fundable; low-vol is a SEPARATE factor, not a crossover (2026-07-23, session 214)
 The full EMA-crossover family (`momentum_band_rsi` buy-strength + `reversal_oversold`) was carried to a
@@ -2187,6 +2208,13 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 214 (cont.) — 2026-07-23 — ORTHOGONAL-DATA EXPLORATION: after the EMA verdict, tested whether NON-price/volume data lifts the book — regime, institutional flow (3 forms), options-positioning (PCR + slowed). BASE RATE: 3+ signals explored, ZERO fundable; the standalone LOW-VOL book remains the sole fundable product (D147)
+Ramana pushed hard on the data dimensions ("would you not tell me until I ask… build the constructive mechanism"). All descriptive lever tests, all on the VPS (`.venv-research`), all on origin.
+- **REGIME overlay (`regime_overlay.py`)** — a de-risk overlay is a DRAWDOWN lever, not alpha, and only on books that BLEED in risk-off. Trend-200DMA (PIT) cuts the momentum book's DD **−63→−42%** at flat CAGR (R/V 0.70→0.84) but HURTS the defensive low-vol (it's already a hedge: base risk-off +2.3% > risk-on +0.89%, so de-risking cuts its best months → DD −20.8→−26.4). India VIX wired as a real regime feature (ALREADY on box via `indexes.py`, 2014-05+) but the implied-vol regime LOSES to the plain trend filter (inverted for momentum). Corrects the loose "regime = CAGR lever" claim.
+- **INSTITUTIONAL FLOW (`inst_flow.py` / `inst_flow_ls.py` / `lowvol_flow_tilt.py`)** — data ALREADY on box (`shareholding_history` DII+FII, PIT by `report_date`, 2019+, 1546 syms, primary NSE-XBRL, no scrape). REAL but weak/unstable: long-only Q5 R/V **0.51** (Cliff's δ **+0.07** — the ONLY positive selection δ of the arc); low-vol × accumulation TILT HURTS (0.60<0.76 — the edge doesn't transfer to defensive names); long-short spread NEGATIVE (−8% gross; the short leg institutions-selling +24% > long +14%; flips sign across windows → noise-dominated). NOT fundable in any form; thread CLOSED.
+- **OPTIONS-POSITIONING (`fno_oi_phase0.py` / `fno_oi_pcr_book.py` / `fno_oi_pcr_slow.py`)** — OI signals ALREADY on box (`fno_oi_signals`: PCR/max-pain/OI/basis, 2024-07+, 273 F&O names, ~2yr). Phase-0 gate: only **PCR** selects (δ +0.06, BOTH halves — contrarian, high-PCR out-performs); max-pain/basis flip across halves, OI-change ≈0. But PCR is NOT a fundable book — net R/V **0.28** (turnover **815%/yr**), and SLOWING it (quarterly/smoothed) made it WORSE (0.11–0.20; the signal decays fast — the churn WAS the signal). STOPPED: OI-positioning priced; the multi-day IV/skew build NOT justified on current evidence. IV SCOPED-but-PARKED (`docs/options-implied-scope.md`).
+- **Honest net (D147):** every orthogonal signal that passed a cross-sectional SELECTION gate FAILED to reach FUNDABILITY — each for a different concrete reason (beta / instability / turnover). Not a gap — an evidence-backed conclusion. **The fundable product remains the standalone low-vol book (forward test armed).** Behavioural: recorded Ramana's "DRIVE + BUILD the mechanism, don't describe then back off" correction to memory. Numbers single-sourced in `docs/strategy-ledger.md` §§ REGIME OVERLAY / INSTITUTIONAL FLOW / OPTIONS-IMPLIED PHASE 0. Commits `5e40a45`·`fd50243`·`436db9f`·`4a08cc4`·`7968f65`·`99b25ae`·`899fc0a`·`702af6f`·`9e5d71a`.
 
 ### Session 217 — 2026-07-23 — FAILURE-LEDGER GATE REPAIR: S216 landed the 11th BLOCKING ledger row (MOMENTUM BAND + RSI) but not the `rule_lab` mirror → origin/main itself went RED on the byte-verbatim gate; re-synced mirror + test, merged the minimal fix (`8e3f672`)
 `test_embedded_blocking_rows_are_byte_verbatim_from_the_ledger` was failing **on committed origin/main** (proven independent of any chart work): the ledger's § BLOCKING FAILURE MODELS now parses **11** rows — S216's reversal study added `MOMENTUM BAND + RSI single-name swing (2026-07-22)` — but `rule_lab.BLOCKING_ROWS` embedded **10** and the test still asserted `== 10`. The ledger is canonical; the mirror must follow (single-sourcing; D142 carve-out: the mirror rows are byte-compared QUOTES, not relabelled).
