@@ -17,6 +17,11 @@ in its 6th is drifting up on the thinnest participation in three years (a "hollo
 opposite of one making a high on 98th-percentile turnover. Same OHLC everyone has; the
 ARRANGEMENT is the insight.
 
+SECOND LENS (cross-sectional): each cell also carries its percentile vs the FIELD today (the small
+number beside the big self one). A cell extreme on BOTH its own past AND its peers — a gold ring —
+is the two-lens confluence, a stronger, less noisy read than either alone. Turnover is self-only
+(raw ₹ turnover is a size proxy across stocks, so it has no meaningful peer rank).
+
 Corporate-action HYGIENE (load-bearing): raw NSE close is unadjusted, so a split/bonus fakes a
 crash in the price/momentum percentiles (a 1:1 bonus halves the close; Nestlé's 1:10 split ÷10).
 Price & momentum are computed on a split/bonus-ADJUSTED series; delivery-%, ₹ turnover and the
@@ -80,12 +85,28 @@ def _heat(v: float) -> tuple[str, str]:
 
 
 def _pct_rank(hist: list, x: float) -> float | None:
-    """percentile (0..100) of x within hist; needs >=120 usable points."""
+    """SELF lens: percentile (0..100) of x within the stock's OWN history; >=120 usable points."""
     vals = [h for h in hist if h is not None]
     if len(vals) < 120 or x is None:
         return None
     n = sum(1 for h in vals if h <= x)
     return round(100.0 * n / len(vals), 1)
+
+
+# PEER lens: which comparable raw quantity each cell is cross-ranked on across the universe.
+# Turnover is deliberately absent — raw ₹ turnover is a size proxy (a giant always ranks top), so
+# it has no meaningful peer rank and stays self-only.
+_CROSS_SRC = {"price_pct": "off_hi", "mom_pct": "ret63", "deliv_pct": "deliv", "vol_pct": "rng"}
+
+
+def _cross_rank(sorted_vals: list, x: float) -> float | None:
+    """PEER lens: percentile (0..100) of x within the universe's values TODAY (>=20 peers).
+    Direction matches the self lens per _CROSS_SRC (higher off_hi/ret63/deliv → higher; lower
+    range → lower = coiled), so the small peer number reads the same way as the big self one."""
+    if x is None or len(sorted_vals) < 20:
+        return None
+    n = sum(1 for h in sorted_vals if h <= x)
+    return round(100.0 * n / len(sorted_vals), 1)
 
 
 def _adj_events(conn, sym: str) -> list:
@@ -175,6 +196,7 @@ def _metrics(conn, sym: str) -> dict | None:
         "turn_pct": turn_pct, "vol_pct": vol_pct,
         "off_hi": off_hi, "ret63": ret63,
         "deliv": round(dp_s[-1], 1) if dps else None,
+        "rng": round(rng14[-1], 5) if rng14 else None,   # raw range for the peer (cross) lens
         "turn_cr": round((val[-1] or 0) / 1e7, 1), "close": round(close[-1], 1),
     }
 
@@ -201,6 +223,13 @@ def _compute(u_key: str, asof: str) -> tuple:
                 m = None
             if m:
                 out.append(m)
+    # SECOND LENS — cross-sectional (vs the field TODAY): rank each comparable raw quantity across
+    # the universe → cx_<cellkey>. Turnover stays self-only (no peer rank). The render highlights
+    # CONFLUENCE (a cell extreme on its own past AND vs peers) — the stronger, less noisy read.
+    for key, src in _CROSS_SRC.items():
+        vals = sorted(r[src] for r in out if r.get(src) is not None)
+        for r in out:
+            r["cx_" + key] = _cross_rank(vals, r.get(src))
     return tuple(out)
 
 
@@ -240,7 +269,10 @@ table.sh td{padding:0 2px;border-top:1px solid var(--line);height:23px;}
 table.sh td.sym a{color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;}
 table.sh td.sym a:hover{text-decoration:underline;}
 table.sh td.cell{padding:0 1px;}
-table.sh td.cell .b{text-align:center;padding:3px 0;border-radius:3px;font-variant-numeric:tabular-nums;min-width:40px;}
+table.sh td.cell .b{text-align:center;padding:3px 0;border-radius:3px;font-variant-numeric:tabular-nums;min-width:47px;}
+table.sh td.cell .b .xs{font-size:9.5px;font-weight:400;opacity:.72;margin-left:3px;}
+table.sh td.cell .b.cf{outline:2px solid #f5c518;outline-offset:-2px;}
+.sh-cf-dot{display:inline-block;width:11px;height:11px;border-radius:2px;outline:2px solid #f5c518;outline-offset:-2px;background:var(--bg-3);vertical-align:-1px;}
 table.sh td.raw{text-align:right;padding:0 6px;font-variant-numeric:tabular-nums;color:var(--ink-2);}
 table.sh td.raw.mut{color:var(--ink-3);}
 .sh-pos{color:var(--up);} .sh-neg{color:var(--down);}
@@ -278,6 +310,21 @@ def _chips(rows: list) -> str:
         out.append(f'<div class="sh-chip">High range, fading momentum, heavy delivery: '
                    f'<a href="/dash/stock?sym={_esc(d["sym"])}">{_esc(d["sym"])}</a> '
                    f'mom <b>{d["mom_pct"]:.0f}</b> · deliv <b>{d["deliv_pct"]:.0f}</b></div>')
+
+    # confluence: the name with the most cells extreme on BOTH lenses (own past AND vs peers)
+    def _cfn(r):
+        c = 0
+        for key, _l, _t in _COLS:
+            v, x = r.get(key), r.get("cx_" + key)
+            if v is not None and x is not None and ((v >= 80 and x >= 80) or (v <= 20 and x <= 20)):
+                c += 1
+        return c
+    ranked = sorted(((_cfn(r), r) for r in rows), key=lambda z: -z[0])
+    if ranked and ranked[0][0] >= 2:
+        cnt, r = ranked[0]
+        out.append(f'<div class="sh-chip"><span class="sh-cf-dot"></span> Strongest two-lens agreement: '
+                   f'<a href="/dash/stock?sym={_esc(r["sym"])}">{_esc(r["sym"])}</a> '
+                   f'<b>{cnt}</b> of {len(_COLS)} metrics extreme on <b>both</b> its own past &amp; vs peers</div>')
     return f'<div class="sh-chips">{"".join(out)}</div>' if out else ""
 
 
@@ -300,9 +347,17 @@ def _table(rows: list, u_key: str, sort: str) -> str:
         tds = [f'<td class="sym"><a href="/dash/stock?sym={_esc(r["sym"])}">{_esc(r["sym"])}</a></td>']
         for key, _lab, _tip in _COLS:
             v = r.get(key)
+            cx = r.get("cx_" + key)
             bg, fg = _heat(v)
-            txt = f'{v:.0f}' if v is not None else 'n/a'
-            tds.append(f'<td class="cell"><div class="b" style="background:{bg};color:{fg}">{txt}</div></td>')
+            main = f'{v:.0f}' if v is not None else 'n/a'
+            sub = f'<span class="xs">{cx:.0f}</span>' if cx is not None else ''
+            cf = (v is not None and cx is not None
+                  and ((v >= 80 and cx >= 80) or (v <= 20 and cx <= 20)))
+            tip = (f'{_lab}: {main} vs own 3-yr past'
+                   + (f' · {cx:.0f} vs peers today' if cx is not None else ' · self-only (no peer rank)')
+                   + (' · CONFLUENCE — extreme on both' if cf else ''))
+            tds.append(f'<td class="cell"><div class="b{" cf" if cf else ""}" '
+                       f'style="background:{bg};color:{fg}" title="{_esc(tip)}">{main}{sub}</div></td>')
         ret = r.get("ret63")
         rc = "sh-neg" if (ret is not None and ret < 0) else "sh-pos"
         off = r.get("off_hi")
@@ -318,7 +373,9 @@ def _table(rows: list, u_key: str, sort: str) -> str:
 
 
 def _csv(rows: list) -> str:
-    cols = ["sym", "date", "price_pct", "mom_pct", "deliv_pct", "turn_pct", "vol_pct",
+    cols = ["sym", "date",
+            "price_pct", "cx_price_pct", "mom_pct", "cx_mom_pct", "deliv_pct", "cx_deliv_pct",
+            "turn_pct", "vol_pct", "cx_vol_pct",
             "off_hi", "ret63", "deliv", "turn_cr", "close"]
     out = [",".join(cols)]
     for r in rows:
@@ -368,8 +425,13 @@ def dash_self_history(u: str = "nifty50", sort: str = "price_pct", format: str =
         '(conviction), <b>Turnover</b> (participation), <b>Coil</b> (range — low = wound tight). '
         'Price &amp; momentum are <b>split/bonus-adjusted</b> (raw NSE close would fake a crash on a '
         'bonus); delivery, turnover and range are action-neutral. '
+        'Each cell now carries a <b>second number</b>: the <b>big</b> figure ranks the stock vs its '
+        'own 3-year past; the <b>small</b> figure ranks it vs its peers <i>today</i>. A '
+        '<span class="sh-cf-dot"></span> <b>gold ring</b> marks cells extreme on <b>both</b> — the '
+        'two-lens confluence, a stronger read than either alone. (Turnover has no peer rank — raw ₹ '
+        'is a size proxy — so it stays self-only.) '
         f'{ifx.fence("not_signal", cap=True)}. '
-        '<a href="/dash/glossary?q=self-relative percentile">glossary →</a></div>')
+        '<a href="/dash/glossary?q=cross-sectional percentile">glossary →</a></div>')
 
     # universe + sort controls (URL-addressable state)
     us = "".join(f'<a class="{"on" if u==k else ""}" href="/dash/self-history?u={k}&sort={sort}">'
@@ -381,9 +443,12 @@ def dash_self_history(u: str = "nifty50", sort: str = "price_pct", format: str =
                 f'<a href="/dash/self-history?u={u}&sort={sort}&format=csv" '
                 f'style="border-color:var(--line-2)">Download CSV</a></div>')
 
-    body.append('<div class="sh-key"><span><span class="ramp"></span> 0 = 3-yr low · 50 = middle · '
-                '100 = 3-yr high</span><span>click a column header to sort · every symbol links to its '
-                'dossier</span></div>')
+    body.append('<div class="sh-key"><span><span class="ramp"></span> 0 = low · 50 = middle · '
+                '100 = high</span>'
+                '<span><b style="color:var(--ink)">big</b> = vs its own 3-yr past · '
+                f'<b style="color:var(--ink)">small</b> = vs peers in {_esc(_UNIVERSES[u])} today · '
+                '<span class="sh-cf-dot"></span> = extreme on <b style="color:var(--ink)">both</b></span>'
+                '<span>click a header to sort · symbols link to the dossier</span></div>')
     body.append(_chips(rows))
     body.append(_table(rows, u, sort))
     body.append('<div class="sh-note" style="margin-top:10px;color:var(--ink-3);font-size:11.5px">'
@@ -411,6 +476,8 @@ def _selftest() -> int:
     assert _pct_rank(list(range(200)), 199) == 100.0
     assert _pct_rank(list(range(200)), 0) == 0.5
     assert _pct_rank([1, 2, 3], 3) is None            # too few points
+    assert _cross_rank(list(range(20)), 19) == 100.0  # peer lens works at N=20
+    assert _cross_rank([1, 2, 3], 3) is None          # too few peers
     bg, fg = _heat(100.0)
     assert bg.startswith("rgb(") and fg in ("#fff", "#23201c")
     assert _heat(None)[0] == "var(--bg-3)"
