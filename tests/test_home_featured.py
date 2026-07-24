@@ -181,10 +181,13 @@ def test_regime_band_rrg_and_breadth_render_safely():
         {"label": "IT", "points": [(101.0, 100.4), (101.5, 101.6), (102.0, 102.6)], "quadrant": "Leading"},
         {"label": "<script>", "points": [(99.0, 99.5), (98.7, 99.0), (98.3, 98.2)], "quadrant": "Lagging"},
     ])
-    assert "<svg" in rrg and "g-rrg-tail" in rrg and "g-rrg-head" in rrg
+    assert "<svg" in rrg and "g-rrg-seg" in rrg and "g-rrg-head" in rrg
+    assert 'class="g-rrg-s' in rrg and "g-rrg-seg last" in rrg     # per-sector groups + emphasised today-segment
+    assert 'tabindex="0"' in rrg                                  # keyboard-focusable for isolate
     assert "LEADING" in rrg and "WEAKENING" in rrg and "bright dot = today" in rrg
     assert "<script>" not in rrg and "IT" in rrg
     assert "g-empty" in C.rrg_map([])
+    assert 'closest(".g-rrg-s")' in C.assets()                    # the hover/focus/click isolate wiring
     bd = C.breadth_divergence_chart([{"d": "a", "price": 60, "effort": 54}, {"d": "b", "price": 74, "effort": 55},
                                      {"d": "c", "price": 51, "effort": 44}])
     assert "<svg" in bd and "g-bd-price" in bd and "g-bd-eff" in bd and "g-bd-gap" in bd

@@ -954,11 +954,24 @@ def rrg_map(sectors) -> str:
         if len(pts) < 2:
             continue
         q = _QCLASS.get(s.get("quadrant"), "q-lag")
-        poly = " ".join("%.1f,%.1f" % (x, y) for x, y in pts)
+        k = len(pts)
+        segs = ""
+        for i in range(k - 1):
+            (x1, y1), (x2, y2) = pts[i], pts[i + 1]
+            frac = (i + 1) / (k - 1)                            # 0..1, newer = higher
+            is_last = (i == k - 2)                              # the connecting line to TODAY
+            op = 1.0 if is_last else (0.20 + 0.6 * frac)
+            w = 3.2 if is_last else (1.0 + 1.4 * frac)
+            segs += ('<line class="g-rrg-seg%s" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" '
+                     'style="opacity:%.2f;stroke-width:%.1f"/>'
+                     % (" last" if is_last else "", x1, y1, x2, y2, op, w))
         hx, hy = pts[-1]
-        dots += ('<polyline class="g-rrg-tail %s" points="%s"/>' % (q, poly)
-                 + '<circle class="g-rrg-head %s" cx="%.1f" cy="%.1f" r="4.6"/>' % (q, hx, hy)
-                 + '<text class="g-rrg-lbl" x="%.1f" y="%.1f">%s</text>' % (hx + 6, hy + 3, esc(s.get("label"))))
+        lbl, qn = esc(s.get("label")), esc(s.get("quadrant") or "")
+        dots += ('<g class="g-rrg-s ' + q + '" tabindex="0" role="img" aria-label="' + lbl + ': ' + qn + '">'
+                 + segs
+                 + '<circle class="g-rrg-head" cx="%.1f" cy="%.1f" r="4.8"/>' % (hx, hy)
+                 + '<text class="g-rrg-lbl" x="%.1f" y="%.1f">%s</text>' % (hx + 6, hy + 3, lbl)
+                 + "</g>")
     leg = ('<div class="g-rrg-leg"><span class="q-lead">Leading</span><span class="q-impr">Improving</span>'
            '<span class="q-weak">Weakening</span><span class="q-lag">Lagging</span>'
            '<span class="g-rrg-note">bright dot = today · tail ≈ 8 weeks (weekly steps) · vs Nifty 500</span></div>')
@@ -1312,8 +1325,13 @@ def css() -> str:
 :root[data-ui-g] .g-rrg rect{fill:color-mix(in srgb,var(--qc) 9%,transparent)}
 :root[data-ui-g] .g-rrg-ax{stroke:var(--line-2);stroke-width:1;stroke-dasharray:3 3}
 :root[data-ui-g] .g-rrg-q{fill:var(--ink-3);font:700 8.5px var(--font);letter-spacing:.1em}
-:root[data-ui-g] .g-rrg-tail{fill:none;stroke:var(--qc);stroke-width:1.6;opacity:.5;stroke-linejoin:round;stroke-linecap:round}
+:root[data-ui-g] .g-rrg-s{transition:opacity .15s;cursor:pointer;outline:none}
+:root[data-ui-g] .g-rrg.iso .g-rrg-s{opacity:.09}
+:root[data-ui-g] .g-rrg.iso .g-rrg-s.on{opacity:1}
+:root[data-ui-g] .g-rrg-seg{fill:none;stroke:var(--qc);stroke-linecap:round}
+:root[data-ui-g] .g-rrg-seg.last{filter:drop-shadow(0 0 3px var(--qc))}
 :root[data-ui-g] .g-rrg-head{fill:var(--qc);stroke:var(--bg-0);stroke-width:1}
+:root[data-ui-g] .g-rrg-s:focus-visible .g-rrg-head{stroke:var(--accent-hi);stroke-width:2.4}
 :root[data-ui-g] .g-rrg-lbl{fill:var(--ink);font:700 9px var(--font);paint-order:stroke;stroke:var(--bg-0);stroke-width:2.4px}
 :root[data-ui-g] .g-rrg-leg{display:flex;flex-wrap:wrap;gap:11px;align-items:center;margin-top:8px;font-size:10.5px;color:var(--ink-2)}
 :root[data-ui-g] .g-rrg-leg span{display:inline-flex;align-items:center;gap:5px}
@@ -1457,5 +1475,23 @@ document.querySelectorAll(".g-cell.click").forEach(function(c){
     if(hidden[name]){ z.classList.add("hidden"); restoreChip(name,z); }
   });
   document.addEventListener("click",function(){ document.querySelectorAll(".g-arr-m.on").forEach(function(x){ x.classList.remove("on"); }); });
+})();
+/* ── RRG: hover / focus / click to isolate one sector (declutter) ── */
+(function(){
+  var rrg=document.querySelector(".g-rrg"); if(!rrg) return;
+  var pinned=null;
+  function grp(t){ return (t&&t.closest)?t.closest(".g-rrg-s"):null; }
+  function iso(g){ rrg.classList.add("iso");
+    rrg.querySelectorAll(".g-rrg-s.on").forEach(function(x){ if(x!==g) x.classList.remove("on"); });
+    if(g) g.classList.add("on"); }
+  function clear(){ if(pinned) return; rrg.classList.remove("iso");
+    rrg.querySelectorAll(".g-rrg-s.on").forEach(function(x){ x.classList.remove("on"); }); }
+  rrg.addEventListener("pointerover",function(e){ var g=grp(e.target); if(g) iso(g); });
+  rrg.addEventListener("pointerout",function(e){ var g=grp(e.target); if(g&&!g.contains(e.relatedTarget)) clear(); });
+  rrg.addEventListener("focusin",function(e){ var g=grp(e.target); if(g) iso(g); });
+  rrg.addEventListener("focusout",function(){ clear(); });
+  rrg.addEventListener("click",function(e){ var g=grp(e.target);
+    if(g){ if(pinned===g){ pinned=null; clear(); } else { pinned=g; iso(g); } }
+    else { pinned=null; clear(); } });
 })();
 })();</script>"""

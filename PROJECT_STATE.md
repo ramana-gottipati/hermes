@@ -2269,6 +2269,17 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   qualifying set (≤40) for an honest count while the card still shows the top 8. Gated in
   `test_home_featured`. Decision + rationale in `docs/graphite-home-carryforward.md` §4.
 
+### Graphite Home — 2026-07-24 — RRG polish: tapered comet tail + bold today-line + hover-to-isolate
+Owner: make Auto's spike-to-today a clearer connector, and hover/click a sector to fade the rest
+(declutter). Done: the tail is now per-segment (`rrg_map`) with a taper — oldest thin+faint (op .20,
+w 1.0) → newest bright (op .60), and the FINAL segment to today is bold (op 1, w 3.2, subtle glow) so
+the connecting line to today reads clearly. Each sector wrapped in a focusable `<g class=g-rrg-s>`;
+assets JS isolates on pointerover/focusin (others → opacity .09), click to PIN, click-empty to clear
+(keyboard-accessible). Suite 67 home / new gate. Owner raised a FREE-vs-PREMIUM tiering question
+(day-move free · full journey premium) — answered in chat with a recommendation (don't invert the
+value: a 1-day RRG is the LEAST informative; anchor premium on CONSOLIDATION not chart-history; defer
+the paywall, ship a Day⇄Journey toggle instead) — DECISION PENDING, not yet built.
+
 ### Graphite Home — 2026-07-24 — RRG tail → WEEKLY (owner Q on Auto: "is this a real rotation or a spike?")
 Owner read the live RRG (Auto in Leading with a long tail) and asked if Auto was "previously lagging /
 now constantly leading." Traced the REAL trajectory: Auto was genuinely Lagging through mid-July then
