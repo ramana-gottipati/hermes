@@ -188,15 +188,29 @@ def test_regime_band_rrg_and_breadth_render_safely():
     assert "<script>" not in rrg and "IT" in rrg
     assert "g-empty" in C.rrg_map([])
     assert 'closest(".g-rrg-s")' in C.assets()                    # the hover/focus/click isolate wiring
-    bd = C.breadth_divergence_chart([{"d": "a", "price": 60, "effort": 54}, {"d": "b", "price": 74, "effort": 55},
-                                     {"d": "c", "price": 51, "effort": 44}])
-    assert "<svg" in bd and "g-bd-price" in bd and "g-bd-eff" in bd and "g-bd-gap" in bd
-    assert "Today:" in bd and "51% advancing vs 44% delivering" in bd
-    assert "g-empty" in C.breadth_divergence_chart([])
-    band = C.regime_band(rrg, bd, rrg_sample=True, bd_sample=False)
+    # the CLEAR 'today' read the page now uses — two labelled bars, not the confusing dual-line chart
+    bg = C.breadth_gauges([{"d": "a", "price": 60, "effort": 54}, {"d": "b", "price": 74, "effort": 63}])
+    assert "g-bg" in bg and "Stocks rising" in bg and "Backed by real delivery" in bg
+    assert "74%" in bg and "63%" in bg and "11-pt gap" in bg and "ahead of the delivery" in bg
+    assert "g-empty" in C.breadth_gauges([])
+    # the dual-line time-series still exists as a builder (reserved for the Pro/Markets depth)
+    assert "<svg" in C.breadth_divergence_chart([{"d": "a", "price": 60, "effort": 54}, {"d": "b", "price": 74, "effort": 63}])
+    band = C.regime_band(rrg, bg, rrg_sample=True, bd_sample=False)
     assert "Market regime" in band and "not today's change" in band and "sample" in band
-    for h in (rrg, bd, band):
+    for h in (rrg, bg, band):
         assert "pv3" not in h and "data-ui-v3" not in h and "uk-sub" not in h
+
+
+def test_featured_watchlist_scrolls_many_names_in_a_bounded_box():
+    """Owner: a 50-60 name watchlist must not push the Market map off the page — the list sits in a
+    fixed-height box that scrolls internally (like the filings card), not a flat 50-row expansion."""
+    rows = [{"symbol": "SYM%02d" % i, "pct": 0.1 * i, "trend": "INSIDE", "deliv": 50} for i in range(30)]
+    wl = C.watchlist_block(rows)
+    assert 'class="g-watch"' in wl                              # the bounded, internally-scrolling container
+    assert wl.count('class="g-wl"') == 30                       # all names present (was capped at 10)
+    pf = C.portfolio_block({"rows": [{"symbol": "S%02d" % i, "pct": 0.2, "weight": 3.0, "since": 5.0}
+                                     for i in range(20)], "invested": 1e7, "day_pct": 0.6, "n": 20})
+    assert 'class="g-watch"' in pf and pf.count('class="g-wl"') == 20
 
 
 def test_canon_sector_unifies_nse_and_screener_taxonomies():

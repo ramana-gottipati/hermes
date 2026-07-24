@@ -422,7 +422,7 @@ def _rs_of(conn, symbols) -> dict:
 
 
 # ── featured card: watchlist · portfolio · movers · ticker feeds ───────────────────
-def watchlist_rows(conn, limit: int = 10) -> list:
+def watchlist_rows(conn, limit: int = 50) -> list:
     """The user's followed names, enriched with day change + RS phase.
 
     Reads BOTH watchlist tiers (box-verified 2026-07-23): the lifecycle tracker's lightweight tier

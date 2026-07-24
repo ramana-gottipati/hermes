@@ -525,7 +525,7 @@ _TREND_WEAK = ("WEAKENING", "LAGGING", "DOWNTREND", "STRONG_DOWNTREND")
 
 def _wl_rows(rows) -> str:
     out = ""
-    for r in (rows or [])[:10]:
+    for r in (rows or [])[:50]:                                # up to 50 names — the box scrolls internally
         r = _d(r)
         pct = r.get("pct")
         txt, cls = _signed_pct(pct) if pct is not None else ("—", "")
@@ -563,7 +563,7 @@ def portfolio_block(p) -> str:
             '<span class="g-big g-num">' + _rupee(p.get("invested")) + "</span>"
             '<span class="g-sub">' + esc(str(p.get("n") or len(rows))) + " holdings</span></div></div>")
     body = ""
-    for r in rows[:12]:
+    for r in rows[:50]:                                        # up to 50 holdings — the box scrolls internally
         r = _d(r)
         pct = r.get("pct")
         txt, cls = _signed_pct(pct) if pct is not None else ("—", "")
@@ -1027,6 +1027,40 @@ def breadth_divergence_chart(rows) -> str:
     return svg + leg + read
 
 
+def breadth_gauges(rows) -> str:
+    """The plain-English 'today' read of breadth vs delivery — TWO labelled bars, not a dual-line
+    chart (which the owner rightly found unreadable): how many stocks ROSE vs how many did it on REAL
+    delivery, and what the gap means. The full divergence-over-time chart (`breadth_divergence_chart`)
+    is reserved for the Pro/Markets depth. Today's numbers only."""
+    rows = [_d(r) for r in (rows or []) if _d(r).get("price") is not None]
+    if not rows:
+        return empty("Breadth data hasn't landed yet.")
+    last = rows[-1]
+    pv = float(last["price"])
+    ev = float(last["effort"]) if last.get("effort") is not None else None
+
+    def _bar(label, val, cls):
+        v = max(0.0, min(100.0, float(val)))
+        return ('<div class="g-bg-row"><div class="g-bg-top"><span class="g-bg-lab">' + esc(label) + "</span>"
+                '<span class="g-bg-val g-num ' + cls + '">' + f"{v:.0f}%" + "</span></div>"
+                '<div class="g-bg-track"><span class="g-bg-fill ' + cls + '" data-w="' + f"{v:.0f}" + '"></span></div></div>')
+
+    body = _bar("Stocks rising", pv, "price")
+    read = ""
+    if ev is not None:
+        body += _bar("Backed by real delivery", ev, "eff")
+        gap = pv - ev
+        tone = "warn" if gap > 8 else ("acc" if gap < -8 else "ok")
+        phrase = ("the rally is running ahead of the delivery behind it" if gap > 8 else
+                  ("delivery is even stronger than the price rise" if gap < -8 else
+                   "advances are backed by real delivery"))
+        read = ('<p class="g-bg-read"><b class="' + tone + '">' + f"{abs(gap):.0f}-pt gap"
+                + "</b> — " + esc(phrase) + ".</p>")
+    return ('<div class="g-bg">' + body + read + "</div>"
+            + learn("How many stocks rose, vs how many did it on REAL delivery — actual buying taken to "
+                    "the books, not intraday churn. A wide gap means the rally is thinner than it looks."))
+
+
 def regime_band(rrg_html, breadth_html, rrg_sample: bool = False, bd_sample: bool = False) -> str:
     """The 'bigger picture' band, placed BELOW the today-core (owner call): multi-week rotation +
     multi-day breadth trend, fenced as regime CONTEXT — never today's change (today's point is marked
@@ -1352,6 +1386,18 @@ def css() -> str:
 :root[data-ui-g] .g-bd-leg .price::before{background:var(--accent)} :root[data-ui-g] .g-bd-leg .eff::before{background:var(--candle-up)}
 :root[data-ui-g] .g-bd-read{font-size:12.5px;color:var(--ink-2);margin:9px 0 0}
 :root[data-ui-g] .g-bd-read b{color:var(--ink)}
+/* breadth two-gauge read (the clear 'today' version) */
+:root[data-ui-g] .g-bg{display:flex;flex-direction:column;gap:13px}
+:root[data-ui-g] .g-bg-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+:root[data-ui-g] .g-bg-lab{font-size:12.5px;color:var(--ink-2)}
+:root[data-ui-g] .g-bg-val{font-weight:800;font-size:15px}
+:root[data-ui-g] .g-bg-val.price{color:var(--accent)} :root[data-ui-g] .g-bg-val.eff{color:var(--candle-up)}
+:root[data-ui-g] .g-bg-track{height:13px;background:var(--bg-3);border-radius:999px;overflow:hidden}
+:root[data-ui-g] .g-bg-fill{display:block;height:100%;width:0;border-radius:999px;transition:width 1s cubic-bezier(.2,.7,.2,1)}
+:root[data-ui-g] .g-bg-fill.price{background:linear-gradient(90deg,var(--accent),var(--accent-hi))}
+:root[data-ui-g] .g-bg-fill.eff{background:var(--candle-up)}
+:root[data-ui-g] .g-bg-read{font-size:12.5px;color:var(--ink-2);margin:3px 0 0;line-height:1.5}
+:root[data-ui-g] .g-bg-read b.warn{color:var(--warn)} :root[data-ui-g] .g-bg-read b.ok{color:var(--up)} :root[data-ui-g] .g-bg-read b.acc{color:var(--candle-up)}
 </style>"""
 
 
@@ -1380,7 +1426,7 @@ document.querySelectorAll(".g-spark").forEach(function(el){
     +'<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="1.7"/>'
     +'<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(s[n-1]).toFixed(1)+'" r="2.5" fill="'+col+'"/></svg>';
 });
-document.querySelectorAll(".g-rb-f").forEach(function(el){ w(el, (+el.getAttribute("data-w")||0)+"%"); });
+document.querySelectorAll(".g-rb-f,.g-bg-fill").forEach(function(el){ w(el, (+el.getAttribute("data-w")||0)+"%"); });
 document.querySelectorAll(".g-gauge").forEach(function(el){
   var v=Math.max(0,Math.min(100,+el.getAttribute("data-value")||0)), fill=el.querySelector(".g-gfill");
   if(!fill) return; var L=fill.getTotalLength(); fill.style.strokeDasharray=L; var off=L*(1-v/100);

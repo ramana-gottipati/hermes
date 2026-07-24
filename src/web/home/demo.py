@@ -134,18 +134,29 @@ SECTOR_HEAT = [
 
 # ── featured card: watchlist · portfolio · movers ────────────────────────────────
 WATCHLIST = [
-    {"symbol": "RELIANCE", "pct": 1.24, "trend": "LEADING", "rank": 88, "deliv": 61},
-    {"symbol": "TATASTEEL", "pct": 2.03, "trend": "IMPROVING", "rank": 74, "deliv": 58},
-    {"symbol": "INFY", "pct": -0.42, "trend": "INSIDE", "rank": 52, "deliv": 47},
-    {"symbol": "HDFCBANK", "pct": 0.38, "trend": "INSIDE", "rank": 55, "deliv": 49},
-    {"symbol": "MARUTI", "pct": -0.91, "trend": "WEAKENING", "rank": 33, "deliv": 44},
+    {"symbol": s, "pct": p, "trend": t, "rank": r, "deliv": d}
+    for s, p, t, r, d in [
+        ("RELIANCE", 1.24, "LEADING", 88, 61), ("TATASTEEL", 2.03, "IMPROVING", 74, 58),
+        ("INFY", -0.42, "INSIDE", 52, 47), ("HDFCBANK", 0.38, "INSIDE", 55, 49),
+        ("MARUTI", -0.91, "WEAKENING", 33, 44), ("TCS", 0.22, "INSIDE", 57, 52),
+        ("BHARTIARTL", 1.61, "LEADING", 81, 59), ("LT", 0.94, "LEADING", 78, 54),
+        ("ITC", -0.15, "INSIDE", 48, 46), ("SBIN", -0.53, "WEAKENING", 41, 43),
+        ("BAJFINANCE", 1.42, "LEADING", 85, 57), ("SUNPHARMA", -0.48, "LAGGING", 38, 45),
+        ("HINDUNILVR", 0.51, "INSIDE", 50, 48), ("POLYCAB", 3.12, "LEADING", 91, 63),
+        ("DIXON", 2.44, "LEADING", 90, 60), ("CDSL", 1.88, "IMPROVING", 76, 55),
+        ("TITAN", 0.41, "INSIDE", 53, 47), ("ADANIENT", -1.31, "WEAKENING", 29, 42),
+    ]
 ]
 PORTFOLIO = {
     "rows": [
-        {"symbol": "RELIANCE", "pct": 1.24, "weight": 18.0, "since": 24.0},
-        {"symbol": "HDFCBANK", "pct": 0.38, "weight": 14.0, "since": 11.0},
-        {"symbol": "INFY", "pct": -0.42, "weight": 11.0, "since": -3.0},
-        {"symbol": "TCS", "pct": 0.22, "weight": 9.0, "since": 31.0},
+        {"symbol": s, "pct": p, "weight": w, "since": sn}
+        for s, p, w, sn in [
+            ("RELIANCE", 1.24, 12.0, 24.0), ("HDFCBANK", 0.38, 10.0, 11.0), ("INFY", -0.42, 8.0, -3.0),
+            ("TCS", 0.22, 8.0, 31.0), ("BHARTIARTL", 1.61, 7.0, 42.0), ("LT", 0.94, 7.0, 19.0),
+            ("BAJFINANCE", 1.42, 6.0, 55.0), ("ITC", -0.15, 6.0, 8.0), ("POLYCAB", 3.12, 5.0, 61.0),
+            ("TITAN", 0.41, 5.0, 27.0), ("SUNPHARMA", -0.48, 5.0, -6.0), ("MARUTI", -0.91, 4.0, 14.0),
+            ("DIXON", 2.44, 4.0, 88.0), ("CDSL", 1.88, 3.0, 46.0),
+        ]
     ],
     "invested": 23_400_000.0, "day_pnl": 142_000.0, "day_pct": 0.61, "n": 14,
 }

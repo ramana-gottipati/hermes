@@ -188,6 +188,6 @@ def _compose(conn, on: bool) -> str:
     # ── the REGIME band (below the today-core, owner call): multi-week rotation + multi-day breadth ──
     rrg_data, rrg_demo = _pick(reads.rrg_sectors(conn), demo.RRG)
     bd_data, bd_demo = _pick(reads.breadth_divergence(conn), demo.BREADTH_DIV)
-    regime = C.regime_band(C.rrg_map(rrg_data), C.breadth_divergence_chart(bd_data), rrg_demo, bd_demo)
+    regime = C.regime_band(C.rrg_map(rrg_data), C.breadth_gauges(bd_data), rrg_demo, bd_demo)
 
     return ribbon + C.hidden_tray() + '<div class="g-dash">' + main + side + "</div>" + regime

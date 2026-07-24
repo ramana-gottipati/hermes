@@ -2269,6 +2269,22 @@ Owner-approved redesign of the isolated `/dash/home` preview (opt-in `pvg`, byte
   qualifying set (≤40) for an honest count while the card still shows the top 8. Gated in
   `test_home_featured`. Decision + rationale in `docs/graphite-home-carryforward.md` §4.
 
+### Graphite Home — 2026-07-24 — breadth → TWO-GAUGE read (owner: "can't understand the chart") + featured card bounded scroll
+- **Breadth-vs-delivery was unreadable** (two near-identical wiggly lines + the abstract "effort-breadth").
+  Replaced on the today page with a plain TWO-GAUGE read (`components.breadth_gauges`): two labelled bars —
+  "Stocks rising 74%" vs "Backed by real delivery 63%" — the gap + a plain sentence ("the rally is running
+  ahead of the delivery behind it"). No jargon, no time-series. The dual-line `breadth_divergence_chart`
+  is KEPT as a builder, reserved for the Pro/Markets depth (per the tiering plan). `_compose` now renders
+  the gauges in the regime band's breadth card.
+- **Featured card bounded scroll (owner):** a 50-60 name watchlist/portfolio must not push the Market map
+  off the page. The list already sat in a fixed-height `.g-watch` box (max-height 320 → internal scroll,
+  like the filings card), but the row caps were 10/12 → raised to 50; the read limit 10 → 50; demo lists
+  expanded to 18/14 so the bounded scroll is actually visible. Gate `test_featured_watchlist_scrolls_many
+  _names_in_a_bounded_box`. Suite 842.
+- **QUEUED (owner-approved plan, not yet built):** the Free⇄Pro tier switch (retire Beginner/Pro persona),
+  Today RRG→short + "See full rotation →" link, and the NEW Graphite `/dash/home/rotation` Markets page
+  (6/12/24-mo journeys, fixed-~10-dot clutter fix, Pro-gated depth). Breadth follows the same split.
+
 ### Graphite Home — 2026-07-24 — RRG polish: tapered comet tail + bold today-line + hover-to-isolate
 Owner: make Auto's spike-to-today a clearer connector, and hover/click a sector to fade the rest
 (declutter). Done: the tail is now per-segment (`rrg_map`) with a taper — oldest thin+faint (op .20,
