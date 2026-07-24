@@ -92,6 +92,12 @@ additions**: **regime one-liner** (top) + **Today's conviction** (reuses `stock_
 + **Filings & ownership** rail card (insider + SAST). Commits: `3d5637d`·`3b41f73`·`a82330a`·`4f714b6`·`677203d`.
 Everything deployed to `/dash/home`; suite 833 pass; classic + old preview byte-untouched.
 
+**DECIDED (owner, 2026-07-24):** Today's conviction stays **STRICT** — the full all-three-pillars
+definition (RS leader + accumulating + near entry). Do **NOT** widen it to near-misses to pad the
+count; a short list (2 names on 2026-07-24) is the selectivity working as designed. If it reads as
+"broken" to a viewer, the fix is legibility (a "N cleared all 3 pillars today" line), never loosening
+the gate.
+
 **STILL OPEN:**
 1. **Owner PIXEL-review** — the Browser pane was down this session, so structure+gates were verified,
    not pixels. Hand a `?v=N` link (`https://srv1704897.hstgr.cloud/dash/home?v=N`); iterate on finish.
