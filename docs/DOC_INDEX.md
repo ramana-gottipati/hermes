@@ -57,7 +57,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/patearn-charter.md` | CEO-mode operating doctrine + NOW roadmap (amended by the Decision log). |
 | `docs/patearn-analytics-company-plan.md` | Company-level plan (D134): analytics-company posture + validated regulatory boundaries + adaptable layers L0–L8 + structured cost model + the rated component roadmap. |
 
-## B. DESIGN(live) — design-of-record, keep (27)
+## B. DESIGN(live) — design-of-record, keep (28)
 
 | Doc | Note |
 |---|---|
@@ -100,6 +100,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/codex-review/REDESIGN-M4SPEC-CODEX.md` | Codex channel record: the parallel M4 spec pre-build verdict (OBJECT → v1.1 fixes), verbatim — the two passes are reconciled in the spec's status block. |
 | `docs/redesign-graphite-home-spec.md` | The fresh-and-parallel Graphite Home build spec (v1.2, REVIEW-CLEAN) — new isolated `/dash/home` section, per-zone reads, isolation/AA gates, deploy + gated retire plan. TRANSIENT — folds into the coordination record + PROJECT_STATE at cutover. |
 | `docs/graphite-home-carryforward.md` | Graphite Home carry-forward + takeover prompt — LIVE state, this session's arc, the binding corrections, the open feedback (rearrange/organize · Market-Pulse more entries · watchlist/portfolio · real-vs-demo honesty · response calibration), deploy recipe. TRANSIENT — retire at cutover. |
+| `docs/graphite-cutover-orchestration.md` | The cutover PROGRAM LEDGER (2026-07-27 mega-orchestration): wave board W0–W7, lane log, owner hand-offs — the parent-session source of truth for the classic→Graphite migration. TRANSIENT — retire with the carry-forward when the cutover completes. |
 | `docs/codex-review/GRAPHITE-HOME-SPEC-CODEX.md` | Codex channel record: Graphite Home spec review (OBJECT v1.0 → convergence APPROVE-WITH-CHANGES → v1.2), verbatim dispositions. |
 | `docs/codex-review/REDESIGN-PROTOTYPE-CODEX.md` | Codex channel record: the v3 experience-prototype review (OBJECT, 8 BLOCKING + 2 ADVISORY), dispositions in redesign-coordination.md. |
 
