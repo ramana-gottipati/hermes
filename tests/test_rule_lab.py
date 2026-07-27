@@ -137,7 +137,7 @@ def _ledger_blocking_rows() -> list:
 def test_embedded_blocking_rows_are_byte_verbatim_from_the_ledger():
     """The ledger stays canonical: if it changes, this FAILS until rule_lab re-syncs."""
     ledger_rows = _ledger_blocking_rows()
-    assert len(ledger_rows) == len(rl.BLOCKING_ROWS) == 10
+    assert len(ledger_rows) == len(rl.BLOCKING_ROWS) == 11
     embedded = set(rl.BLOCKING_ROWS.values())
     for row in ledger_rows:
         assert row in embedded, f"ledger row not embedded verbatim: {row[:60]}..."

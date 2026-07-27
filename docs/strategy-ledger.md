@@ -1999,6 +1999,154 @@ product** — net R/V ~1.0, matches/beats the index, DD ~−21% vs index −30%,
 holds to ₹250-500cr. The blend is a small-AUM return-per-vol booster only. Descriptive; NEXT = a
 forward/paper test (freeze the spec, watch quarterly) before any capital.
 
+### Study 2026-07-23 — WEEKLY BAND RECLAIM: the weekly timeframe does NOT rescue the daily-falsified reclaim (REJECTED)
+
+The one crossover variant that attacked the actual reason the daily arc failed — the TIMEFRAME. Signal:
+T=EMA5(HLC3) crosses UP through L=EMA13(low) on WEEKLY bars ("buy the reclaim after weakness"); proper
+SL/TSL = ratcheting weekly 2°-down-fractal + band invalidation (weekly close < L) + 52-week censor. Module
+`research/explosive_moves/weekly_band_reclaim.py` (prereg `9990a435`). Prior on record: CAUTIOUS-FAIL.
+
+**RESULT — FAILS BOTH GATES; weekly did NOT help.**
+- **Gate-1 SELECTION:** ~10,400 events; 13-week median excess **−2.79%** (WORSENING to −5.32% at 26wk, pos
+  ~40%); Cliff's δ vs placebo **−0.02** (worse than random); both halves negative (−4.0% / −2.2%) →
+  **FAIL-null** (G2/G3/G4 all fail). An ANTI-signal, exactly like its daily form (STREAM BAND 07-13).
+- **Gate-2 BOOK** (net, weekly EW → monthly): R/V **0.15** / CAGR 0.8% / DD −60% — and WORSE than a
+  random-entry control (R/V 0.51). The reclaim ENTRY destroys value vs the exits alone. NOT FUNDABLE.
+
+**WHY the horizon fix didn't work:** the reclaim is a BUY-WEAKNESS entry, and weakness PERSISTS at the
+2–6-month horizon too (the excess gets MORE negative with horizon). The weekly-timeframe fix would help a
+buy-STRENGTH signal (moving it toward momentum-persistence); it cannot rescue a buy-weakness signal, whose
+edge is negative at every horizon tested. VERDICT: REJECTED, descriptive-only. **Closes the "but what
+about weekly?" question — the low-band reclaim is a robust anti-signal on BOTH daily and weekly.** Cite
+alongside the daily momentum FAIL-null (this arc) + STREAM BAND 07-13.
+
+### Study 2026-07-23 — REGIME OVERLAY: the de-risk lever is REAL but must be TARGETED (helps high-beta momentum, HURTS defensive low-vol)
+
+A constructive lever test (`research/explosive_moves/regime_overlay.py`, descriptive), built + measured —
+not a description. Regime = Nifty-500 vs its 200-DMA (+ a vol-tercile variant), PIT (prior month-end signal
+→ current month); in a risk-off month the book is scaled to `scale` invested, the rest to cash (6%/yr).
+
+**THE DIAGNOSTIC** (base-book average monthly return, risk-off vs risk-on — predicts the result BEFORE you run):
+- LOW-VOL v2: risk-off **+2.30%** > risk-on +0.89% → it EARNS its keep in risk-off (it IS a hedge).
+- MOMENTUM (`CELL_B_TREND_STRONG`): risk-off **+0.66%** < risk-on +1.41% → it's HURT in risk-off.
+The sign of (off − on) tells you whether the overlay will help.
+
+**RESULT** (R/V · CAGR · MaxDD):
+- LOW-VOL — overlay HURTS: base 1.06/15.0/−20.8 → trend-0.3 0.93/10.9/**−26.4** (deeper!) → trend-0.0
+  0.81/9.1/−29.3. You cannot hedge a hedge — de-risking cuts the book's BEST months. (Vol overlay ~neutral.)
+- MOMENTUM — trend overlay WORKS as predicted: base 0.70/13.1/**−63.2** → trend-0.3 0.83/13.5/−48.2 →
+  trend-0.0 0.84/13.4/**−42.4**. CAGR HELD (~13.4%), DD cut ~21 points (−63→−42), R/V 0.70→0.84.
+  (Vol-tercile overlay HURTS momentum — it's the TREND regime specifically that works.)
+
+**HONEST BOUND:** the overlay is a RISK BRAKE, not alpha. Momentum + overlay is STILL R/V 0.84 < the 0.89
+hurdle, CAGR ≈ index, and has NO selection edge (it's beta with a drawdown brake) → still NOT fundable; the
+overlay does NOT rescue the crossover. In-sample; needs a forward test before trust. **CORRECTS the earlier
+loose "regime overlay = CAGR lever" claim: it is a DRAWDOWN lever, and only on books that bleed in risk-off.**
+
+**VIX FOLLOW-UP (India VIX wired as a real regime feature — ALREADY on the box via `indexes.py`/`index_rows`,
+2014-05→today, 2997 rows).** The forward-looking implied-vol regime (India VIX top-tercile-to-date, PIT)
+does NOT beat the simple 200-DMA trend regime — it is INVERTED for momentum. VIX-separation (momentum,
+2015+ fair window): VIX-off (high-VIX) avg **+1.46%/mo** > VIX-on +0.69% — high-VIX months are GOOD for this
+trend-filtered momentum book (it catches recovery bounces), so de-risking on VIX cuts the good months and
+CRUSHES CAGR (2015+ base 0.55/9.7/−63 → VIX-0.0 0.48/**6.4**/−42: DD cut but CAGR gutted). The simple TREND
+filter stays the better de-risk signal (its off<on). **Lesson: the fancier implied-vol signal LOST to the
+plain trend filter for this job — measure, don't assume.** India VIX may still earn its keep as a DIFFERENT
+feature (position sizing / mean-reversion timing), not as a de-risk overlay — a separate test. (AMFI NAVAll
+reachable = fund NAVs only; stock-level MF flow needs AMC-portfolio parsing — a real build, not a quick pull.)
+
+### Study 2026-07-23 — OPTIONS-IMPLIED PHASE 0: PCR selects (weak, both halves); other OI signals fail — proceed CAUTIOUSLY
+
+Phase 0 of `docs/options-implied-scope.md` — event-study gate on the OI signals ALREADY on the box
+(`fno_oi_signals`, no new data), `research/explosive_moves/fno_oi_phase0.py`. Cross-sectional quintiles
+weekly, 22d forward excess vs Nifty-500, Cliff's δ (top-Q vs bottom-Q), both halves. Window 2024-07→2026-07
+(**~2yr, 102 weeks — low power**).
+
+**RESULT — 1 of 4 selects: PCR.** High put-call-ratio stocks (top-Q) fwd excess **+0.74%/mo** vs bot-Q −0.02%,
+**δ +0.061, and POSITIVE in BOTH halves (+0.033 / +0.096)** — a CONTRARIAN signal (heavy put positioning →
+forward out-performance), more half-robust than institutional flow was. The other three FAIL: max-pain
+distance (δ −0.03, halves flip +0.24/−0.04), basis (δ +0.12 but halves flip −0.11/+0.13), futures OI change
+(δ ≈0). Gate verdict: PROCEED.
+
+**HONEST CAVEATS (do not over-read):** δ +0.06 is WEAK — same order as the institutional-flow signal (+0.07)
+that passed selection but DIED on fundability; the 2-year window has low power (each half ~1yr; δ_h1 barely
+clears +0.03); and this is SELECTION, not a net book. **NEXT (recommended, cheap, data-on-box): test whether
+PCR is a fundable NET book (quintile long, monthly, net of cost) BEFORE committing the multi-day IV build
+(Phase 1).** Selection ≠ fundability (the flow lesson). If PCR survives cost → the IV build is justified; if
+it dies like flow → the OI dimension isn't tradeable and we save 2-3 sessions. Forward-test-only regardless.
+
+**NET-BOOK TEST (Phase 1.5, `fno_oi_pcr_book.py`) — PCR is NOT a fundable book; TURNOVER kills it.** Top-PCR
+quintile long, F&O, monthly, net of 0.5% RT, 24 mo. **Long-only net R/V 0.28 / CAGR 3.6% / DD −21%** (gross
+0.49/7.9%) — beats the flat index on return but is nowhere near the 0.89 hurdle. **Killer = 815%/yr turnover**
+(PCR churns ~68% of the quintile monthly) → cost eats gross 7.9% → net 3.6%. The long-short spread looks
+great GROSS (R/V 1.55/12.2%/−4.4%) but that 815% turnover ×2 legs + India borrow would eat it to ~0 net
+(flow precedent). **THE FLOW LESSON REPEATS A 3RD TIME: weak selection (δ+0.06) → not fundable, this time via
+churn.** Base rate now: 2 orthogonal signals tested (flow, PCR), both weakly selected, ZERO reached
+fundability. NUANCE: the turnover killer is PCR-SPECIFIC (noisy daily signal) — IV-rank/skew are slower, so
+this does NOT directly condemn the IV build; but the base rate is discouraging. NEXT (recommended, cheap):
+test a SLOWED PCR (quarterly / smoothed) — if even that fails, the OI-positioning dimension is priced and IV
+won't differ → stop; if it clears, real finding + de-risks the IV build. [[failure-models-ledger]].
+
+**SLOWED-PCR (Phase 1.6, `fno_oi_pcr_slow.py`) — slowing did NOT rescue it; it made it WORSE. OI dimension
+PRICED → STOP.** Net R/V by variant: raw-monthly **0.28** (best) · raw-quarterly 0.11 · smoothed-monthly
+0.12 · smoothed-quarterly 0.20 — turnover cut 815%→275% but EVERY slow variant is BELOW the original
+monthly; none near 0.89. **Why: cutting turnover cut the COST but cut the SIGNAL more — PCR's predictive
+content decays fast, so the fast churn WAS partly the signal; there is no slow, tradeable version.**
+**DECISION: STOP the options-implied effort.** The OI-positioning dimension (PCR) is priced; the multi-day
+IV build is NOT justified on current evidence (2yr window + base rate: crossover/regime/flow/OI-positioning
+= 3+ orthogonal signals explored, ZERO fundable). IV remains SCOPED-but-unbuilt (`docs/options-implied-scope.md`)
+for a future dedicated effort only if explicitly prioritized. **THE FUNDABLE PRODUCT REMAINS THE STANDALONE
+LOW-VOL BOOK** (forward test armed, `ema_crossover_forward` twin cadence).
+
+### Study 2026-07-23 — INSTITUTIONAL FLOW: the FIRST orthogonal-data signal is REAL but weak/relative — long-short, not a fundable long-only book (REJECTED)
+
+The first study to mine OWNERSHIP not price. Data ALREADY on the box: `research.db.shareholding_history` —
+quarterly DII+FII holding %, PIT by `report_date`, 2019-2026, 1546 syms, primary NSE-XBRL (no scrape
+needed). Signal = QoQ Δ(DII+FII) accumulation, cross-sectional quintiles per quarter, entry at report_date
+(PIT). Module `research/explosive_moves/inst_flow.py` (prereg `d582445`). Prior: CAUTIOUS-OPTIMISTIC.
+
+**RESULT — a REAL selection signal, but FAILS the fundability gate.**
+- Gate-1: **Cliff's δ(Q5 accumulation vs Q1 distribution) = +0.071** — positive and ABOVE the +0.05 bar
+  (G3 PASS). **This is the ONLY positive cross-sectional selection δ in the whole arc** (momentum −0.01,
+  reversal ≈0, weekly reclaim −0.02) — ownership data carries information price/volume did not. BUT G2
+  FAILS: both quintiles have NEGATIVE median excess (Q5 126d med −4.6%, Q1 −8.3%) — accumulation
+  under-performs the index LESS, it does not out-perform it. G4 fails — edge only in 2023+ (half2), not
+  2019-22. → **FAIL-null.**
+- Gate-2 book: Q5 net R/V **0.51**/CAGR 9.1%/DD −18% beats Q1 (0.31/5.0/−23) but far below the 0.89
+  hurdle → NOT FUNDABLE long-only (only 9 usable book quarters — short history).
+
+**READ:** institutional flow carries REAL, orthogonal cross-sectional information (unlike the price
+crossovers), but here it is a **long-SHORT / ranking signal, not a long-only alpha** — Q5 beats Q1, yet Q5
+still lags the index (positive skew: a few winners carry the mean, median negative). India long-short is
+constrained, so a long-only book off it doesn't clear the bar. DISPOSITION: REJECTED as a standalone book,
+descriptive-only — **BUT it directionally VALIDATES the thesis that orthogonal (ownership) data is where
+selection edge lives.** NEXT (not built): use Δinst as a CONDITIONER/tilt inside the low-vol book; get the
+pure-MF breakout (vs DII aggregate); more history. Caveats: DII = MF-dominated domestic institutions (not
+pure MF); ~28 quarters 2019+.
+
+**TILT FOLLOW-UP (`lowvol_flow_tilt.py`) — the `low-vol × accumulation` synthesis does NOT lift the fundable
+book; it HURTS.** Within the sealed low-vol held set each quarter, split by PIT Δ(DII+FII) into ACCUM
+(buying) vs DISTRIB (selling), all on the SAME fair window (2024-01→2026-07, 31 mo — short, because PIT
+report_date is well-populated only recently). Result: BASE (all held, EW) R/V 0.76/CAGR 10.7%/DD −19.0% >
+**ACCUM 0.60/8.4%/−20.2%** > and even DISTRIB 0.74/11.8%/−20.9% edged the accum half. Tilting low-vol toward
+institutional accumulation LOWERS return/vol — the flow edge (weakly +0.07 in the BROAD universe) does NOT
+transfer to defensive low-vol names (likely institutions chasing already-rich "safety"). Accum tilt churns
+~200%/yr → net worse. **VERDICT: keep the two separate — low-vol stays equal-weight; flow, if used, is a
+broad-universe long-short/ranking overlay, NOT a low-vol conditioner.** (⚠ caught + fixed a window-fairness
+bug first: base-on-83mo vs split-on-31mo was apples-to-oranges; the fair read is 0.76 vs 0.60.)
+
+**LONG-SHORT FOLLOW-UP (`inst_flow_ls.py`) — the broad-universe flow long-short is NOT fundable; the
+signal is UNSTABLE across windows.** Long top-quintile Δ(DII+FII), short bottom-quintile (short leg
+restricted to liquid ≥₹25cr + 4%/yr borrow), quarterly, PIT. Fair window only 10 quarters (2023+, report_date
+recent-only). Result: **SPREAD gross R/V −0.84 / CAGR −8.1%** (net post-borrow −1.73 / −15.7%) — the RAW
+spread is negative BEFORE borrow cost. Why: the SHORT leg (institutions selling, liquid) returned **+24.3%**
+gross vs the LONG leg (buying) **+14.4%** — the "distribution" names went UP MORE, so shorting them loses.
+**This INVERTS the full-window event study (δ +0.07, Q5>Q1 over 2019-26)** → the +0.07 is weak enough to
+flip sign on the recent liquid subset = noise-dominated, not tradeable. VERDICT: REJECTED. **Institutional
+flow is now closed as REAL-but-weak-and-unstable — NOT fundable in ANY of the 3 forms tested: long-only
+(Q5 0.51), low-vol tilt (hurts 0.60<0.76), long-short (spread −8% gross).** Only bright spot: the long leg
+alone on 2023+ (14.4%/qtr-excess +1.15%/R/V 0.70) — short, sub-hurdle, non-robust. India short costs are a
+secondary nail; the primary problem is the signal's instability. [[failure-models-ledger]].
+
 ### EMA-crossover family — VERDICT (2026-07-23, explicit)
 
 **The EMA CROSSOVER ITSELF PRODUCES NOTHING FUNDABLE.** Both crossover strategies fail:
@@ -2014,6 +2162,36 @@ NOT an EMA crossover** (ranks names by trailing 126-day vol, holds the calmest, 
 shares NONE of the T/U/L/RSI/fractal machinery). It is carried in the forward test purely as the
 non-crossover **COMPARATOR / "book to beat"** — reported beside MOM/REV but **EXCLUDED from the
 crossover adjudication**. Do not read it as a crossover result.
+
+### EMA-crossover family — PROGRESS SUMMARY (metrics at a glance, 2026-07-23)
+
+The arc from the failing crossover to the fundable low-vol book, net-of-cost, verified this session
+(R/V = annualised mean/sd, no rf — D142 basis; hurdle = Nifty 500 buy-hold 0.89; seals verify 3/3
+post-reconcile: `0e90bf2c` / `4d932089` / `b8c1dec4`).
+
+| Book | Type | Net R/V | CAGR | Max DD | Capacity | Verdict |
+|---|---|--:|--:|--:|---|---|
+| Momentum — trend + RSI≥70 (`CELL_B_TREND_STRONG`) | EMA crossover | 0.71 | 13.2% | −63% | ₹4.6cr names | par = beta → FAIL |
+| Momentum — Cell B (all) | EMA crossover | — | 8.4% (gross 19.4%) | −58% | — | FAIL |
+| Reversal — oversold (`REVDD`) | EMA-arc | −0.13 | −9.0% | −86% | — | dead → REJECT |
+| Low-vol v1 (monthly) | factor (NOT a crossover) | 1.14 | 15.9% | −21% | ~₹50–100cr | fundable, turnover-capped |
+| **Low-vol v2 (quarterly + hysteresis)** | factor (NOT a crossover) | **1.06** | **15.0%** | **−21%** | **to ₹500cr** | **GRADUATE** |
+| Nifty 500 (benchmark) | index | 0.85 | 13.4% | −30% | — | hurdle 0.89 |
+
+Low-vol v2 capacity curve (the turnover cut 199→71%/yr bought the scale; Almgren participation via
+`cost_participation.side_costs`):
+
+| AUM | Net R/V | CAGR | Max DD |
+|---|--:|--:|--:|
+| Frictionless | 1.07 | 15.2% | −21% |
+| ₹50cr | 1.02 | 14.3% | −21% |
+| ₹100cr | 0.99 | 13.9% | −21% |
+| ₹250cr | 0.95 | 13.2% | −21% |
+| ₹500cr | 0.90 | 12.4% | −22% |
+
+**Bottom line:** the EMA crossover returns the index (13.2%) at **double the drawdown** (−63% vs −30%)
+with no scalability; the fundable low-vol book **beats the index** (15.0% vs 13.4%) at **~⅓ the
+drawdown** (−21% vs −30%) and holds that edge to ₹500cr.
 
 ### Forward test ARMED (2026-07-23) — `ema_crossover_forward.py` (the `union_forward` twin)
 

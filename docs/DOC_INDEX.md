@@ -40,6 +40,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `AGENTS.md` | Codex orientation twin. |
 | `README.md` | Repo readme. |
 | `docs/strategy-ledger.md` | Benchmark ledger ("nothing discarded"). |
+| `docs/options-implied-scope.md` | SCOPE (2026-07-23): phased plan for the options-implied dimension — OI signals already on box (`fno_oi_signals`, 2024-07+); IV/skew = the multi-day build; ~2yr history limit. Phase 0 is cheap; retire once it folds into strategy-ledger.md. |
 | `docs/zerodha-cost-gauntlet-2026-07-18.md` | Research record (ledger 16BC, S196): factor baskets vs union family net of REAL Zerodha cost 2005-2026 + capital-gains tax. Factor baskets don't beat the index; K30/A2 do in-sample (+17.8/+17.2 vs +11.7); K30 capacity ceiling ~₹25-50cr; Codex-validated. Companion: the 17-sheet investor xlsx. |
 | `docs/codex-stock-selection-brief.md` | TRANSIENT hand-off brief: the two-step sector→stock strategy's full state (§15h…§15Q, D141/D142) synthesized into one problem statement for an external solver. Retire once its build lands and folds into strategy-ledger.md/sector-rotation.md/PROJECT_STATE.md. |
 | `docs/SURFACE-PLAYBOOK.md` | BINDING playbook for adding any user-facing screen/page/tab — sister-data check, lens registry, education/fence/Pat/CSV landing checklist (twins: CLAUDE.md #9 / AGENTS.md #7). |

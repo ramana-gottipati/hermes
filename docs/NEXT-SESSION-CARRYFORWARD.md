@@ -34,6 +34,45 @@ demonstrates the mechanism but its PALETTE is rejected); (3) then M6 build on ow
 (the big one: portfolio pages per Part III §J) · M8. Lane: `D:/Hermes.worktrees/v3-preview`
 (rebase-on-origin before every push; verify pushes BY CONTENT).
 
+## 🔬 STRATEGY / RESEARCH LANE — TAKEOVER PROMPT (S214-cont close, 2026-07-23)
+
+> Paste-ready for the next strategy/research session:
+
+**You are resuming the Patearn strategy/research lane.** Boot: `CLAUDE.md` → `docs/SESSION-PROTOCOL.md` →
+the top `PROJECT_STATE.md` session-log entries (**S214** + **S214 (cont.)**) + `docs/strategy-ledger.md`.
+Run autonomously (Guardrail #0; harness-level access — never ask for file/tool access). Boot the FABLE §0
+stance. Data = PRIMARY sources only (NSE/BSE/SEBI/XBRL, no vendors); descriptive-only, SEBI-safe; every
+ratio is return/vol not a Sharpe (D142).
+
+**STATE (2026-07-23).** The **one fundable product is the standalone low-vol book** (`lowvol_sleeve_q`,
+quarterly + hysteresis: net R/V ~1.0, CAGR ~15%, ~⅓ the index drawdown, scales to ₹500cr, corr-to-momentum
+0.003). Its **forward test is ARMED** (`ema_crossover_forward` + `hermes-ema-forward` timer → quarterly
+VPS→Telegram verdict; **first checkpoint 2026-10-03**). The EMA-crossover family is CLOSED (both strategies
+fail — D146). A full **orthogonal-data exploration is COMPLETE + mapped** (D147): regime = a *drawdown*
+lever not alpha; institutional flow = real-but-weak/unstable (not fundable in 3 forms); options-positioning
+(PCR) = selects weakly but not fundable (turnover). **Base rate: 3+ orthogonal signals, ZERO fundable.**
+
+**BINDING — do NOT redo (kickstart-pick-verify + cite the ledger before touching any of these):**
+(1) EMA crossover (momentum/reversal, daily+weekly) — no edge, descriptive-only; (2) institutional flow
+(any form) — thread closed; (3) options-positioning (PCR/max-pain/basis) — priced; (4) regime overlay — a
+DD lever, not a return source. **LESSON: selection ≠ fundability** — a +0.05–0.07 δ over a short window does
+not survive cost; treat weak-δ selection as descriptive.
+
+**OPEN / next (only if explicitly prioritised):**
+- Forward tests fire **~2026-10-03**: the **union family** (`union_forward`) AND the **low-vol book**
+  (`ema_crossover_forward --rebuild`). WATCH, do not re-fit.
+- **IV/skew options build** — SCOPED-but-PARKED (`docs/options-implied-scope.md`); a 2-3-session bet vs a
+  discouraging base rate + ~2yr window; do NOT auto-start.
+- Deferred: pure-MF breakout vs DII aggregate; more history for flow/options; the 2026-07-24 data-sourcing
+  360° review (charter §6, folded by a parallel lane) if it surfaces a NEW primary feed.
+
+**HOW TO WORK (Ramana's correction, binding — memory [[record-and-remind]]):** DRIVE — proactively surface
+the highest-altitude lever (INCLUDING data we don't yet collect) at every inflection; and BUILD the
+constructive mechanism with real numbers, do NOT describe-then-back-off. Every new signal must clear BOTH
+gates before it's more than descriptive: the event-study gate (does it SELECT? Cliff's δ vs placebo, both
+halves) AND a net-of-cost book (is it FUNDABLE? R/V > 0.89, beats index). Hot shared tree → work from a
+scratchpad worktree off `origin/main`; **verify every push BY CONTENT, never exit code.**
+
 # NEXT-SESSION CARRY-FORWARD (autonomous, agent-driven)
 
 
@@ -44,6 +83,19 @@ Ramana for file/folder/tool access in any form — a permission prompt that stil
 at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
+
+## ✅ 2026-07-23 — S217 (FAILURE-LEDGER GATE REPAIR): S216 added the 11th BLOCKING ledger row WITHOUT re-syncing the `rule_lab` mirror → origin/main itself went RED on the byte-verbatim gate; mirror + test re-synced, minimal fix merged (`8e3f672`), suite green (775/1) — do NOT redo; kickstart-pick-verify
+- **The bug:** `tests/test_rule_lab.py::test_embedded_blocking_rows_are_byte_verbatim_from_the_ledger` was FAILING on committed origin/main. S216's reversal study added `MOMENTUM BAND + RSI single-name swing (2026-07-22)` as the 11th row of `docs/strategy-ledger.md` § BLOCKING FAILURE MODELS, but `rule_lab.BLOCKING_ROWS` still embedded **10** and the test still asserted `== 10`. FIX (`8e3f672`): added the 11th mirror row `MOMENTUM_BAND_RSI` to `src/automation/rule_lab.py` `_BLOCKING_JSON` (ASCII-escaped, byte-identical to the ledger row) + bumped the count `10 → 11`. Verified: ledger 11 = mirror 11, all rows verbatim, full suite **775 passed / 1 skip**. Doc: PROJECT_STATE **S217** (`bca4809`). The one branch-unique wolfe commit (`2184bdb`) was correctly excluded (S216 already found it redundant); backup tag + merged PR branch cleaned up.
+- **🔴 STANDING LESSON (why this is here — the failure-ledger governance gate has THREE synchronized faces; edit them in ONE commit):** any change to `docs/strategy-ledger.md` § BLOCKING FAILURE MODELS (add / edit / reorder a row) MUST also (1) re-sync the byte-verbatim mirror `rule_lab.BLOCKING_ROWS` (`_BLOCKING_JSON`, generate the escaped string with `json.dumps(row, ensure_ascii=True)`) AND (2) update the row-count literal `== N` in `test_embedded_blocking_rows_are_byte_verbatim_from_the_ledger`. The **ledger is the single source of truth; the mirror follows it, never the reverse** (D142 carve-out: the mirror rows are byte-compared QUOTES, NOT relabelled). Skip any of the three faces and `main` goes RED. If a new row's trigger token isn't yet in the rule grammar it just sits in `BLOCKING_ROWS` un-wired (like `PEAD_BOOK` / `FOOTPRINT_V1`) — no `trigger_citations` change needed, but the mirror + count still must sync.
+
+## ✅ 2026-07-23 — S214 (EMA-CROSSOVER FAMILY → VERDICT): both crossover strategies FAIL (momentum = par/beta, reversal = dead); the ONE fundable output is a SEPARATE low-vol FACTOR (not a crossover); forward test ARMED + a quarterly VPS→Telegram checkpoint LIVE — do NOT redo; kickstart-pick-verify
+- **The EMA crossover produces NOTHING fundable (D146, binding).** MOMENTUM (`momentum_band_rsi`, seal `0e90bf2c`; T=EMA5(HLC) crosses ABOVE U=EMA13(high), with-trend + RSI≥70): event-study FAIL-null (Cliff's δ −0.01, 22d median excess −0.90%), `CELL_B_TREND_STRONG` net R/V 0.71 / CAGR 13.2% / DD −63% ≈ index → **par-with-index BETA**, capacity-dead at ₹4.6cr median trade ADV. REVERSAL (`reversal_oversold` REVDD, seal `4d932089`; oversold-bounce + the earlier EMA-band reclaim 07-13): net −0.13 / −9.0% / −86%, worse than its own random control, Gate-1 δ≈0 → REJECTED. Both descriptive-only.
+- **The fundable book = `lowvol_sleeve_q` (seal `b8c1dec4`) — a NON-CROSSOVER low-volatility FACTOR.** Quarterly + hysteresis (enter bottom-20% vol, hold to bottom-40%): turnover 199→71%/yr BOUGHT the capacity — net R/V 1.06 / CAGR 15.0% / DD −20.8%, both halves 1.05/1.08, corr-to-momentum 0.003, clears the 0.89 hurdle to ₹500cr, median held ADV ₹51cr. The 40/60 blend R/V 1.32 but small-AUM only (momentum's ₹4.6cr names bind it). ⚠ NEVER label low-vol a crossover result — it is the excluded COMPARATOR (`role` field in the runner).
+- **Forward test ARMED — `ema_crossover_forward.py`** (the `union_forward` twin, reporting-only over the 3 seals): integrity+reproduction gate box-verified (3/3 seals + 3/3 in-sample anchors to the digit), predictions frozen, FREEZE 2026-07, criteria C1–C5 judged at ≥24 forward months, CROSSOVER ADJUDICATION among MOM/REV only (LOW judged for reference, EXCLUDED). Fires via `scripts/ema_forward_checkpoint.sh` + `hermes-ema-forward.{service,timer}` (quarterly OnCalendar, next **2026-10-03**, DMs the verdict via the Hermes bot; box-armed, service inactive/never-run; no `Requires=` → AUD-95 avoided).
+- **Improvement path (honest — do NOT re-tune):** NO tuning path to alpha inside the crossover — 5-vs-13 is the short-horizon REVERSAL zone, not the 6–12mo momentum-persistence zone, so the cross confirms a spent move (gross = beta, taxed to par by churn). Do NOT re-tune momentum/reversal to "rescue" them; both stay descriptive-only + forward-tested. Real momentum alpha lives in the RS/union family (different horizon), NOT here. NEXT for low-vol: push capacity past ₹500cr via further turnover cuts, under pre-reg discipline.
+- **Weekly reclaim tested + REJECTED (`weekly_band_reclaim`, seal `9990a435`, origin `7912bd6`, ledger Study 2026-07-23):** the ONE crossover variant that attacked the real failure cause (TIMEFRAME) — T=EMA5(HLC3) crosses UP through L=EMA13(low) on **WEEKLY** bars, fractal + band SL/TSL. FAILS both gates: Gate-1 ~10.4k events, 13wk median excess **−2.79%** (worsening to −5.32% @26wk), Cliff's δ **−0.02** (worse than random), both halves negative → anti-signal (like daily STREAM BAND 07-13); Gate-2 net R/V **0.15** < random-entry control 0.51 (entry destroys value). **Weekly does NOT rescue it — the reclaim is buy-WEAKNESS, and weakness persists at 2–6mo (the horizon fix only helps buy-STRENGTH).** So the crossover produces nothing fundable at ANY timeframe/direction tested. **BLOCKING: do NOT re-propose the low-band reclaim at any timeframe.**
+- **ORTHOGONAL-DATA EXPLORATION (2026-07-23, all recorded in `docs/strategy-ledger.md`, all on origin):** after the crossover verdict, tested whether NON-price/volume data lifts the book. Results: (a) REGIME overlay = a DRAWDOWN lever on beta books not alpha (trend-200DMA cuts momentum DD −63→−42 flat CAGR; India VIX de-risk LOSES to plain trend); (b) INSTITUTIONAL FLOW (`shareholding_history` DII+FII, on box, PIT) = REAL but weak/unstable — δ+0.07 long-only (R/V 0.51), HURTS as a low-vol tilt (0.60<0.76), long-short spread NEGATIVE (−8% gross, short leg +24%>long +14%; flips sign across windows) → NOT fundable in any form, thread CLOSED. **Fundable product remains standalone low-vol.** Modules `regime_overlay`/`inst_flow`/`inst_flow_ls`/`lowvol_flow_tilt` (descriptive). (c) OPTIONS-POSITIONING RAN + STOPPED (Phase 0/1.5/1.6, `fno_oi_phase0`/`fno_oi_pcr_book`/`fno_oi_pcr_slow`; OI signals already on box via `fno_oi_signals`, 2024-07+, 273 F&O, ~2yr): only PCR selected (δ+0.06, both halves, contrarian) but NOT a fundable book — net R/V **0.28** (turnover 815%/yr), and SLOWING it made it WORSE (0.11–0.20; signal decays fast) → OI-positioning PRICED. IV/skew build **SCOPED-but-PARKED** (`docs/options-implied-scope.md`), NOT justified on current evidence (2yr + base rate). **🛑 FINAL — BASE RATE (D147): every orthogonal signal that passed a SELECTION gate FAILED fundability — 3+ signals, ZERO fundable; selection ≠ fundability. THE FUNDABLE PRODUCT IS THE STANDALONE LOW-VOL BOOK (forward test armed, first checkpoint 2026-10-03). Orthogonal-data exploration COMPLETE + mapped — do NOT re-run; kickstart-pick-verify.**
+- **Numbers single-sourced:** `docs/strategy-ledger.md` §§ "EMA-crossover family — VERDICT" / "Forward test ARMED (2026-07-23)" / "WEEKLY BAND RECLAIM" / "REGIME OVERLAY" (+VIX) / "INSTITUTIONAL FLOW" (+tilt/long-short) / "OPTIONS-IMPLIED PHASE 0" (+net-book/slowed) / Studies 07-22c/22d; PROJECT_STATE **S214** + **S214 (cont.)** + Key file paths + **D146** + **D147**; memory `failure-models-ledger`. Commits: EMA family `c5ac9d0`·`c3903b1`·`d5b1ce7`·`db311fa`·`b4522c8`·`5e1bff7`·`7912bd6`; orthogonal-data `5e40a45`·`fd50243`·`436db9f`·`4a08cc4`·`7968f65`·`99b25ae`·`899fc0a`·`702af6f`·`9e5d71a`·PROJECT_STATE `22e3e9a`. ✅ Housekeeping RESOLVED: the chart/wolfe lane was reconciled onto origin by **S216** (branch `chart-wolfe-unpushed` gone, content on origin) — no action needed.
 
 ## ✅ 2026-07-23 — S212 WRAP (Opus 4.8 session, the S191→S207 arc): the charter X-COMPUTE STREAM is COMPLETE + LIVE, and the render-lens SPEC is handed off — do NOT redo; kickstart-pick-verify
 - **Session arc (all on origin, all verified):** S191 gate-green verification + stale P1-block prune · S197 the pre-registered event-study battery under CI for the FIRST time (`tests/test_research_selftests.py`) · the 4 charter X-compute modules — **X-04** overnight/intraday split (`overnight_split`) · **X-07** volume-at-price shelves (`volume_shelves`) · **X-09** base×breakout (`base_breakout`) · **X-10** expiry/holiday utility (`calendar_conditioning`) — each hermetic-selftested + CI-covered (harness 16→20) · S205 the **data spine** `src/automation/x_setups_signals.py` (nightly pre-compute of all 4 scans into `x_setups_signals`) · S207 **DEPLOYED** to the box (5 files, `.venv-research`, `hermes-xsetups-scan.timer` @ 17:01 UTC) — first AUTOMATED nightly run VERIFIED end-to-end (as-of advances with the tape 07-21→07-22, `Result=success`, ~4600 current-only rows).
