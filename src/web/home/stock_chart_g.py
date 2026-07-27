@@ -22,11 +22,20 @@ down — and at real densities the two solids blurred into one another ("if the 
 clear, the purpose is defeated"). The identity is kept (blue = rising, grey = falling, crisp
 outlines, never green/red) and given a SECOND, non-colour channel plus computed luminance
 separation. See `CANDLES` for the numbers and the floors they clear.
+
+CANDLE VARIANTS (owner course-correction, CANDLE-LINEUP lane): the hollow up-body read as "too
+experimental", and the owner's bar is that a candle be identifiable at NORMAL viewing size with the
+naked eye. So the encoding is now a NAMED, pinnable set — `VARIANTS` — of which exactly one is
+active (`VARIANT`). Three of the four are conservative and fully solid (both directions filled, no
+hollow, no tricks); the fourth is the committed hollow treatment, kept as the reference row. Every
+variant is held to the SAME computed floors in BOTH themes (`tests/test_home_stock_page.py`), so
+whichever the owner pins is legible by construction, not by taste.
 """
 from __future__ import annotations
 
 import html as _html
 import json as _json
+import os as _os
 import urllib.parse as _uq
 
 _LWC_CDN = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"
@@ -39,27 +48,42 @@ COLS = ("t", "o", "h", "l", "c", "dvpt", "dp", "r1m", "tv", "dv")
 
 # ── the candle encoding (THE single colour-constants block for this chart) ──────────────────────
 #
-# TWO CHANNELS, not one. Colour alone failed: a solid blue body and a solid grey body land close
-# enough in luminance that at 5-year density (~1,200 candles across ~1,100px, so ~1px a candle) the
-# eye reads one grey wash. So:
+# THE PROBLEM, twice over. Cut 1 painted both bodies solid — blue up, grey down — and the two solids
+# landed close enough in LUMINANCE that at 5-year density (~1,200 candles across ~1,100px, so ~1px a
+# candle) the eye read one grey wash. Cut 2 answered with a second, non-colour channel (hollow up /
+# solid down); the owner's verdict on that was "too experimental", and the bar was restated: a
+# candle must be identifiable at NORMAL viewing size with the naked eye, no zooming.
 #
-#   1. SHAPE — rising candles are HOLLOW (a ~10%-alpha tint, effectively the chart background) with
-#      a crisp blue outline; falling candles are SOLID grey with a slightly darker grey border.
-#      Hollow-vs-solid survives greyscale, 1px widths and every colour-vision type, because it is
-#      not a colour difference at all. This is the channel that actually carries the read.
-#   2. LUMINANCE — the remaining colour difference is tuned by the WCAG relative-luminance formula
-#      rather than by eye, in BOTH themes, against `--bg-0` (what the canvas itself paints):
+# THE ANSWER IS THEREFORE LUMINANCE, NOT NOVELTY. Three conservative variants keep BOTH bodies
+# solid — the ordinary, expected candle shape — and buy the separation purely by making the up body
+# LIGHT and the down body DARK by a computed margin. The hollow cut survives as variant `d`, the
+# reference row. What never changes across variants: blue = rising, grey/graphite = falling, crisp
+# outlines, never the retail green/red.
 #
-#        floor                                   dark      light
-#        up-outline vs down-fill   >= 2.5        2.75      2.67
-#        up-outline vs bg-0        >= 3.0        9.49      8.36
-#        down-fill  vs bg-0        >= 3.0        3.46      3.13
-#        down-border vs bg-0       (dense zoom)  3.01      5.09
-#        up-outline vs bg-2        (panels)      8.28      8.98
-#        down-fill  vs bg-2        (panels)      3.02      3.36
+#   a — MAXIMUM LUMINANCE GAP.  vivid bright azure (solid) vs deep charcoal (solid). The read is
+#       light-vs-dark on its own, before any colour is decoded: >= 4:1 body against body.
+#   b — BRIGHTNESS ASYMMETRY, SOFTER.  a pale blue body under a stronger, saturated blue rim vs a
+#       solid dark slate body. Solid-but-light against solid-and-dark, at a gentler ~3.2:1.
+#   c — WARM/COOL + LUMINANCE.  a bright cool blue up body vs a warm dark graphite (brown-leaning
+#       grey) down body — a hue-temperature cue stacked on the luminance one, still grey-family.
+#   d — HOLLOW UP / SOLID DOWN.  the committed cut, unchanged: a ~10%-alpha up body (effectively the
+#       canvas) under a crisp blue outline. Shape, not luminance, is what carries it.
 #
-#      Pinned by `tests/test_home_stock_page.py::test_candle_contrast_floors_both_themes`, which
-#      recomputes every ratio from these hexes — the numbers above can never drift from the CSS.
+# EVERY variant clears the SAME floors, computed with the WCAG relative-luminance formula (not by
+# eye) in BOTH themes against `--bg-0`, which is what LightweightCharts itself paints:
+#
+#     floor                                     a-dk  a-lt   b-dk  b-lt   c-dk  c-lt   d-dk  d-lt
+#     up-outline vs down-fill     >= 2.5        3.48  3.20   2.71  2.79   2.71  2.76   2.75  2.67
+#     up-outline vs bg-0          >= 3.0       12.15  3.97   9.63  3.50   9.56  4.13   9.49  8.36
+#     down-fill  vs bg-0          >= 3.0        3.49 12.69   3.57  9.78   3.53 11.40   3.46  3.13
+#     down-border vs bg-0         >= 3.0        4.28 14.02   3.32 11.05   3.27 12.74   3.01  5.09
+#     up-outline vs bg-2          >= 3.0       10.60  4.26   8.40  3.76   8.33  4.43   8.28  8.98
+#     down-fill  vs bg-2          >= 3.0        3.05 13.62   3.11 10.50   3.08 12.23   3.02  3.36
+#     BODY vs BODY (solid only)   >= 3.0        4.11  4.01   3.16  6.27   3.17  3.51    —     —
+#
+# Pinned by `tests/test_home_stock_page.py` — `test_candle_contrast_floors_hold_in_both_themes`
+# (the active variant) and `test_every_candle_variant_clears_the_same_floors` (all four), both of
+# which RECOMPUTE every ratio from these hexes, so the table above can never drift from the CSS.
 #
 # WHY HERE AND NOT IN `tokens.py`: `--candle-up` at `:root` is also consumed as a generic brand
 # accent by `components.py` (sparkline stroke, quality chips, the benefit diagram). Retuning it
@@ -67,20 +91,79 @@ COLS = ("t", "o", "h", "l", "c", "dvpt", "dp", "r1m", "tv", "dv")
 # So the chart declares its own `--candle-*` on the `.g-chart` element; the values inherit down to
 # the canvas host and nowhere else. Still CSS variables, so a skin layer can retune them later
 # without touching Python.
-CANDLES = {
-    "dark": {
-        "candle-up": "rgba(95,188,255,.10)",   # hollow body: 10% tint of the outline, ~= bg-0
-        "candle-up-line": "#5fbcff",           # brighter, more saturated azure than the first cut
-        "candle-dn": "#57687e",                # deeper, cooler slate-grey (was a light #8496ad)
-        "candle-dn-line": "#4e5f74",           # slightly darker border, still >= 3:1 on bg-0
+VARIANTS = {
+    # a — maximum luminance gap: the difference is obvious as light-vs-dark alone
+    "a": {
+        "dark": {
+            "candle-up": "#b1e3ff",            # solid bright azure body
+            "candle-up-line": "#8bd4ff",       # a shade deeper, so the body still has an edge
+            "candle-dn": "#5f6875",            # deep charcoal — as dark as the 3:1 bg floor allows
+            "candle-dn-line": "#6c7684",       # a LIFTING rim: defines the block against near-black
+        },
+        "light": {
+            "candle-up": "#218be6",            # on paper "bright" means the lighter of the pair
+            "candle-up-line": "#1179d3",
+            "candle-dn": "#252b32",            # near-black charcoal — the dark half of the gap
+            "candle-dn-line": "#1e232b",
+        },
     },
-    "light": {
-        "candle-up": "rgba(18,63,158,.08)",
-        "candle-up-line": "#123f9e",           # deep saturated azure — low luminance on a pale panel
-        "candle-dn": "#7b8a9c",
-        "candle-dn-line": "#586878",
+    # b — brightness asymmetry, softer: solid-but-light vs solid-and-dark, with a stronger rim
+    "b": {
+        "dark": {
+            "candle-up": "#a9c8de",            # pale, low-chroma blue body
+            "candle-up-line": "#75bcff",       # saturated azure rim — "stronger" in chroma, not mass
+            "candle-dn": "#5d6a79",            # solid dark slate
+            "candle-dn-line": "#596574",
+        },
+        "light": {
+            "candle-up": "#a9c7e2",
+            "candle-up-line": "#1b81e6",       # a deep, strong blue border does the edging on paper
+            "candle-dn": "#343d48",
+            "candle-dn-line": "#2c353f",
+        },
+    },
+    # c — warm/cool + luminance: still grey-family down, but warmed so hue helps the luminance
+    "c": {
+        "dark": {
+            "candle-up": "#90c9fc",            # bright cool blue
+            "candle-up-line": "#6cbbff",
+            "candle-dn": "#766555",            # warm dark graphite (brown-leaning grey), never red
+            "candle-dn-line": "#71604f",
+        },
+        "light": {
+            "candle-up": "#0d87f1",
+            "candle-up-line": "#0575d6",
+            "candle-dn": "#3b3026",
+            "candle-dn-line": "#33281f",
+        },
+    },
+    # d — the committed hollow treatment, unchanged (the reference row)
+    "d": {
+        "dark": {
+            "candle-up": "rgba(95,188,255,.10)",   # hollow body: 10% tint of the outline, ~= bg-0
+            "candle-up-line": "#5fbcff",           # brighter, more saturated azure than the first cut
+            "candle-dn": "#57687e",                # deeper, cooler slate-grey (was a light #8496ad)
+            "candle-dn-line": "#4e5f74",           # slightly darker border, still >= 3:1 on bg-0
+        },
+        "light": {
+            "candle-up": "rgba(18,63,158,.08)",
+            "candle-up-line": "#123f9e",           # deep saturated azure — low luminance on a pale panel
+            "candle-dn": "#7b8a9c",
+            "candle-dn-line": "#586878",
+        },
     },
 }
+
+# THE ACTIVE VARIANT — shipping the owner's pick is this one letter and nothing else.
+VARIANT = "d"
+# DEV-ONLY override, so the lineup harness can render all four out of one tree without editing the
+# file between shots. It is never set in a deploy, and an unknown value falls back to the pin above
+# rather than to a half-painted chart.
+VARIANT = (_os.environ.get("PATEARN_CANDLE_VARIANT") or VARIANT).strip().lower()
+if VARIANT not in VARIANTS:
+    VARIANT = "d"
+
+CANDLES = VARIANTS[VARIANT]
 # the JS fallbacks must equal the dark CSS values (asserted in `_selftest`)
 _CANDLE_ORDER = ("candle-up", "candle-up-line", "candle-dn", "candle-dn-line")
 
@@ -229,9 +312,21 @@ CSS = """<style>/* g-chart */
 </style>"""
 
 
+def _fallback_js() -> str:
+    """The client-side `getComputedStyle` fallbacks, built from the ACTIVE variant's dark block.
+
+    They matter for exactly one frame — before the stylesheet applies — but a drift here paints the
+    WRONG identity in that frame, so they are generated rather than retyped.
+    """
+    d = CANDLES["dark"]
+    j = ("cup:T('--candle-up','%s'), cupl:T('--candle-up-line','%s'),\n"
+         "      cdn:T('--candle-dn','%s'), cdnl:T('--candle-dn-line','%s'),")
+    return j % (d["candle-up"], d["candle-up-line"], d["candle-dn"], d["candle-dn-line"])
+
+
 # The chart engine. Plain string (no f-string) — the VPS runs 3.10, where a backslash inside an
 # f-string expression is a syntax error, and this snippet is full of escapes.
-_SNIPPET = """<script>
+_SNIPPET_SRC = """<script>
 (function(){
   function boot(){
     var el=document.getElementById('g-cdata'), host=document.getElementById('g-cprice');
@@ -247,10 +342,9 @@ _SNIPPET = """<script>
     // --candle-up as a brand accent. Everything else inherits down to here unchanged.
     var tokEl=document.getElementById('g-chart')||document.documentElement;
     function T(n,f){ var v=getComputedStyle(tokEl).getPropertyValue(n); return (v&&v.trim())||f; }
-    // fallbacks mirror the DARK block of CANDLES (asserted server-side in _selftest)
+    // fallbacks mirror the DARK block of the ACTIVE variant (asserted server-side in _selftest)
     function tokens(){ return {
-      cup:T('--candle-up','rgba(95,188,255,.10)'), cupl:T('--candle-up-line','#5fbcff'),
-      cdn:T('--candle-dn','#57687e'), cdnl:T('--candle-dn-line','#4e5f74'),
+      __CANDLE_FALLBACKS__
       ink:T('--ink-2','#9fb0c0'), line:T('--line','#223040'), bg:T('--bg-0','#080b11'),
       acc:T('--accent','#17b0aa'), warn:T('--warn','#f4b740'), ink3:T('--ink-3','#6f8394') }; }
     var C=tokens();
@@ -262,12 +356,14 @@ _SNIPPET = """<script>
     function mk(node,h){ return LightweightCharts.createChart(node,
       Object.assign({width:Math.max(0,node.clientWidth),height:h},common())); }
     var pc=mk(host,host.clientHeight||320);
-    // the proprietary identity, on TWO channels (D144 + the legibility recut):
-    //   shape  — rising = HOLLOW body (near-transparent tint) + crisp blue outline
-    //            falling = SOLID grey body + slightly darker grey border
-    //   colour — blue up / grey down, luminance-separated (see CANDLES). Never green/red.
-    // wicks follow their own candle: blue wick up, the solid grey wick down — at dense zoom the
-    // wick is most of what is left of a candle, so it must carry the same separation.
+    // the proprietary identity (D144 + the legibility recuts). The four --candle-* tokens ARE the
+    // encoding — see the VARIANTS table server-side; this code only binds them, so pinning a
+    // different variant repaints without touching a line of JavaScript:
+    //   body fill    = --candle-up   / --candle-dn      (light-vs-dark is the primary read)
+    //   body outline = --candle-up-line / --candle-dn-line
+    //   colour       = blue up / grey-family down, luminance-separated. Never green/red.
+    // wicks follow their own candle — at dense zoom the wick is most of what is left of a candle,
+    // so it must carry the same separation as the body it belongs to.
     var candle=pc.addCandlestickSeries({borderVisible:true});
     candle.setData(S.map(function(d){return {time:d.t,open:d.o,high:d.h,low:d.l,close:d.c};}));
     (D.zones||[]).forEach(function(z){ try{ candle.createPriceLine({price:z.price,color:C.acc,
@@ -377,6 +473,8 @@ _SNIPPET = """<script>
 })();
 </script>"""
 
+_SNIPPET = _SNIPPET_SRC.replace("__CANDLE_FALLBACKS__", _fallback_js())
+
 
 def _selftest() -> int:
     empty = chart_html("TCS", "Tata Consultancy", {"series": [], "zones": []})
@@ -390,8 +488,10 @@ def _selftest() -> int:
     assert "&lt;b&gt;" in html, "the company name must be escaped"
     assert "back-adjusted" in html and "Full history" in html
     assert "candle-up" in _SNIPPET and "takeScreenshot" in _SNIPPET
-    # the two-channel candle encoding — shape first, colour second
-    assert "--candle-up:rgba(" in CSS and "--candle-up:rgba(" in _candle_css()
+    # the ACTIVE variant's tokens reach the stylesheet verbatim, whichever one is pinned
+    assert VARIANT in VARIANTS and CANDLES is VARIANTS[VARIANT]
+    assert "--candle-up:" + CANDLES["dark"]["candle-up"] in CSS
+    assert "--candle-up:" + CANDLES["light"]["candle-up"] in _candle_css()
     for k in _CANDLE_ORDER:
         assert CSS.count("--" + k + ":") == 2, k       # once per theme, never more
     assert 'data-theme="light"] .g-chart{' in CSS and ":root[data-ui-g] .g-chart{--candle" in CSS
@@ -402,10 +502,14 @@ def _selftest() -> int:
     # identity whenever the stylesheet has not applied yet
     for k in _CANDLE_ORDER:
         assert "'--" + k + "','" + CANDLES["dark"][k] + "'" in _SNIPPET, k
-    # never green/red, in either theme (the standing identity rule)
-    for pal in CANDLES.values():
-        for v in pal.values():
-            assert "#3ad17f" not in v and "#f2617f" not in v
+    # never green/red, in either theme — and for EVERY variant, not just the pinned one, so an
+    # owner pick can never smuggle the retail palette in behind the gate
+    for vk, vpal in VARIANTS.items():
+        assert set(vpal) == {"dark", "light"}, vk
+        for pal in vpal.values():
+            assert tuple(pal) == _CANDLE_ORDER, (vk, tuple(pal))
+            for v in pal.values():
+                assert "#3ad17f" not in v and "#f2617f" not in v
     for host in ("g-cprice", "g-cdvpt", "g-cdeliv", "g-cval"):
         assert 'id="' + host + '"' in html, host
     # the payload-budget guard: compact rows must keep a full-archive island well inside 1 MB

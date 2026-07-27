@@ -603,22 +603,57 @@ def test_candle_contrast_floors_hold_in_both_themes():
         assert _ratio(up, bg2) >= 3.0 and _ratio(dn, bg2) >= 3.0, theme
 
 
-def test_candles_are_encoded_on_two_channels_hollow_up_solid_down():
-    """The channel that survives greyscale, 1px widths and every colour-vision type is SHAPE, not
-    colour: rising = hollow (near-transparent body) + crisp blue outline, falling = solid grey.
-    Colour alone was the defect. This pins the shape channel so a future retune cannot quietly
-    re-solidify the up body and reintroduce the wash."""
+def test_the_active_candle_variant_carries_a_second_channel():
+    """A candle must be identifiable at NORMAL viewing size (owner bar), which means the two
+    directions need a difference the eye gets BEFORE it decodes hue. Exactly two shapes of answer
+    are allowed, and every variant must be one of them:
+
+      * HOLLOW up (a <=12%-alpha body, i.e. the canvas) under a crisp outline — shape carries it; or
+      * SOLID up, where the two opaque bodies are separated by >= 3:1 in relative luminance —
+        light-vs-dark carries it.
+
+    What is NOT allowed is the original defect: two opaque bodies sitting close in luminance, which
+    at 5-year density collapses to one grey wash. The down body is always an opaque fill."""
     for theme, c in CH.CANDLES.items():
-        assert c["candle-up"].startswith("rgba("), (theme, "the up body must be near-transparent")
-        alpha = float(c["candle-up"].rstrip(") ").rsplit(",", 1)[1])
-        assert 0 <= alpha <= 0.12, (theme, "hollow means <=12% alpha", alpha)
-        assert c["candle-dn"].startswith("#"), (theme, "the down body must be an opaque fill")
+        up, dn = c["candle-up"], c["candle-dn"]
+        assert dn.startswith("#"), (theme, "the down body must be an opaque fill")
+        if up.startswith("rgba("):
+            alpha = float(up.rstrip(") ").rsplit(",", 1)[1])
+            assert 0 <= alpha <= 0.12, (theme, "hollow means <=12% alpha", alpha)
+        else:
+            assert up.startswith("#"), (theme, "an up body is either a tint or an opaque fill")
+            assert _ratio(up, dn) >= 3.0, (theme, "solid bodies need the luminance channel",
+                                           _ratio(up, dn))
     # the client must bind those tokens the right way round, and the wicks must follow their candle
     snip = CH._SNIPPET
     assert "upColor:C.cup" in snip and "downColor:C.cdn" in snip
     assert "borderUpColor:C.cupl" in snip and "borderDownColor:C.cdnl" in snip
     assert "wickUpColor:C.cupl" in snip and "wickDownColor:C.cdn" in snip
     assert "borderVisible:true" in snip, "the outline IS the up candle — it can never be optional"
+
+
+def test_every_candle_variant_clears_the_same_floors():
+    """The lineup is a PICKER, not a menu of risks: whichever variant the owner pins must be legible
+    by construction. So every entry in `VARIANTS` — not merely the active one — is held to the full
+    floor set in both themes, and the pin itself must resolve to a real variant."""
+    from src.web.home.tokens import DARK, LIGHT
+    assert CH.VARIANT in CH.VARIANTS and CH.CANDLES is CH.VARIANTS[CH.VARIANT]
+    assert set(CH.VARIANTS) == {"a", "b", "c", "d"}
+    for vk, vpal in CH.VARIANTS.items():
+        for theme, pal in (("dark", DARK), ("light", LIGHT)):
+            c = vpal[theme]
+            up, dn, dnl = c["candle-up-line"], c["candle-dn"], c["candle-dn-line"]
+            bg0, bg2 = pal["bg-0"], pal["bg-2"]
+            for lab, got, floor in (("up-line/dn-fill", _ratio(up, dn), 2.5),
+                                    ("up-line/bg-0", _ratio(up, bg0), 3.0),
+                                    ("dn-fill/bg-0", _ratio(dn, bg0), 3.0),
+                                    ("dn-line/bg-0", _ratio(dnl, bg0), 3.0),
+                                    ("up-line/bg-2", _ratio(up, bg2), 3.0),
+                                    ("dn-fill/bg-2", _ratio(dn, bg2), 3.0)):
+                assert got >= floor, (vk, theme, lab, round(got, 2), floor)
+            if c["candle-up"].startswith("#"):
+                body = _ratio(c["candle-up"], dn)
+                assert body >= 3.0, (vk, theme, "body vs body", round(body, 2))
 
 
 def test_the_candle_identity_is_never_green_red_and_stays_tokenised():
