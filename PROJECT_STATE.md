@@ -659,6 +659,30 @@ to know the new home exists. Only the landing moved.
 **Still open (NOT done here, needs an owner OK):** retiring `/dash/preview` + `/dash/preview/stock` and
 their `*_v3` modules — that is DELETING another lane's work, so it is surfaced, not assumed.
 
+### D148-b — Symbol links inside Graphite resolve INSIDE Graphite; the one classic exit is a declared, labelled escape hatch (2026-07-27)
+**Decision:** every symbol surface in `src/web/home/` deep-links `/dash/home/stock?sym=`, never the
+classic `/dash/stock?sym=`. **WHY:** once D148 made the Graphite home the DEFAULT landing, a classic
+deep-link stopped being a harmless cross-link and became a **one-way door out of the default experience**
+— a reader clicking a symbol got dropped into classic chrome with no way back into the new journey.
+**The exception is deliberate and bounded:** the stock page keeps its `g-sc-classic` "Full classic view →"
+link. That is the escape hatch D148 promised when it retargeted the home's own links, and it differs in
+kind from the others — a **labelled affordance the reader chooses**, not a symbol click that ejects them
+by surprise. It is declared in the gate by file + CSS marker, and a companion test asserts it still
+exists and is the ONLY one, so the allowance cannot outlive the thing it allows or silently widen.
+**WHY the gate is package-wide, not per-lane:** W2-C had solved this correctly for its own five Markets
+pages with a lane-owned `STOCK_PATH`, deliberately not editing shared files while five cutover lanes were
+in flight. That was the right call for the moment, but lane-scoped gating cannot see a straggler in a file
+no lane owns — which is precisely how `pat_dock`'s deep-link survived the retarget of the shared
+`components` helpers. The contract now binds the whole package (`tests/test_home_isolation.py`).
+**Two gates, and neither is redundant** (established by reverting the fix and observing which failed):
+a **source** scan catches links built in JS via `setAttribute`, which never appear as a literal `href=` in
+delivered HTML; a **rendered** walk of the live routes catches server-composed leaks the source scan
+would have to guess at. Each is blind exactly where the other sees.
+**Matching requires a URL terminator (`?`, `"`, `'`) on purpose:** `/dash/stocks` — the classic Stocks
+*workspace*, carried by `shell.DESTS` and the one-way classic directory — merely shares a prefix and is
+legitimate chrome, and docstring prose naming the classic route documents the contract rather than
+breaking it. A naive substring gate flags both and gets muted; a muted gate protects nothing.
+
 ### D147 — Orthogonal-data base rate: every signal selects weakly but NONE is fundable; low-vol is the sole fundable product (2026-07-23, session 214-cont)
 After the EMA-crossover verdict (D146), a systematic push tested whether NON-price/volume data lifts the
 book — REGIME (index-200DMA / India VIX), INSTITUTIONAL FLOW (long-only / low-vol tilt / long-short),
@@ -2298,12 +2322,51 @@ not cosmetics. **Fix: one character — `_JS = r"""…"""`.**
   `test_home_featured.py::test_conviction_now_caches_by_date` (a `reads.conviction_now` cache-hit
   assertion, unrelated to this file). **Proven pre-existing**: reverted the one character, confirmed
   `git status` clean at HEAD `4f09fdc`, and it still fails.
-- **🔴 Scope note — the brief's deep-link gate does not exist on this branch.** The brief asked to
-  confirm `tests/test_home_isolation.py::test_no_home_module_deep_links_the_classic_dossier`; that test
-  is absent here and `pat_dock.py:210` still emits **`/dash/stock?sym=`** (the classic dossier), not
-  `/dash/home/stock?sym=`. That retarget *and* its package-wide gate are commit **`10fd446`** on the
-  **unmerged** branch `claude/elated-meninsky-63e57b`. Deliberately **not** absorbed — it is another
-  lane's work (Guardrail #0). The two edits touch different lines of the same file and merge cleanly.
+- **🔴 Scope note → RESOLVED by convergence (same session).** As first shipped, this branch did **not**
+  carry `test_home_isolation.py::test_no_home_module_deep_links_the_classic_dossier`, and
+  `pat_dock.py:210` still emitted **`/dash/stock?sym=`** (the classic dossier) — so the brief's stated
+  verification could not be run, and absorbing another lane's commit unasked would have misattributed it
+  (Guardrail #0). **The owner then instructed the cherry-pick**, so `10fd446` (D148-b, from
+  `claude/elated-meninsky-63e57b`) now sits on this branch, recorded in the entry below.
+  **Convergence result — the two lanes' edits are genuinely independent, as predicted:** `pat_dock.py`
+  **auto-merged with no conflict** (line 185 raw-string vs line 210 href retarget); the only conflict was
+  this Session log, where both lanes appended at the top, and it was resolved by keeping **both** entries.
+  Both changes verified co-present after the merge: `_JS = r"""` at 185 **and** `/dash/home/stock?sym=`
+  at 210. The deep-link gate now runs here and passes — the brief's verification is satisfied in full.
+### Graphite Home — 2026-07-27 — 🔗 SYMBOL SELF-CONTAINMENT (D148-b) — the last classic deep-link is closed, and the gate is now package-wide
+Post-cutover follow-up to D148. The brief named **three** shared call sites still deep-linking the
+classic dossier; **verify-before-rebuild found only one still live** — `components.sym_link` and
+`components._hm_tile` had already been retargeted by the W1 stock-page commit `815c941`. The single
+real offender was **`pat_dock.py:210`**, the floating Pat's typed-box symbol chip, which built
+`a.href = "/dash/stock?sym=" + …` in JS. Flipped to `/dash/home/stock?sym=`; route verified serving
+**200** (bare and `?sym=TCS`) before the flip, not assumed from the decorator.
+**`stock_view.py:351` was deliberately KEPT** — it is the labelled "Full classic view →" escape hatch
+D148 promised, an opt-in the reader chooses, not a deep-link that ejects them by surprise. It is now a
+single **declared, marker-keyed exception** rather than an undocumented straggler.
+**The gate moved from lane-scoped to package-wide** (`tests/test_home_isolation.py`, which already owned
+the self-containment contract and the `HOME_DIR.rglob` harness — extended, not forked): a **source** scan
+of every module under `src/web/home/`, a **rendered** walk of all five Graphite GET routes, and a check
+that the escape hatch still exists and is the only one. Lane-scoped gating is exactly what let `pat_dock`
+drift while the shared components were fixed.
+**Both halves are load-bearing — proven by negative control, not assumed:** reverting the fix failed the
+SOURCE gate only. Pat builds its anchor in JS, so a classic deep-link there never appears as a literal
+`href=` in delivered HTML; server-rendered leaks are the mirror case. Deleting either gate lets a real
+regression through, so the docstring records why.
+**Two prefix traps caught while building it** (both live in this repo, both would have made the gate
+lie): `/dash/stocks` — the classic Stocks *workspace* in `shell.DESTS` and the one-way classic directory
+— contains `/dash/stock` as a substring, and `components.sym_link`'s docstring *names* the classic route
+in prose while documenting the retarget. Both patterns therefore require a URL terminator (`?`/`"`/`'`),
+matching the route only where it is USED as a link target. The first version of the rendered pattern
+missed this and false-flagged `/dash/stocks` on the live home.
+**Suite: 868 pass, 1 fail, 1 skip — the failure is PRE-EXISTING at HEAD `4f09fdc` and unrelated**
+(proved by stashing this work and re-running on a clean tree).
+`test_home_featured.py::test_conviction_now_caches_by_date` asserts a cache hit, but local
+`stock_signals` has **0 rows** → `MAX(trade_date)` is `None` → `reads.conviction_now` *correctly*
+declines to cache under a null key, so the second call recomputes. **The product code is right; the test
+is environment-coupled** and passes only where the table has data (the W1 lane reported 869/0/1 from
+such a box). Left for its owning lane rather than swept into this commit — it is another lane's file.
+**Landed on this branch by cherry-pick (`-x`) from `claude/elated-meninsky-63e57b`, at the owner's
+instruction** — see the escape-sequence entry above for the convergence result.
 
 ### Graphite Home — 2026-07-27 — 🚩 THE LANDING CUTOVER (D148) — `/dash` now lands on the Graphite home
 The owner chose mechanism **(b)**; executed. **`/dash` 302s to `/dash/home`; the classic home is

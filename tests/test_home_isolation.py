@@ -23,6 +23,27 @@ BANNED = ("today_v3", "news_dock", "shell_v3", "ui_tokens_v3", "ui_components_v3
 GRAPHITE_MARKERS = ("data-ui-g", "g-tokens graphite", "pvg")
 PREVIEW_LEGACY_MARKERS = ("data-ui-v3", "uk-tokens v3", "pv3-", "pv3chip", "uk-sub", 'id="uk-main"')
 
+# ── SELF-CONTAINMENT: a symbol click must never eject the reader into classic ──────
+# Since the D148 landing cutover the Graphite home is the DEFAULT landing, so a classic
+# `/dash/stock?sym=` deep-link inside the package is a one-way door OUT of the new experience and
+# into classic chrome. Every symbol surface in `src/web/home/` resolves to `/dash/home/stock?sym=`.
+#
+# The lookahead is load-bearing in two directions, and both were live traps here:
+#   • `/dash/stocks` — the classic Stocks WORKSPACE, carried by `shell.DESTS` and by the one-way
+#     classic directory — merely shares a prefix and is NOT an offender.
+#   • Prose that names the classic route in a docstring (components.sym_link explains the retarget
+#     in backticks) documents the contract rather than violating it.
+# So the match requires a URL terminator (`?`, `"` or `'`): the route being USED as a link target.
+CLASSIC_DOSSIER_LINK = re.compile(r"""/dash/stock(?=[?"'])""")
+
+# The ONE declared exception, keyed on its own CSS marker so it cannot silently widen: the stock
+# page's explicit, labelled "Full classic view →" affordance. That is an opt-in the reader chooses
+# deliberately — not a symbol deep-link that ejects them by surprise — and it is the escape hatch
+# the cutover promised when it retargeted the home's own links. Anything else is a regression.
+ESCAPE_HATCH_FILE = "stock_view.py"
+ESCAPE_HATCH_MARKER = "g-sc-classic"
+_ESCAPE_HATCH_ANCHOR = re.compile(r"<a class=\"g-sc-classic\"[^>]*>.*?</a>", re.S)
+
 
 def _app():
     from src.main import app
@@ -79,6 +100,71 @@ def test_classic_pages_never_link_the_home():
         r = client.get(path, follow_redirects=True)
         assert r.status_code == 200, (path, r.status_code)
         assert "/dash/home" not in r.text, path
+
+
+def test_no_home_module_deep_links_the_classic_dossier():
+    """PACKAGE-WIDE self-containment (source). Every module under `src/web/home/` — not just the
+    ones a given lane happened to own — must send a symbol to the Graphite stock page. Scoping this
+    per-lane is what let `pat_dock`'s typed-box deep-link keep pointing at classic long after the
+    shared `components.sym_link`/`_hm_tile` had been retargeted: three call sites, one contract."""
+    offenders = []
+    for py in sorted(HOME_DIR.rglob("*.py")):
+        for n, line in enumerate(py.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if not CLASSIC_DOSSIER_LINK.search(line):
+                continue
+            if py.name == ESCAPE_HATCH_FILE and ESCAPE_HATCH_MARKER in line:
+                continue                                   # the one declared escape hatch
+            offenders.append(f"{py.name}:{n}: {line.strip()[:110]}")
+    assert not offenders, (
+        "a Graphite module deep-links the CLASSIC dossier — a symbol click would eject the reader "
+        "out of the new experience. Use `/dash/home/stock?sym=` (components.sym_link).", offenders)
+
+
+def test_the_classic_escape_hatch_still_exists_and_is_the_only_one():
+    """The exception is a real, LABELLED affordance — not a loophole. If the stock page ever drops its
+    'Full classic view →' link this fails too, so the allowance can't outlive what it allows.
+
+    This also keeps the rendered gate HONEST. On a box whose `stock_signals` is empty the stock page
+    has no core to render, so the escape hatch never appears and the strip in the rendered gate would
+    pass vacuously — proving nothing. Rendering from an explicit core here exercises the real anchor
+    on every box, so the allowance is verified against output, not just against source text."""
+    from src.web.home import stock_view
+    src = (HOME_DIR / ESCAPE_HATCH_FILE).read_text(encoding="utf-8", errors="replace")
+    hatch = [ln for ln in src.splitlines() if ESCAPE_HATCH_MARKER in ln and CLASSIC_DOSSIER_LINK.search(ln)]
+    assert len(hatch) == 1, ("expected exactly ONE declared classic escape hatch", hatch)
+    assert "Full classic view" in hatch[0], "the escape hatch must stay explicitly LABELLED"
+
+    core = {"symbol": "TCS", "close": 3900.5, "pct": 1.2, "date": "2026-07-24",
+            "industry": "IT", "signals": {}}
+    html = stock_view.stock_page(core, {}, {}, {}, "TCS")
+    anchors = _ESCAPE_HATCH_ANCHOR.findall(html)
+    assert len(anchors) == 1, ("the rendered stock page must carry exactly one escape hatch", anchors)
+    assert "Full classic view" in anchors[0]
+    classic = re.findall(r"""href=["'](/dash/stock(?:\?[^"']*)?)["']""", html)
+    assert classic == ["/dash/stock?sym=TCS"], ("the hatch is the page's ONLY classic link", classic)
+    assert not re.findall(r"""href=["'](/dash/stock(?:\?[^"']*)?)["']""",
+                          _ESCAPE_HATCH_ANCHOR.sub("", html)), "stripping the hatch must leave none"
+
+
+def test_rendered_home_pages_carry_no_classic_symbol_deep_links():
+    """PACKAGE-WIDE self-containment (rendered) — the journey, not just the source. Walks every
+    Graphite GET route and asserts the delivered HTML routes symbols inward. Strips the declared
+    escape-hatch anchor first, so the page keeps its one labelled way out and nothing more.
+
+    This does NOT subsume the source gate above, and neither is redundant — verified by reverting
+    the fix: Pat builds its anchor in JS (`a.setAttribute("href", …)`), so a classic deep-link there
+    never appears as a literal `href=` in delivered HTML and ONLY the source scan caught it. Server-
+    rendered leaks are the mirror case. Delete either one and a real regression walks through."""
+    client = TestClient(_app())
+    for path in ("/dash/home", "/dash/home/rotation", "/dash/home/stock",
+                 "/dash/home/stock?sym=TCS", "/dash/home/_kit"):
+        r = client.get(path, follow_redirects=True)
+        assert r.status_code == 200, (path, r.status_code)
+        stripped = _ESCAPE_HATCH_ANCHOR.sub("", r.text)
+        # same boundary discipline as CLASSIC_DOSSIER_LINK: `/dash/stocks` (the Stocks workspace
+        # in the nav + the one-way classic directory) shares a prefix and is legitimate chrome.
+        leaked = sorted(set(re.findall(r"""href=["'](/dash/stock(?:\?[^"']*)?)["']""", stripped)))
+        assert not leaked, (path, "leaked a classic dossier deep-link", leaked)
 
 
 def test_landing_cutover_redirects_dash_and_preserves_the_classic_home():

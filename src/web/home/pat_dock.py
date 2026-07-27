@@ -207,7 +207,7 @@ function symToken(q){ var raw=(q||"").trim(); if(!raw||/\s/.test(raw)) return ""
 function symAns(tok){ ans.innerHTML="";
   var card=document.createElement("div"); card.className="g-card2";
   var t=document.createElement("div"); t.className="g-pat-a-title"; t.appendChild(document.createTextNode("Open "));
-  var a=document.createElement("a"); a.setAttribute("href","/dash/stock?sym="+encodeURIComponent(tok)); a.textContent=tok+" ›"; t.appendChild(a);
+  var a=document.createElement("a"); a.setAttribute("href","/dash/home/stock?sym="+encodeURIComponent(tok)); a.textContent=tok+" ›"; t.appendChild(a);
   var p=document.createElement("div"); p.className="g-pat-more-b"; p.style.marginTop="6px";
   p.textContent="I'll take you to its evidence page — descriptive only."; card.appendChild(t); card.appendChild(p); ans.appendChild(card); }
 function open(o){

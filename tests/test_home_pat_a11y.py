@@ -48,7 +48,9 @@ def test_pat_answers_calibrate_terse_title_plus_detail_on_demand():
     symbol instead of always echoing the same canned block."""
     html = pat_dock.dock_html(_conn())
     assert "g-pat-a-title" in html and 'class="g-pat-more"' in html
-    for tok in ("function classify(", "function symToken(", "/dash/stock?sym="):
+    # the symbol deep-link resolves INSIDE Graphite (`/dash/home/stock`) — Pat must not be the one
+    # hole that ejects a reader into classic chrome. Package-wide gate: test_home_isolation.py.
+    for tok in ("function classify(", "function symToken(", "/dash/home/stock?sym="):
         assert tok in html, tok
 
 
