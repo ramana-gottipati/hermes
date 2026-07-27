@@ -2489,7 +2489,12 @@ has no upcoming board meetings, so the Row path never ran.
   `[dict(r) for r in _u(days=days) or []]` — the single Row→dict normalisation point, so every home
   consumer may `.get()`. `results_calendar.upcoming_results` itself is untouched (its own CLI
   tuple-unpacks rows and dicts would silently unpack to KEY NAMES).
-- **Sweep verdict — this was the ONLY raw-Row leak into `.get()` consumers in the home estate.**
+- **Sweep verdict — this was the ONLY raw-Row leak into `.get()` consumers in the home estate**,
+  and it is OBSERVED, not reasoned: a reflective scan on the BOX called **127 public reads** across
+  `reads` · `internals_reads` · `markets_reads` · `stock_reads` · `screen_reads` · `strategies_reads`
+  · `trust_reads` · `tracker_reads` · `w2_reads` (106 conn-only/zero-arg + 21 symbol-taking) against
+  real data and deep-scanned every return value for `sqlite3.Row` → **zero leaks**. Reading confirms
+  why:
   Checked every `src.automation`/`src.pat` delegation: `corp_actions.upcoming` (builds dicts),
   `whatchanged_flow.changes` / `signal_alerts.active_alerts` (dicts), `results_board` (explicit
   dict zip), `surveillance.transitions` (dict events), `band_lock.active_streaks` (dicts),
@@ -2506,10 +2511,23 @@ has no upcoming board meetings, so the Row path never ran.
   rejected: the "which exceptions mean data-missing" split is unknowable, the contract is never-500).
 - **Gates:** home battery + registry + pat coverage **167 passed** · doc/label gates 13 passed ·
   RED-then-GREEN verified by stash-cycle.
-- **Deploy:** this session via the §6 recipe (`docs/graphite-home-carryforward.md`) — verification
-  line appended post-walk.
+- **DEPLOYED + WALKED (2026-07-27 20:11 UTC).** §6 recipe: md5 sweep box-vs-repo (both files matched
+  `cf7431d` exactly — the box was on the pre-fix blob) → `.bak-20260727-2010` backups → scp → `tr -d
+  '\r'` (md5 unchanged, already LF) → `py_compile` + prod-venv import sweep → writer-safe restart
+  (`fuser` showed no foreign writer; 20:11 UTC, far from the 14:01 bhavcopy). **Walk:**
+  `/dash/home/events` now renders **6/6 `g-zone` sections, 0 fallback markers** (was 0 zones behind a
+  200), public URL included; the other three internals routes + `?window=60` + `?format=csv` all serve;
+  journal clean. **The DEPLOY-3 band-locks fix is finally VISIBLE:** the zone reads *Locked up 8 /
+  Locked down 7* (matching the read layer) with both ▲ upper and ▼ lower pills in the table — before
+  this, the only page rendering that fix was the broken one.
+- **Verified the visibility fix by mechanism, not assumption:** under uvicorn's exact `LOGGING_CONFIG`
+  the root logger has NO handlers, so Python's last-resort handler puts WARNING+ (with traceback) on
+  stderr → journald. Box-reproduced. A clean journal is meaningful evidence only from this commit on.
+- **Recipe hardened:** `docs/graphite-home-carryforward.md` §6 now carries "A 200 IS NOT A
+  VERIFICATION" — the per-route zone-count + fallback-marker greps, and the note that the local
+  fixture DB has no `board_meetings` rows so the defect's path never ran locally either.
 - Files: `src/web/home/reads.py` · `src/web/home/internals_pages.py` ·
-  `tests/test_home_markets_pages.py`.
+  `tests/test_home_markets_pages.py` · `docs/graphite-home-carryforward.md`.
 
 ### The parity board stops over-claiming (D150) — 2026-07-28 — 34 surfaces re-opened, M6/M7/M8 back to PLANNED, two silent correctness defects killed
 Lane `lane/parity-truth`, off `origin/main` `6fa87d3`. The 2026-07-28 gap audit found the Graphite

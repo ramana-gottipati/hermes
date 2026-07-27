@@ -105,6 +105,10 @@ exercise, and where."
 10. **Sample-first for identity/pixel choices:** owner-visible visual changes are presented as
     labeled 100%-scale samples for the owner's pick BEFORE shipping; verification crops are
     never presented as the viewing experience.
+11. **A 200 is not a verification:** every Graphite page serves a placeholder behind HTTP 200
+    when its body raises, so post-deploy walks must assert CONTENT (zone count ≠ 0, zero
+    "hasn't landed" markers) — see Appendix A.5 for the incident + recipe. Journal evidence
+    is only meaningful from `9290ba7` forward (fallbacks now log tracebacks).
 
 ## Non-negotiable mechanics (every phase)
 - Worktree per lane off current `origin/main`; branch `fix/p<N>-<name>`; NEVER edit the shared
@@ -202,3 +206,23 @@ prompt changes live in `src/assistant/chat.py` → restart `hermes-api` AND `her
   app) — left untouched by doctrine; run the gate from the repo, not the box.
 - `hub_sections_v3.load_core` queried `wolfe_signals` by `symbol` while the table keys on `sym`, so
   that badge NEVER fired — recorded so the module's retirement is not mistaken for a lost feature.
+
+## Appendix A.5 — the 200-is-not-verification incident (grafted from the retired carryforward, 2026-07-28)
+🔴 **A 200 IS NOT A VERIFICATION** (2026-07-27 incident, `9290ba7`). Every Graphite page wraps its
+body in a broad `except Exception` that serves a "…hasn't landed on this host yet" placeholder, so a
+CODE defect renders an EMPTY page behind HTTP 200 — `/dash/home/events` shipped that way through a
+whole deploy range and a 38/38-green status sweep. The post-deploy walk must therefore assert
+CONTENT, per route:
+
+```
+curl -s -o /tmp/p.html -w '%{http_code}\n' http://127.0.0.1:8000<route>
+grep -o '<section class="g-zone"' /tmp/p.html | wc -l     # expected zone count, NOT zero
+grep -c "hasn't landed on this host yet" /tmp/p.html       # MUST be 0
+```
+
+Since `9290ba7` those fallbacks `log.warning(..., exc_info=True)`, so `journalctl -u hermes-api` shows
+a traceback when one fires — box-verified that uvicorn leaves the root logger handler-less, so
+Python's last-resort handler puts WARNING+ on stderr and journald captures it. A clean journal is only
+meaningful evidence from that commit forward; before it, the page was broken AND the journal was clean.
+Note the fixture DB used by local gates has no `board_meetings` rows, so the defect's code path never
+ran locally either — data-shaped fixtures (see `test_home_markets_pages.py` §7) are what close that gap.
