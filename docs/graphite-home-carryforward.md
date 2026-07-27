@@ -187,8 +187,27 @@ depth. Reached via the new "See the full rotation →" link on the Today RRG.
   web-VIEW module — importing it breaks `test_home_isolation`, so we reuse the STORED columns (same
   self-relative philosophy, zero coupling). 99.5% row coverage on the box.
 
-**F. Cutover (PARKED):** promote `/dash/home` into nav + retire old preview — only after the Graphite
-stock page exists (old preview uniquely serves `/dash/preview/stock`).
+**G. The Graphite STOCK page — ✅ DONE + DEPLOYED (commit `815c941`) at `/dash/home/stock?sym=`.**
+The cutover blocker is CLEARED. New `src/web/home/stock_view.py` + 6 reads, built FROM SCRATCH (the
+old hub is `*_v3` — isolation-banned). 18-37ms/page. Spine = the reference layer at stock level
+(price · momentum · delivery · turnover · coil, each vs its OWN 3-year past, feeding `ref_chip`).
+**CA hygiene implemented + gated** (`_ca_factors`): price/momentum on a split/bonus-ADJUSTED close —
+NESTLEIND cross-validates to the 97th pct (raw reads 28th). `sym_link` + heatmap tiles retargeted to
+the Graphite page (box: 225 links, 0 classic leftovers); classic byte-untouched, escape hatch on-page.
+Gate: `tests/test_home_stock.py` (12).
+
+**F. CUTOVER — ⭐ NOW UNBLOCKED, THE NEXT UNIT.** Promote `/dash/home` into nav + retire the old
+preview. The blocker (no Graphite stock page) is gone as of `815c941`. What this needs, in order:
+1. **Decide the promotion mechanism with the owner** — the home is currently direct-URL + `pvg`
+   cookie with NO `lens_registry` entry *by design* (adding one drifts the classic nav — the very
+   thing every guardrail protects). Cutover means either (a) registering the Graphite pages as
+   lenses, or (b) making `/dash/home` the default landing and demoting classic to the existing
+   "Classic site" directory. **This is an owner decision — present both, recommend, don't assume.**
+2. **Retire `/dash/preview` + `/dash/preview/stock`** (and their `*_v3` modules) only AFTER (1) —
+   check `hub_sections_v3`/`stock_chart_v3` have no other live callers first.
+3. Re-point any remaining classic→preview affordances; re-run the route-registry + nav-orphan gates.
+4. Fold this whole carry-forward into `PROJECT_STATE.md` §Decision log + `docs/redesign-coordination.md`
+   and `git rm` it (its retire condition — see the Lifecycle banner at the top).
 
 ---
 
@@ -220,15 +239,25 @@ hermes-api` → `curl …/dash/home` 200 + structure grep → **the verify-curl 
 > enhancements** (colour-by-delivery · Top 150/350/600 size selector · Pro "unusual for this stock").
 > Commits `7c62e64 · 705c1ed · 91e20d0 · 7e32500 · 6c78663`. Verdicts + details in §5-A/B/C/D/E.
 >
-> **THE MISSION THIS SESSION — pick with the owner, the queue is now open:**
-> 1. **§5-F CUTOVER (the blocker to everything):** promote `/dash/home` into nav + retire the old
->    preview. Needs a **Graphite stock page** first (old `/dash/preview/stock` uniquely serves that) —
->    so the real unit is **build the Graphite stock page**, then cut over. This is the highest-value
->    remaining work; propose it first.
-> 2. **§5-B3 (DEFERRED, owner's own idea — raise it):** "when a name is added, when is its NEXT
->    trigger?" (results date · ex-date · cadence-overdue). Discuss before building.
-> 3. Depth passes on what shipped (more Pro-Ads teaser spots; the CTA currently flips the preview tier
->    — a real launch needs a checkout route).
+> **⭐ ALSO DONE (`815c941`): the GRAPHITE STOCK PAGE** (`/dash/home/stock?sym=`) — the per-symbol
+> evidence scroll, built from scratch (no `*_v3` import), spine = the reference layer vs each stock's
+> OWN 3-year past, corporate-action-adjusted + gated, `sym_link` retargeted (225 Graphite links, 0
+> classic leftovers). **This CLEARED the cutover blocker.** Details + verdicts in §5-G.
+>
+> **THE MISSION THIS SESSION: §5-F CUTOVER — now unblocked, and it needs an OWNER DECISION FIRST.**
+> Promote `/dash/home` into nav + retire the old preview. **Do NOT just register a lens** — the home
+> is deliberately outside `lens_registry` because adding one drifts the classic nav (the thing every
+> guardrail protects). Present the two mechanisms — (a) register the Graphite pages as lenses, or
+> (b) make `/dash/home` the default landing and demote classic into the existing "Classic site"
+> directory — **recommend one, get the call, then execute** the §5-F 4-step sequence (retire
+> `/dash/preview*` + its `*_v3` modules only after checking for other live callers; re-run the
+> route-registry + nav-orphan gates; then fold this carry-forward into `PROJECT_STATE.md` and `git rm`
+> it per its Lifecycle banner).
+>
+> **Also open:** **§5-B3 (DEFERRED, owner's own idea — raise it):** "when a name is added, when is its
+> NEXT trigger?" (results date · ex-date · cadence-overdue). Discuss before building. Plus depth
+> passes on what shipped (more Pro-Ads teaser spots; the CTA currently flips the preview tier — a real
+> launch needs a checkout route).
 >
 > Every change: additive, isolated (`data-ui-g`/`.g-*`, no preview/legacy import), DOM-safe,
 > reduced-motion-safe, defensive + demo/sample-honest, gate-tested, deployed writer-safe per §6, box-
