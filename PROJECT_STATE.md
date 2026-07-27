@@ -201,6 +201,7 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 
 **Graphite Home — the fresh-and-parallel v3 home section (increment i, 2026-07-23) — new:**
 - `src/web/home/` — a self-contained, ISOLATED `/dash/home` section built completely separately from the classic site AND the existing v3 preview (owner decision 2026-07-23; spec `docs/redesign-graphite-home-spec.md`, two Codex passes, review-clean). `tokens.py` (Graphite palette both themes, scope `:root[data-ui-g]`/`.g-*`, corrected light candle-AA `#6f8096`/`#455468`) · `shell.py` (own chrome, none of the legacy `.uk-*`/preview `.pv3-*` markers) · `components.py` (`.g-*` DOM-safe kit + `safe_url`) · `reads.py` (self-contained read-only layer with a hard import-ban on all preview/`*_v3` render modules) · `__init__.py` (`router`: `/dash/home` + `/dash/home/toggle` POST-only + `/dash/home/_kit`). Direct-URL + `pvg` opt-in; **NO lens/nav until cutover** (zero classic-nav drift). Mounted by ONE additive `v2_surfaces._ROUTER_SPECS` entry.
+- **Graphite Markets estate (cutover wave W2-B, 2026-07-27) — 5 new lane-owned modules in `src/web/home/`:** `markets_reads.py` (the RS/rotation/sectors read layer — reuses the canonical `src/automation/` engines `rrg`·`rsband`·`capture`·`rs_phase`·`stock_rs` + the `momentum_scan` rows; bounded, defensive, plus the `DEMO_*` sample fallbacks) · `markets_ui.py` (the shared `.g-m*` atoms: view switcher, fixed-height internally-scrolling box, table, 0-100 position strip, phase/quadrant pills, the lane stylesheet) · `rotation_pages.py` (`/dash/home/rotation?view=journeys|weather|band|clock`) · `strength_pages.py` (`/dash/home/strength?view=…` + the lane's SINGLE `APIRouter`, which also serves `/dash/home/sectors`) · `sectors_pages.py` (`?tab=standing|economics`, `?sec=` drill). Mounted by ONE additive `v2_surfaces._ROUTER_SPECS` entry `("graphite-markets", "src.web.home.strength_pages", "/dash/home/strength")`; registered in `tests/test_dash_route_registry.INTERNAL_DEV`; **NO lens/nav until cutover**. Gate: `tests/test_home_markets.py` (17 tests — routes · view degradation · marker isolation · no classic-view import · `?sym=` links · verdict-key ban · read defensiveness · demo-shape parity · PORTED-targets-actually-serve).
 - `tests/test_home_isolation.py` + `tests/test_home_tokens_aa.py` — the increment-(i) gates: both-directions marker isolation · no preview import · route-gate registered · never linked from chrome · WCAG AA on every token pair incl. the candle fill+outline. **Green** (the only red across the run = the research lane's pre-existing `test_rule_lab` BLOCKING_ROWS 11≠10, unrelated to this lane). Not yet deployed.
 - **Increment (ii) (2026-07-23):** zones 1-3 wired over the self-contained reads — **market pulse** (index cards + NIFTY close sparkline + canonical `market_mood` + breadth) · **Today/what-changed** (severity count-band + humanised alert-rail rows over `signal_alert_state`) · **FII/DII flows** (signed diverging bars over `fii_dii_flows`, category `'FII/FPI'`). New reads `severity_counts`/`index_series`; gate `tests/test_home_zones.py` (defensive empty-state · seeded render · DOM-escape · no-marker-leak). Suite 788 pass.
 - **Increment (iii) (2026-07-23):** zones 4-7 — **Going-ex corporate actions** + **Results calendar** (agenda strips over `corp_actions.upcoming` [its `(rows, as_of)` tuple-unpack FIXED in `reads.upcoming_ca`] / `results_calendar.upcoming_results`) · **News wire** (every href via `safe_url`) · a **Go-deeper Delivery drawer** (`power_dvpt_3m`, progressive-disclosure `<details>`). New builders agenda/ca_agenda/results_agenda/wire/drawer/rowbars/delivery_drawer; gates `test_home_zones.py` (calendar/news/drawer render + defensive) + new `test_home_dom_safety.py` (news `javascript:`/`data:` collapse — Codex #9). Suite **793 pass**.
@@ -2364,6 +2365,54 @@ Cutover wave W2, lane A (Markets: internals · flows · events). Built in the is
 - **Open for the review lane:** the four pages are reachable only by direct URL + their own
   Markets-depth strip — no Today-page or `shell.DESTS` entry, because six lanes are in flight and nav
   belongs to W6. `scripts/nav_integrity_gate.py` therefore gains 4 more expected orphans.
+### Graphite cutover W2-B — 2026-07-27 — the MARKETS estate: 11 classic RS/rotation/sectors lenses → THREE Graphite pages
+Cutover wave W2-B (lane `lane/w2-rs-rotation`, worktree-isolated). Additive only: no classic view
+module, no `lens_registry`, no `components.py`/`reads.py` line changed. Suite **869 pass / 0 fail /
+1 skip** (baseline 852 + 17 new). Local fixture = STRUCTURE proof only; data verification is a box
+activity (standing correction #9). **Not deployed.**
+
+- **THE CONSOLIDATION (11 → 3).** The classic estate served one question — *is it beating the broad
+  market, and what did that cost?* — across eleven lenses. In Graphite they are three pages whose
+  views are all URL-addressable:
+  - `/dash/home/rotation?view=journeys|weather|band|clock` ← `rrg` · `rotation` · `rsband` ·
+    `cycle-clock`. The shipped §5-D journeys view is the untouched default; the switcher + the other
+    three readings are new. **One dataset, four readings** — that is the page's thesis.
+  - `/dash/home/strength?view=overview|leaders|momentum|capture` ← `rs-hub` · `leaders` ·
+    `momentum-scan` · `capture-map` (`?h=63|126|252` on the capture view).
+  - `/dash/home/sectors?tab=standing|economics` (+ `?sec=` drill, `?metric=roce|opm`) ← `sectors` ·
+    `sector-economics` · `sector-momentum`. The classic sector-momentum drill was reachable ONLY by
+    deep link (a registry-admitted orphan); it is now a view of the board it belongs to.
+- **Engines reused, renderers never.** Every number comes from `src/automation/` — `rrg`
+  (`_rs_ratio_momentum`/`quadrant`/`latest_all`), `rsband`, `capture`, `rs_phase`, `stock_rs`,
+  plus the canonical `momentum_scan` rows — following the blessed `reads.rrg_sectors` precedent. A
+  new gate asserts the lane's five modules import none of the 16 classic render modules, so the
+  temptation to borrow a view's engine cannot regress.
+- **Two honesty calls worth recording.** (1) `rsband.band_verdict` returns an instructional machine
+  key (Ride/Fade/Trim/Accumulate/Avoid) beside a descriptive state label; only the label renders and
+  a gate asserts the keys never reach the DOM. (2) The momentum view deliberately drops the C-blend
+  overlay — flat-cost-only, not fundable at AUM, and Screener-derived under primary-source
+  remediation. (3) The sector-economics tab shows NO sample data when the fundamentals archive is
+  absent: a fabricated margin for a real company is indistinguishable from a real one, so it renders
+  an honest empty state instead. Sample fallbacks elsewhere carry a written "illustrative sample"
+  line beside the `sample` badge, gate-asserted.
+- **Parity ledger: PORTED 2 → 10.** Explicit `SURFACE_PARITY` entries for all eleven keys. PORTED
+  where the lens's primary question is fully answered at the new route (`rrg`, `rotation`,
+  `cycle-clock`, `rs-hub`, `leaders`, `capture-map`, `sectors`, `sector-momentum`); DEFERRED with a
+  landed/still-owed note where a materially separate block did not travel (`rsband` — the per-index
+  and per-stock channel charts; `momentum-scan` — veto flags, ensemble sort, the slow-rotation
+  child; `sector-economics` — the per-cell company breakdown and the swings panel). A new gate
+  proves every PORTED target actually serves 200 in Graphite chrome.
+- **Doctrine carried onto the surfaces:** RS = beat-the-broad-index per horizon, phase = the SHAPE
+  of the sweep (classified by the canonical engine, never re-worded); recovery is a staged ladder;
+  momentum is a known beta, not skill; capture is a track record, never a forward signal;
+  sector-economics carries its survivorship / thin-N / financials-blank / Screener-provenance
+  fences. No rupee-constant thresholds anywhere — percent and percentile only.
+- **Shared-file footprint (4 files, 87 insertions):** `src/web/home/__init__.py` (the rotation route
+  delegates to `rotation_pages`, +11/−7 inside one function) · `src/web/v2_surfaces.py` (ONE
+  anchored `_ROUTER_SPECS` tuple after the graphite-home anchor) · `tests/test_dash_route_registry.py`
+  (two INTERNAL_DEV entries) · `src/web/sideways_parity.py` (the eleven dispositions).
+- Known non-regression observed in passing: `/dash/compare` raises on the local 15 MB fixture
+  because it lacks `nse_etf_list` — a fixture gap on a classic route this lane never touched.
 
 ### Graphite Home — 2026-07-27 — HEATMAP ENHANCEMENTS (§5-E) — colour-by-delivery · size selector · Pro "unusual for this stock"
 Closed §5-E, the last queued Graphite home unit. Additive/isolated, 89 gates green, deployed + box-verified.

@@ -54,22 +54,26 @@ def home(request: Request) -> HTMLResponse:
 
 @router.get("/dash/home/rotation", response_class=HTMLResponse, include_in_schema=False)
 def rotation(request: Request) -> HTMLResponse:
-    """The Markets rotation page (§5-D) — a NEW isolated Graphite sub-page: 6/12/24-month sector-
-    rotation RRG journeys (fixed ~10-dot tails, the horizon sets the spacing), the per-sector standing
-    table, and education. 6M is Free; 12M/24M are Pro locked-teasers. Reached via 'See the full
-    rotation →' from the Today RRG. Read-only; never 500s (defensive)."""
+    """The Markets rotation page — THE one Graphite rotation experience (W2-B consolidation). The
+    default `?view=journeys` is the shipped §5-D page byte-for-byte (6/12/24-month RRG journeys,
+    fixed ~10-dot tails, 6M Free / 12M+24M Pro teasers); `?view=weather|band|clock` add the other
+    three readings of the same dataset that the classic estate served as separate lenses
+    (/dash/rotation, /dash/rsband, /dash/cycle-clock). Composition lives in `rotation_pages`.
+    Reached via 'See the full rotation →' from the Today RRG. Read-only; never 500s (defensive)."""
     from src.core.db import get_conn
+    from src.web.home import markets_ui, rotation_pages
+    view = rotation_pages.view_of(request.query_params.get("view"))
     body, pat = "", ""
     try:
         with get_conn() as conn:
             conn.row_factory = __import__("sqlite3").Row
-            journeys = {m: reads.rrg_journey(conn, months=m) for m in (6, 12, 24)}
-            body = C.rotation_view(journeys)
+            body = rotation_pages.page_fence() + rotation_pages.body(conn, view)
             from src.web.home import pat_dock
             pat = pat_dock.dock_html(conn)
     except Exception:  # noqa: BLE001 — a heavy/edge read must never 500 the page
         body = C.fence("Sector-rotation data hasn't landed yet.") + C.empty("Check back after the next nightly run.")
-    return HTMLResponse(shell.shell("Rotation", body, current="Markets", pat_html=pat))
+    return HTMLResponse(shell.shell("Rotation", body, current="Markets", pat_html=pat,
+                                    extra_head=markets_ui.css()))
 
 
 @router.get("/dash/home/stock", response_class=HTMLResponse, include_in_schema=False)
