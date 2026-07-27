@@ -354,13 +354,20 @@ def _model_books_block() -> str:
     were "already covered by the model_portfolios data flow". In the new experience there is one
     data source and two doors: the books live in Strategies, and following one seeds a named book
     here with TODAY's date and TODAY's close — never the backtest's history, because writing a
-    reconstruction into a real book would make the reader's own return a fiction."""
+    reconstruction into a real book would make the reader's own return a fiction.
+
+    INTEGRATION-2 (2026-07-27): the BROWSE door now points at W3-A's Graphite board
+    (`/dash/home/strategies/books`) — inside Graphite chrome a click must not eject the reader
+    into the classic site. The FOLLOW door deliberately stays on classic `/dash/tracker/model-books`:
+    it is a WRITE, and the Graphite books page is read-only (no POST, no form), so retargeting it
+    would hand the reader a board that cannot perform the action the label promises. That write is
+    W6/M7-follow-on work, not an integration retarget."""
     return (
         '<p>Model books are the engine\'s portfolios — reconstructed, never hand-edited. They live '
         'in <b>Strategies</b>; the Tracker is where you follow one and measure <em>your</em> '
         "result against it.</p>"
         '<div class="gt-act">'
-        '<a class="g-btn" href="/dash/model-portfolios">Browse the books →</a>'
+        '<a class="g-btn" href="/dash/home/strategies/books">Browse the books →</a>'
         '<a class="g-btn" href="/dash/tracker/model-books">Follow one into a named book →</a>'
         "</div>"
         + C.learn("Following a book copies its CURRENT holdings into a new named book using today's "

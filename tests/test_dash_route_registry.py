@@ -532,6 +532,34 @@ def test_synthetic_unregistered_route_fails_end_to_end():
     assert synthetic in unclassified, "the gate did NOT flag a synthetic unregistered route"
 
 
+# ── the Graphite top-bar destinations (INTEGRATION-2 cross-lane retargets) ───────────
+def test_every_graphite_dest_actually_serves():
+    """`shell.DESTS` is the Graphite top bar — the six doors every page shows. A dest pointing at
+    a dead or not-yet-built route is a broken front door, and nothing else in the suite reads
+    these hrefs. Pinned here (not in a lane file) because the retargets are cross-lane: Tracker
+    landed at Integration-1, Markets + Strategies at Integration-2, each on its own lane's
+    recommendation and only once the target was live in the branch."""
+    from fastapi.testclient import TestClient
+
+    from src.web.home import shell
+    client = TestClient(_build_app(), follow_redirects=False)
+    for label, href in shell.DESTS:
+        assert client.get(href).status_code in (200, 301, 302, 303, 307, 308), (label, href)
+
+
+def test_the_graphite_dests_prefer_the_graphite_estate_where_one_exists():
+    """Inside Graphite chrome a top-bar click must not eject the reader into the classic site.
+    Where a lane BUILT the Graphite counterpart, the dest points at it. Stocks and Proof are
+    deliberately still classic here: no integration lane was briefed to repoint them, and a
+    silent repoint is exactly the drift this gate exists to catch — W6 owns that call."""
+    from src.web.home import shell
+    dests = dict(shell.DESTS)
+    assert dests["Today"] == "/dash/home"
+    assert dests["Markets"] == "/dash/home/internals"      # W2-A's recommendation
+    assert dests["Strategies"] == "/dash/home/strategies"  # W3-A's recommendation
+    assert dests["Tracker"] == "/dash/home/tracker"        # W3-B's, landed at Integration-1
+
+
 # ── script mode — prints the full classification table (like nav_integrity_gate) ──
 def _main() -> int:
     table = _dash_paths(_build_app())

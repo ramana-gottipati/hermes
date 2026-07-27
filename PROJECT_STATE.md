@@ -2290,6 +2290,37 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Graphite cutover INTEGRATION-2 — 2026-07-27 — the last four lanes merged; cross-lane retargets
+Branch `lane/integrate-2` off `74e71a0`. Serial merge of W1-convergence → W3-A strategies → W4
+screener → W5 journey, suite green before each next merge: **955 → 988 → 988 → 1012 → 1043 / 0
+failed / 1 skipped**. Merged dicts AST-checked after every merge (`SURFACE_PARITY` 74/74 unique ·
+`INTERNAL_DEV` 48/48 · `_ROUTER_SPECS` 64, zero duplicate route paths).
+- **Parity-key collision, resolved on the convergence precedent (board wins, dossier survives as a
+  clause).** Six keys — `stocks` · `mep` · `cpr` · `concalls` · `growth` · `conviction` — were filed
+  DEFERRED by W1 ("the per-symbol tab is on /dash/home/stock, the board is not") and PORTED/DROPPED
+  by W3-A, which had since BUILT those boards. W1 filed honestly on the evidence it had; W3-A's row
+  is the later and fuller fact. The board verdict takes the key and each merged row now carries a
+  "+ W1 dossier tab" clause, so nothing W1 observed is lost and no key claims twice. Recorded in
+  `sideways_parity.py` at the point of resolution, not only here.
+- **A cross-lane gate collision the suite caught (not inspection):** W5's one-Pat gate asserted
+  `{m for m in mods if "pat" in m} == {"pat_dock"}`, written against a package that did not yet
+  contain W2-C's `patterns_pages`. Pure naming coincidence — no third Pat exists (`dock_html` and
+  `_AVATAR` are in exactly one module, verified by content). Tightened to a `pat`-token match plus
+  a NEW package-wide content scan, which is strictly stronger than the substring check ever was;
+  falsified before landing by planting a `dock_html` into `w2_kit.py` (RED) and removing it (GREEN).
+- **Cross-lane retargets** (own commit, `src/web/home/` only): the Tracker's model-books BROWSE door
+  → W3-A's `/dash/home/strategies/books`; `shell.DESTS` **Markets → `/dash/home/internals`** (W2-A's
+  recommendation) and **Strategies → `/dash/home/strategies`** (W3-A's), the same precedent by which
+  Tracker was repointed at Integration-1. The model-books FOLLOW door deliberately STAYS classic: it
+  is a WRITE and the Graphite books page is read-only, so retargeting it would promise an action the
+  destination cannot perform. Stocks and Proof stay classic — no lane was briefed to repoint them and
+  a silent repoint is drift; W6 owns that call. All six dests now gate-pinned (they serve, and the
+  three retargets are asserted) in `tests/test_dash_route_registry.py`, which nothing else covered.
+- Gates: full suite **1045 / 0 / 1** (1043 after the four merges, +2 for the new DESTS pins);
+  `doc_hygiene_gate` 5/5 clean; parity **74 surfaces — PORTED 55 · DEFERRED 12 · DROPPED 5 · NA 2 ·
+  0 UNSCOPED** (265 metrics · 16 strategies); **30-route** TestClient smoke all 200 except `/dash`
+  302 → `/dash/home` by design, incl. `/dash/classic` and every Graphite child of all five waves.
+
 ### Graphite cutover W1-CONVERGENCE — 2026-07-27 — TWO STOCK PAGES COLLIDED; ONE SURVIVES
 Two lineages independently built `/dash/home/stock?sym=` and both registered it. Resolved by merge
 (both histories preserved), not by cherry-pick.
