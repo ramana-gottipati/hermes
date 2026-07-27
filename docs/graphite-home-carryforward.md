@@ -196,18 +196,28 @@ NESTLEIND cross-validates to the 97th pct (raw reads 28th). `sym_link` + heatmap
 the Graphite page (box: 225 links, 0 classic leftovers); classic byte-untouched, escape hatch on-page.
 Gate: `tests/test_home_stock.py` (12).
 
-**F. CUTOVER — ⭐ NOW UNBLOCKED, THE NEXT UNIT.** Promote `/dash/home` into nav + retire the old
-preview. The blocker (no Graphite stock page) is gone as of `815c941`. What this needs, in order:
-1. **Decide the promotion mechanism with the owner** — the home is currently direct-URL + `pvg`
-   cookie with NO `lens_registry` entry *by design* (adding one drifts the classic nav — the very
-   thing every guardrail protects). Cutover means either (a) registering the Graphite pages as
-   lenses, or (b) making `/dash/home` the default landing and demoting classic to the existing
-   "Classic site" directory. **This is an owner decision — present both, recommend, don't assume.**
-2. **Retire `/dash/preview` + `/dash/preview/stock`** (and their `*_v3` modules) only AFTER (1) —
-   check `hub_sections_v3`/`stock_chart_v3` have no other live callers first.
-3. Re-point any remaining classic→preview affordances; re-run the route-registry + nav-orphan gates.
-4. Fold this whole carry-forward into `PROJECT_STATE.md` §Decision log + `docs/redesign-coordination.md`
-   and `git rm` it (its retire condition — see the Lifecycle banner at the top).
+**F. CUTOVER — ✅ THE LANDING SWITCH IS DONE + LIVE (`4315ad7`, decision **D148**).**
+1. ✅ **Mechanism decided by the owner: (b)** — "go with (b), make /dash/home the default landing".
+   (a) registering Graphite pages as lenses was rejected: `lens_registry` GENERATES the classic nav.
+2. ✅ **Executed:** `src/web/home/cutover.py` — a new pure-ASGI middleware (**zero classic files
+   edited**), installed by one line in `v2_surfaces.wire`. `GET /dash` → **302** `/dash/home`;
+   `GET /dash/classic` → internally rewritten to `/dash` so the classic home renders byte-identically
+   at a preserved URL. **302 not 301** (a cached permanent redirect would kill rollback); deleting the
+   install call is the whole revert (gate: `test_cutover_is_unpluggable`).
+   Box-verified publicly: `https://…/dash` → 302 → Graphite; `/dash/classic` 200 with 0 Graphite leak;
+   D80 nesting 307s still resolve; 2 ways back to classic on the landing, 0 bare-`/dash` loops.
+3. ✅ Chrome made honest: "PREVIEW" badge → **"NEW"**; the vestigial opt-in card → a "Looking for the
+   classic site?" pointer; directory home link → `/dash/classic`. Gates updated to the new contract
+   (classic LENS pages still carry zero Graphite links — `test_classic_pages_never_link_the_home`).
+4. ⛔ **STILL OPEN — needs the OWNER's OK (do not assume):** retire `/dash/preview` +
+   `/dash/preview/stock` and their `*_v3` modules (`stock_hub_v3` · `hub_sections_v3` ·
+   `stock_chart_v3` · `today_v3` · `shell_v3` · `news_dock` …). That is **deleting another lane's
+   work** (Guardrail #0 = surface first). Its Graphite twin shipped (`815c941`), so only the decision
+   is missing. Before deleting: check each module for other live callers, re-point any remaining
+   classic→preview affordances, re-run the route-registry + nav-orphan gates.
+5. ⏳ Then fold this carry-forward into `PROJECT_STATE.md` §Decision log (D148 is already there) +
+   `docs/redesign-coordination.md` (cutover note added) and `git rm` it — its Lifecycle retire
+   condition. **Retire it once (4) lands**, not before.
 
 ---
 
@@ -244,15 +254,16 @@ hermes-api` → `curl …/dash/home` 200 + structure grep → **the verify-curl 
 > OWN 3-year past, corporate-action-adjusted + gated, `sym_link` retargeted (225 Graphite links, 0
 > classic leftovers). **This CLEARED the cutover blocker.** Details + verdicts in §5-G.
 >
-> **THE MISSION THIS SESSION: §5-F CUTOVER — now unblocked, and it needs an OWNER DECISION FIRST.**
-> Promote `/dash/home` into nav + retire the old preview. **Do NOT just register a lens** — the home
-> is deliberately outside `lens_registry` because adding one drifts the classic nav (the thing every
-> guardrail protects). Present the two mechanisms — (a) register the Graphite pages as lenses, or
-> (b) make `/dash/home` the default landing and demote classic into the existing "Classic site"
-> directory — **recommend one, get the call, then execute** the §5-F 4-step sequence (retire
-> `/dash/preview*` + its `*_v3` modules only after checking for other live callers; re-run the
-> route-registry + nav-orphan gates; then fold this carry-forward into `PROJECT_STATE.md` and `git rm`
-> it per its Lifecycle banner).
+> **🚩 THE CUTOVER IS DONE (`4315ad7`, D148): `/dash` now 302s to the Graphite home; classic is
+> preserved at `/dash/classic`.** The Graphite home IS the site's default landing. Details §5-F.
+>
+> **THE MISSION THIS SESSION: finish the cutover's tail — §5-F step 4, which needs the OWNER's OK.**
+> Retiring `/dash/preview` + `/dash/preview/stock` and their `*_v3` modules is **deleting another
+> lane's work**, so ASK before deleting (Guardrail #0). Its Graphite twin `/dash/home/stock` is live,
+> so only the decision is missing. Sequence once approved: grep each `*_v3` module for other live
+> callers → remove routes → re-point any classic→preview affordance → re-run route-registry +
+> nav-orphan + isolation gates → then fold this doc into `PROJECT_STATE.md`/`redesign-coordination.md`
+> and `git rm` it (its Lifecycle retire condition).
 >
 > **Also open:** **§5-B3 (DEFERRED, owner's own idea — raise it):** "when a name is added, when is its
 > NEXT trigger?" (results date · ex-date · cadence-overdue). Discuss before building. Plus depth

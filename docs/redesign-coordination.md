@@ -39,8 +39,21 @@ Rules (binding for every redesign module):
 
 ## 2. Approval log
 
+> 🚩 **2026-07-27 — THE LANDING CUTOVER IS DONE (D148).** `/dash` now **302s to `/dash/home`** (the
+> Graphite home is the site's default landing); the classic home is preserved byte-identically at
+> **`/dash/classic`**, and every classic lens keeps its own URL + exact output. Owner chose mechanism
+> **(b)** (demote classic into the "Classic site" directory) over (a) registering Graphite pages as
+> lenses — (a) would have drifted the classic nav, since `lens_registry` generates it. Shipped as an
+> additive, unpluggable middleware `src/web/home/cutover.py` (**zero classic files edited**); the
+> redirect is **302 not 301** so rollback stays possible, and deleting the one
+> `_install_landing_cutover(app)` line in `v2_surfaces.wire` is the complete revert.
+> **Still open (needs owner OK):** retiring `/dash/preview` + `/dash/preview/stock` and their `*_v3`
+> modules — that deletes another lane's work, so it is surfaced, not assumed. Its Graphite twin
+> `/dash/home/stock` shipped in `815c941`, so nothing blocks that retirement but the decision.
+
 | Date | Actor | Decision |
 |---|---|---|
+| 2026-07-27 | Ramana | **APPROVED THE CUTOVER, mechanism (b)** — "go with (b), make /dash/home the default landing". Executed as D148 (`4315ad7`); classic preserved at `/dash/classic`. |
 | 2026-07-17 | Ramana | **APPROVED M0+M1+M2** (preview toggle · theme layer v3 · term chips) from `docs/redesign-plan-2026-07-17.md` §7.1. M3–M8 pending. |
 | 2026-07-17 | Codex | `VERDICT: APPROVE-WITH-CHANGES` — 5 BLOCKING + 3 ADVISORY (§3). Full text: `docs/codex-review/REDESIGN-M0M2-CODEX.md`. |
 | 2026-07-17 | Gemini | `VERDICT: APPROVE-WITH-CHANGES` — 2 BLOCKING + 3 ADVISORY + 5 chip-spec improvements (§4). |
