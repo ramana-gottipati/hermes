@@ -107,6 +107,11 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                         "direct-URL only, no lens/nav until cutover (zero classic drift)"),
     "/dash/home/_kit": ("graphite-home", "Graphite component-kit showcase — dev/preview-only, "
                                          "deliberately unlinked"),
+    "/dash/home/stock": ("graphite-home", "Graphite per-symbol evidence scroll (chart · self-relative "
+                                          "3-year reference · delivery · strength · positioning · "
+                                          "events) — the cutover-blocking twin of the retired preview's "
+                                          "/dash/preview/stock; reached from every Graphite symbol link, "
+                                          "direct-URL, no lens/nav until cutover"),
     "/dash/home/rotation": ("graphite-home", "Markets sector-rotation RRG (6/12/24-month journeys, "
                                              "fixed ~10-dot tails) — a declared child of the Graphite "
                                              "home, reached via 'See the full rotation →' from the Today "

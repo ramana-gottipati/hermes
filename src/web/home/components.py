@@ -36,9 +36,14 @@ def safe_url(url: str) -> str:
 
 
 def sym_link(symbol) -> str:
-    """A symbol that deep-links to its stock detail (one-way home -> classic /dash/stock)."""
+    """A symbol that deep-links to its stock detail — the GRAPHITE stock page (`/dash/home/stock`).
+
+    Retargeted from the classic `/dash/stock` once the Graphite stock page existed: the Graphite
+    experience must be self-contained to be cutover-ready (a symbol click must not eject the user
+    into classic chrome). Classic stays byte-untouched — only the home's OWN links moved — and the
+    Graphite stock page carries an explicit "Full classic view →" escape hatch."""
     s = esc(symbol)
-    return '<a class="g-syma" href="/dash/stock?sym=' + s + '">' + s + "</a>"
+    return '<a class="g-syma" href="/dash/home/stock?sym=' + s + '">' + s + "</a>"
 
 
 def add_toast(msg: str) -> str:
@@ -157,7 +162,8 @@ def _ord(n) -> str:
     return f"{i}{suf}"
 
 
-def ref_chip(ref: dict, unit: str = "", dp: int = 0, trend: str = None, bare: bool = False) -> str:
+def ref_chip(ref: dict, unit: str = "", dp: int = 0, trend: str = None, bare: bool = False,
+             scale: float = 1.0, rupee: bool = False) -> str:
     """THE reference chip — one consistent grammar on every Free number (owner's binding principle:
     a number in isolation is useless; the reference is the premium). Pro-only (carries `.pro-more`,
     so it is hidden in Free and revealed in Pro). Renders a compact two-line micro-block:
@@ -177,7 +183,10 @@ def ref_chip(ref: dict, unit: str = "", dp: int = 0, trend: str = None, bare: bo
     typ = ""
     t = r.get("typical")
     if t is not None:
-        typ = "typ " + f"{float(t):.{dp}f}{esc(unit)}"
+        # the typical MUST render in the same unit as the value it sits under (a raw 8102541000 next
+        # to "₹810.25Cr", or a fraction "-0.0%" next to "−4.2%", is a legibility defect): `rupee`
+        # routes through the ₹ scaler, `scale` converts a fraction to its display unit.
+        typ = "typ " + (_rupee(float(t)) if rupee else f"{float(t) * float(scale):.{dp}f}{esc(unit)}")
     tr = ""
     if trend in ("up", "down", "flat"):
         arr, word = {"up": ("↑", "rising"), "down": ("↓", "falling"), "flat": ("→", "steady")}[trend]
@@ -1139,7 +1148,7 @@ def _hm_tile(stk, r) -> str:
     sattr = (' data-surge="%.1f"' % float(surge)) if surge is not None else ""
     nattr = (' data-delivnorm="%.0f"' % float(dnorm)) if dnorm is not None else ""
     label = ('<span class="g-hm-l">' + sym + "</span>") if (w >= 4.2 and h >= 4.6) else ""
-    return ('<a class="g-hm-t ' + cls + '" href="/dash/stock?sym=' + sym + '" aria-label="' + sym + " " + esc(pct_s) + '" '
+    return ('<a class="g-hm-t ' + cls + '" href="/dash/home/stock?sym=' + sym + '" aria-label="' + sym + " " + esc(pct_s) + '" '
             'data-sym="' + sym + '" data-pct="' + esc(pct_s) + '" data-turn="' + esc(turn) + '" data-deliv="' + esc(deliv_s) + '"'
             + sattr + nattr
             + ' style="left:' + f"{left:.2f}" + "%;top:" + f"{top:.2f}" + "%;width:" + f"{w:.2f}"

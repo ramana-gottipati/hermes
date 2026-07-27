@@ -648,6 +648,230 @@ def watchlist_rows(conn, limit: int = 50) -> list:
     return out
 
 
+# ── the Graphite STOCK page: per-symbol core · series · self-relative reference · events ──────────
+_SYM_RE = re.compile(r"[^A-Z0-9&.\-]")
+_SELF_WIN = 756      # ~3y trailing self-normalisation window (same basis as /dash/self-history)
+_MOM_N = 63          # ~3-month momentum lookback
+
+
+def clean_symbol(symbol: str) -> str:
+    """Normalise a user/URL-supplied symbol to the stored NSE form. '' if nothing usable."""
+    return _SYM_RE.sub("", (symbol or "").strip().upper())[:24]
+
+
+def stock_core(conn, sym: str) -> dict:
+    """Identity + today's bar + the nightly signals row for one symbol. {} if unknown/absent.
+    `pct` is the day move; `signals` carries the (already-computed) nightly analytics."""
+    sym = clean_symbol(sym)
+    if not sym or not _has(conn, "bhavcopy_rows"):
+        return {}
+    rows = _rows(conn, "SELECT trade_date, close, prev_close, open, high, low, value, deliv_per "
+                       "FROM bhavcopy_rows WHERE symbol=? AND series IN ('EQ','BE') "
+                       "ORDER BY trade_date DESC LIMIT 1", (sym,))
+    if not rows:
+        return {}
+    b = rows[0]
+    try:
+        pct = ((b["close"] - b["prev_close"]) / b["prev_close"] * 100.0) if b.get("prev_close") else None
+    except (TypeError, ZeroDivisionError):
+        pct = None
+    out = {"symbol": sym, "date": b.get("trade_date"), "close": b.get("close"), "pct": pct,
+           "open": b.get("open"), "high": b.get("high"), "low": b.get("low"),
+           "turnover": b.get("value"), "deliv": b.get("deliv_per"), "signals": {}, "name": ""}
+    if _has(conn, "stock_signals"):
+        sd = _latest_date(conn, "stock_signals", "trade_date")
+        if sd:
+            sr = _rows(conn, "SELECT * FROM stock_signals WHERE symbol=? AND trade_date=?", (sym, sd))
+            if sr:
+                out["signals"] = sr[0]
+    # company_about carries only (about, screener_industry) — there is no company-name column, so the
+    # header leads with the SYMBOL (never a fabricated name). screener_industry is Screener-derived →
+    # shown only as a secondary label and DISCLOSED on the surface (Guardrail #8); the canonical
+    # sector is stock_signals.primary_sector.
+    if _has(conn, "company_about"):
+        ca = _rows(conn, "SELECT about, screener_industry FROM company_about WHERE symbol=? LIMIT 1", (sym,))
+        if ca:
+            out["about"] = ca[0].get("about") or ""
+            out["industry"] = ca[0].get("screener_industry") or ""
+    return out
+
+
+def stock_series(conn, sym: str, n: int = 250) -> dict:
+    """Chronological close / delivery-% / turnover series for the page chart. Close is
+    CORPORATE-ACTION ADJUSTED (see _ca_factors) so a split/bonus does not read as a crash.
+    {} if too little history."""
+    sym = clean_symbol(sym)
+    if not sym or not _has(conn, "bhavcopy_rows"):
+        return {}
+    rows = _rows(conn, "SELECT trade_date, close, deliv_per, value FROM bhavcopy_rows "
+                       "WHERE symbol=? AND series IN ('EQ','BE') AND close>0 "
+                       "ORDER BY trade_date DESC LIMIT ?", (sym, int(n)))
+    if len(rows) < 5:
+        return {}
+    rows = rows[::-1]
+    evs = _ca_factors(conn, sym)
+    dts = [r.get("trade_date") for r in rows]
+    close = [float(r["close"]) * _adj_factor(evs, r.get("trade_date")) for r in rows]
+    return {"dates": dts, "close": close,
+            "deliv": [r.get("deliv_per") for r in rows],
+            "turnover": [r.get("value") for r in rows]}
+
+
+def _ca_factors(conn, sym: str) -> list:
+    """(ex_date, factor) for SPLIT/BONUS — pre-ex prices multiply by the cumulative factor to sit on
+    today's basis. SPLIT rf->rt ⇒ ×(rt/rf); BONUS a:b ⇒ ×(rt/(rf+rt)).
+
+    METHOD replicated (deliberately, NOT imported) from the parallel lane's /dash/self-history —
+    that module is a web-VIEW module, so importing it would break the home's isolation gate. The
+    hazard it proved is load-bearing: raw NSE close is unadjusted, so a 1:1 bonus halves the close
+    and fakes a −50% 'crash' in any price/momentum percentile."""
+    out = []
+    if not _has(conn, "corporate_actions"):
+        return out
+    for r in _rows(conn, "SELECT action_type, ex_date, ratio_from, ratio_to FROM corporate_actions "
+                         "WHERE symbol=? AND action_type IN ('SPLIT','BONUS') AND ex_date IS NOT NULL", (sym,)):
+        at, ex, rf, rt = r.get("action_type"), r.get("ex_date"), r.get("ratio_from"), r.get("ratio_to")
+        try:
+            if at == "SPLIT" and rf:
+                out.append((ex, float(rt) / float(rf)))
+            elif at == "BONUS" and rf is not None and rt is not None and (float(rf) + float(rt)):
+                out.append((ex, float(rt) / (float(rf) + float(rt))))
+        except (TypeError, ValueError, ZeroDivisionError):
+            continue
+    return out
+
+
+def _adj_factor(evs: list, d) -> float:
+    f = 1.0
+    for ex, ff in evs:
+        if d is not None and ex and ex > d:
+            f *= ff
+    return f
+
+
+def _sm5(a: list, k: int = 5) -> list:
+    return [sum(a[max(0, i - k + 1):i + 1]) / len(a[max(0, i - k + 1):i + 1]) for i in range(len(a))]
+
+
+def stock_selfref(conn, sym: str) -> dict:
+    """THE premium on the stock page: every number ranked 0-100 against THIS stock's OWN ~3-year
+    past — price · 3-month momentum · delivery-% · turnover · daily range ("coil"). Same self-relative
+    basis and vocabulary as `/dash/self-history` (method replicated, module not imported — isolation).
+
+    Price + momentum run on a SPLIT/BONUS-ADJUSTED close (corporate-action hygiene is load-bearing);
+    delivery / turnover / range are action-neutral. Each entry = {'today','pctile','typical','n'} so
+    it feeds `components.ref_chip` unchanged. {} if <200 sessions (too thin to be honest).
+    STRICTLY DESCRIPTIVE — "extreme vs its own past" says nothing about forward return."""
+    sym = clean_symbol(sym)
+    if not sym or not _has(conn, "bhavcopy_rows"):
+        return {}
+    rows = _rows(conn, "SELECT trade_date, close, high, low, value, deliv_per FROM bhavcopy_rows "
+                       "WHERE symbol=? AND series IN ('EQ','BE') AND close>0 "
+                       "ORDER BY trade_date DESC LIMIT ?", (sym, _SELF_WIN))
+    if len(rows) < 200:
+        return {}
+    rows = rows[::-1]
+    evs = _ca_factors(conn, sym)
+    dts = [r.get("trade_date") for r in rows]
+    close = [float(r["close"]) * _adj_factor(evs, dts[i]) for i, r in enumerate(rows)]
+    n = len(close)
+
+    def _entry(vals, today):
+        p = _pct_rank(vals, today)
+        if p is None:
+            return None
+        return {"today": today, "pctile": p, "typical": _median(vals), "n": len(vals)}
+
+    out = {"n": n, "adjusted": bool(evs), "from": dts[0], "to": dts[-1]}
+    e = _entry(close, close[-1])
+    if e:
+        out["price"] = e
+    moms = [close[i] / close[i - _MOM_N] - 1.0 for i in range(_MOM_N, n) if close[i - _MOM_N]]
+    if moms:
+        e = _entry(moms, moms[-1])
+        if e:
+            out["mom"] = e
+    dp = [r.get("deliv_per") for r in rows]
+    known = [d for d in dp if d is not None]
+    if known:
+        filled = [float(d) if d is not None else float(known[-1]) for d in dp]
+        sm = _sm5(filled)
+        e = _entry(sm, sm[-1])
+        if e:
+            out["deliv"] = e
+    tv = [float(r["value"]) for r in rows if r.get("value") is not None]
+    if len(tv) >= 200:
+        e = _entry(tv, tv[-1])
+        if e:
+            out["turn"] = e
+    rng = []
+    for r in rows:
+        hi, lo, cl = r.get("high"), r.get("low"), r.get("close")
+        try:
+            if hi is not None and lo is not None and cl:
+                rng.append((float(hi) - float(lo)) / float(cl) * 100.0)
+        except (TypeError, ZeroDivisionError):
+            continue
+    if len(rng) >= 200:
+        e = _entry(rng, rng[-1])
+        if e:
+            out["coil"] = e
+    return out
+
+
+def _pct_rank(vals: list, x) -> Optional[float]:
+    """percentile (0..100) of x within vals; needs >=120 usable points (the honest floor)."""
+    v = [float(f) for f in vals if f is not None]
+    if x is None or len(v) < 120:
+        return None
+    return 100.0 * sum(1 for f in v if f <= float(x)) / len(v)
+
+
+def stock_events(conn, sym: str, limit: int = 8) -> dict:
+    """Per-symbol context: upcoming/recent corporate actions + ownership filings. Bounded + defensive;
+    {} keys simply absent when a table is missing."""
+    sym = clean_symbol(sym)
+    out = {"ca": [], "filings": []}
+    if not sym:
+        return out
+    if _has(conn, "corporate_actions"):
+        out["ca"] = _rows(conn, "SELECT action_type, ex_date, details FROM corporate_actions "
+                                "WHERE symbol=? AND ex_date IS NOT NULL ORDER BY ex_date DESC LIMIT ?",
+                          (sym, int(limit)))
+    evs = []
+    if _has(conn, "insider_events"):
+        qs = ",".join("?" * len(_INSIDER_NOISE))
+        evs += [_insider_ev(r) for r in _rows(
+            conn, "SELECT symbol, disclosure_dt, txn_class, signal_class, promoter_group_flag "
+                  f"FROM insider_events WHERE symbol=? AND COALESCE(signal_class,'') NOT IN ({qs}) "
+                  "ORDER BY disclosure_dt DESC LIMIT ?", (sym, *_INSIDER_NOISE, int(limit)))]
+    if _has(conn, "sast_pledge_events"):
+        evs += [_pledge_ev(r) for r in _rows(
+            conn, "SELECT symbol, broadcast_dt, event_type, event_pct FROM sast_pledge_events "
+                  "WHERE symbol=? ORDER BY broadcast_dt DESC LIMIT ?", (sym, int(limit)))]
+    if _has(conn, "sast_reg29_events"):
+        evs += [_reg29_ev(r) for r in _rows(
+            conn, "SELECT symbol, broadcast_dt, acq_sale, promoter_flag FROM sast_reg29_events "
+                  "WHERE symbol=? ORDER BY broadcast_dt DESC LIMIT ?", (sym, int(limit)))]
+    evs.sort(key=lambda e: (e.get("date") or ""), reverse=True)
+    out["filings"] = evs[:limit]
+    return out
+
+
+def symbol_suggest(conn, q: str, limit: int = 8) -> list:
+    """Symbol lookup for the stock-page search box — prefix match on recently-traded EQ/BE names,
+    ordered by turnover (the liquid ones first). [] on anything unusable."""
+    q = clean_symbol(q)
+    if not q or not _has(conn, "bhavcopy_rows"):
+        return []
+    d = _latest_date(conn, "bhavcopy_rows", "trade_date")
+    if not d:
+        return []
+    return [r["symbol"] for r in _rows(
+        conn, "SELECT symbol FROM bhavcopy_rows WHERE trade_date=? AND series IN ('EQ','BE') "
+              "AND symbol LIKE ? ORDER BY value DESC LIMIT ?", (d, q + "%", int(limit)))]
+
+
 def watch_add(conn, symbol: str) -> tuple:
     """Add a name to the canonical D54 watch tier (`stocks_in_play` status='watch') — the SAME tier
     watchlist_rows reads first, so a home add shows up immediately, and date_added is recorded

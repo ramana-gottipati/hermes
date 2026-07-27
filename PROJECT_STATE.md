@@ -2243,6 +2243,41 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Graphite Home — 2026-07-27 — THE GRAPHITE STOCK PAGE (§5-F unblocker) — `/dash/home/stock`
+Built the per-symbol evidence scroll — **the one thing that was blocking cutover** (the old
+`/dash/preview/stock` was the last surface the retired preview uniquely served). New module
+`src/web/home/stock_view.py` + 6 new reads; 101 gates green (12 new); deployed + box-verified.
+- **Built FROM SCRATCH, not wrapped.** The old hub is `stock_hub_v3`/`hub_sections_v3`/`stock_chart_v3`
+  — all `*_v3` render modules the isolation gate BANS from `src/web/home/`. So the Graphite page has
+  its own reads (`stock_core` · `stock_series` · `stock_selfref` · `stock_events` · `symbol_suggest` ·
+  `clean_symbol`) and its own render layer. 18-37ms per page, box-measured.
+- **Its SPINE is the reference layer** (the owner's principle, at the stock level): 5 metrics — price ·
+  3-month momentum · delivery · turnover · coil — each ranked 0-100 vs THIS stock's OWN ~3-year past,
+  feeding the existing `components.ref_chip` unchanged. Free shows every number complete; Pro shows the
+  reference. Same self-relative basis + vocabulary as `/dash/self-history` — **method replicated,
+  module NOT imported** (it is a web-VIEW module; importing breaks isolation).
+- **🔴 Corporate-action hygiene is load-bearing and IMPLEMENTED** (`_ca_factors`/`_adj_factor`): raw NSE
+  close is unadjusted, so a 1:1 bonus halves it and fakes a −50% crash in any price/momentum percentile.
+  Price+momentum run on a split/bonus-ADJUSTED close; delivery/turnover/range are action-neutral.
+  **Cross-validated on the box:** NESTLEIND computes to the **97th** price percentile — exactly the
+  figure the parallel lane documented after adjusting its 1:10 split + 1:1 bonus (raw would read 28th).
+  A dedicated gate (`test_corporate_action_adjustment_is_applied_to_self_percentiles`) pins it.
+- **Sections:** header (symbol · sector · close · move · **+ Add to watchlist** reusing the home-owned
+  write · **Full classic view →** escape hatch) · price+delivery chart (server SVG, adjusted close,
+  251 delivery bars) · the self-relative panel · delivery & accumulation (own 1m/6m norms + Pro power-
+  delivery/up-down ratio) · relative strength (rank/phase/trend + Pro slopes & RSI-of-RS) · positioning
+  & key zones · corporate actions & filings. Symbol lookup form; unknown symbol degrades honestly.
+- **🔴 CUTOVER-READINESS: `components.sym_link` retargeted** `/dash/stock` → `/dash/home/stock`, plus the
+  heatmap tiles. Box-verified on the live home: **225 Graphite stock links, 0 leftover classic links** —
+  a symbol click no longer ejects the user into classic chrome. Classic stays byte-untouched (only the
+  home's OWN links moved) and the stock page carries the explicit classic escape hatch.
+- **Registered** in `test_dash_route_registry` INTERNAL_DEV (graphite-home). New gate
+  `tests/test_home_stock.py` (12 tests: reads · CA adjustment · 5-metric coverage · thin-history honesty
+  · all zones · Free-complete/Pro-gated · unknown symbol · XSS/SQLi escaping · no preview marker ·
+  link retarget). Fixed a chip defect found in the RENDERED output: the reference "typical" now renders
+  in the same unit as the value above it (`ref_chip(scale=, rupee=)`) — it was showing a raw
+  `8102541000` under "₹921.63Cr" and `-0.0%` under "−4.2%".
+
 ### Graphite Home — 2026-07-27 — HEATMAP ENHANCEMENTS (§5-E) — colour-by-delivery · size selector · Pro "unusual for this stock"
 Closed §5-E, the last queued Graphite home unit. Additive/isolated, 89 gates green, deployed + box-verified.
 - **Colour-by-delivery toggle.** `_hm_tile` now emits a second intensity `--d` (delivery 25%→0 … 80%→1,

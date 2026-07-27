@@ -16,7 +16,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from src.web.home import components as C
-from src.web.home import reads, shell
+from src.web.home import reads, shell, stock_view
 
 router = APIRouter()
 
@@ -70,6 +70,32 @@ def rotation(request: Request) -> HTMLResponse:
     except Exception:  # noqa: BLE001 — a heavy/edge read must never 500 the page
         body = C.fence("Sector-rotation data hasn't landed yet.") + C.empty("Check back after the next nightly run.")
     return HTMLResponse(shell.shell("Rotation", body, current="Markets", pat_html=pat))
+
+
+@router.get("/dash/home/stock", response_class=HTMLResponse, include_in_schema=False)
+def stock(request: Request) -> HTMLResponse:
+    """The Graphite STOCK page — the per-symbol evidence scroll (the unit that unblocks cutover: the
+    old `/dash/preview/stock` was the last thing the retired preview uniquely served). Built from
+    scratch in the home package (no `*_v3` import — isolation gate). Its spine is the REFERENCE layer:
+    every number ranked vs THIS stock's own ~3-year past. Read-only; never 500s."""
+    from src.core.db import get_conn
+    sym = reads.clean_symbol(request.query_params.get("sym", ""))
+    body, pat = "", ""
+    try:
+        with get_conn() as conn:
+            conn.row_factory = __import__("sqlite3").Row
+            core = reads.stock_core(conn, sym) if sym else {}
+            series = reads.stock_series(conn, sym) if core else {}
+            ref = reads.stock_selfref(conn, sym) if core else {}
+            events = reads.stock_events(conn, sym) if core else {}
+            body = stock_view.stock_page(core, series, ref, events, sym=sym)
+            from src.web.home import pat_dock
+            pat = pat_dock.dock_html(conn)
+    except Exception:  # noqa: BLE001 — a busy/edge DB must never 500 the page
+        body = C.fence("Stock data hasn't landed yet.") + C.empty("Check back after the next nightly run.")
+    title = (sym + " — stock") if sym else "Stock"
+    return HTMLResponse(shell.shell(title, body, current="Stocks", pat_html=pat,
+                                    extra_head=stock_view.CSS))
 
 
 @router.post("/dash/home/watch/add", include_in_schema=False)
