@@ -206,6 +206,7 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 - `src/web/home/strategies_pages.py` + `strategies_blocks.py` + `strategies_reads.py` — the **Graphite Strategies workspace** (M7, lane W3-A, 2026-07-27): the 18 classic Strategies lenses consolidated into `/dash/home/strategies` + ten sub-routes per plan §1c + Part III §J. Same reads/render split as `reads.py`/`components.py` (`_reads` returns rows only, `_blocks` returns HTML only, `_pages` is the only place they meet); own `APIRouter` mounted by ONE additive `v2_surfaces._ROUTER_SPECS` tuple; all eleven routes registered in `tests/test_dash_route_registry.INTERNAL_DEV` as declared children (no `lens_registry` entry until cutover). Reuses ENGINE modules only (`strategy_registry` · `stock_rs.conviction_shortlist` · `insider_events` · `credit_ratings` · `sast_events` · `shareholding_xbrl` · `auto_portfolios` · `famous_strategies` · `factor_league` · `launchpad_signals`) — never a `src/web/*` view module, so the isolation gate holds. `python -m src.web.home.strategies_pages` = the 17-route selftest, which fails on the degraded branch and on any missing honesty fence.
 - `src/web/home/screen_pages.py` + `src/web/home/screen_reads.py` — **the Graphite SCREENER estate (W4 · milestone M8, 2026-07-27).** `screen_pages.py` owns its own `APIRouter` (mounted by ONE anchored `router.include_router` line at the foot of `src/web/home/__init__.py`) and serves two declared children: **`/dash/home/screen`** — the rebuild of classic `/dash/screen2`, with the identity spine (3 frozen cols) + a **72-column pool** across 14 families, 12 defaults, ~20 soft cap, 6 named views (`VIEWS`), server-side filter/sort/pagination into a fixed-size internally-scrolling frozen-pane grid, **`?format=csv` server export honouring the active state**, and **full URL-addressable state** (`parse_state`/`qs` are a proven round-trip fixed point — the URL IS the saved screen); and **`/dash/home/themes`** — the multi-label themes/baskets door that hands off via `?scope=theme:<tag>`. Payload is bounded BY CONSTRUCTION via the `CELL_BUDGET`/`effective_n` pair (a wide view renders shorter pages, disclosed in the pager): worst reachable state 261 KB vs classic's ~2.3 MB. `screen_reads.py` is the lane-owned read layer (bounded, defensive, precomputed tables only; the self-scaling 30th-percentile turnover liquidity gate; auxiliary lookups run ONLY when the active view needs them). Both obey the isolation ban — no classic/preview render module, no `lens_registry` edit, no nav until cutover. Gate: `tests/test_home_screen.py`.
 - `tests/test_home_screen.py` — the W4 screener gate (24 tests): the three debt fixes pinned (payload projected across every reachable state, CSV-honours-filter/sort/columns, URL-state round-trip + every control carries state), plus glossary-backed columns, columns-never-paywalled, `?sym=` links to the Graphite stock page, descriptive fences travelling with their family, demo honesty, clamp-don't-422, and an explicit parity verdict for all five screener surfaces.
+- `src/web/home/preview_retired.py` — **(W6, 2026-07-27) the PREVIEW RETIREMENT** (D149). One tiny compat router, mounted by ONE `_ROUTER_SPECS` tuple that REPLACED the four preview mounts: every retired URL 302s to its Graphite twin (`/dash/preview`→`/dash/home` · `/dash/preview/stock?sym=`→`/dash/home/stock?sym=` with the symbol URL-quoted · `/dash/preview/stock/export`→the stock page · `/dash/_ui3`→`/dash/home/_kit`). Handler names are `compat_*`, so `test_dash_route_registry.classify()` reads them as `compat_redirect` from the DERIVED rule and no hand-maintained table row exists for them at all. The render modules (`v3_preview` · `today_v3` · `stock_hub_v3` · `hub_sections_v3` · `stock_chart_v3` · `shell_v3` · `ui_showcase_v3` · `news_dock` · `term_chip` · `ui_*_v3`) are DE-ROUTED, not deleted — restoring the four tuples is the whole revert. Gate: `tests/test_preview_retired.py` (8).
 - `src/web/home/journey.py` — **(W5, 2026-07-27) the M6 guided/help layer**, lane-owned and adoptable with ZERO shared-file edits. `assets()` (CSS + the help injector + the one-shot-nudge JS, for `shell.shell(..., extra_head=)`) · `help_link()` (the standing "New here? How to read →", server-rendered then MOVED into `.g-top` by progressive enhancement, because `shell.py` is co-edited) · `nudge()` (one tip, one time ever, `localStorage pvgnudge`; ×/Esc/scroll/anchor dismiss) · **`teaching_empty(why, href, label)` — all three MANDATORY, so a bare "no data" cannot be constructed** (raises `ValueError`) · `STEPS`/`steps_block()` (the 5-step arc as structure, never a tour) · `EXITS`/`exits_block()` (the 4 per-persona exits, ≤1 click, asserted) · `replay_card(facts)` (the Today-page card for Replay-any-date — a COMPONENT plus an integration note; this lane does not edit `_compose`). Structurally tourless: no backdrop, focus trap, scroll lock, step counter or "next" — gate-asserted.
 - `src/web/home/trust_pages.py` — **(W5) the Graphite Trust & Proof estate**: its own `APIRouter` (mounted by ONE `include_router` line in `home/__init__.py`) serving 8 declared children + 1 fragment endpoint — `/dash/home/proof` (← coverage) · `/dash/home/validation` (← testing; `?pack=1` ← evidence-pack, merged) · `/dash/home/prereg` (← spec-sheets) · `/dash/home/rule-lab` (all verdict state in the query string) · `/dash/home/replay` (← replay-any-date) · `/dash/home/glossary` · `/dash/home/strategy-ref` (`?p=slug`) · `/dash/home/guide` (← reading-guide) · `GET /dash/home/pat/ask`. Fixed-height internally-scrolling boxes, `?sym=` links into `/dash/home/stock`, teaching empties in every honest-empty branch, **no `pro_teaser` anywhere** (evidence is never gated). Includes a small DOM-safe markdown renderer for the strategy docs.
 - `src/web/home/trust_reads.py` — **(W5) the Trust read layer** (rows/dicts/text only, never HTML — the `reads.py` contract). Reads each classic twin's OWN source so nothing is copied: `glossary_entries()`/`glossary_families()` via `src.web.glossary`'s single parse (261/39) · `strategy_pages()` DERIVED from `docs/strategies/` + `strategy_doc()` through **`public_text()`, a widened public sanitizer** (the classic one misses `S164BB`/`S155-e`/`S1234`; this one scrubs them and drops any residual internal line) · `coverage()` via `automation.provenance` · `validation()`/`validation_holdings()` from research.db · `spec_sheets()` from the one content source · `rule_*()` via `automation.rule_lab` (the engine) · `replay()`/`replay_facts()` via the real in-process `/v1` calls. Every read degrades to an explicit "not present" the page turns into a teaching empty.
@@ -652,6 +653,59 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D149 — THE PREVIEW IS RETIRED (de-routed, not deleted), the nav gets ONE allowlist authority, and the six Graphite doors all land inside Graphite (2026-07-27, cutover lane W6)
+The last cutover unit. Four decisions, each with the observation that forced it.
+
+**1. The old preview is RETIRED — de-routed, never deleted** (the owner OK D148 left open is on record
+in `3d13d97`). The four `_ROUTER_SPECS` mounts (`v3_preview` · `ui_showcase_v3` · `stock_hub_v3` ·
+`stock_chart_v3`) are replaced by ONE compat router, `src/web/home/preview_retired.py`, which 302s each
+old URL to its Graphite twin: `/dash/preview`→`/dash/home` · `/dash/preview/stock?sym=X`→
+`/dash/home/stock?sym=X` (symbol carried, URL-quoted — the `M&M` bug class) · `/dash/preview/stock/export`
+→the stock page · `/dash/_ui3`→`/dash/home/_kit`. **302, never 301**, for D148's exact reason: a cached
+permanent redirect kills the rollback. The RENDER MODULES stay in the tree and in git history — traced
+first: nothing outside that cluster imports them (the only mentions elsewhere are the isolation gate's
+BANNED list and docstrings explaining why Graphite may not touch them), so de-routing strands nothing.
+`POST /dash/preview/toggle` is de-routed with NO redirect: it set the `pv3` opt-in cookie for an opt-in
+that no longer exists, and a POST endpoint is not a bookmark. **One honest gap, disclosed not papered
+over:** the hub's series-CSV export has no Graphite twin (`stock_chart_g.py` never carried one), so that
+URL preserves the LINK, not the CAPABILITY.
+
+**2. The nav gate gets ONE allowlist authority.** OBSERVED, not assumed: `scripts/nav_integrity_gate.py`
+kept its own `INTENTIONAL_NON_NAV` (28 entries) beside the machine-readable tables in
+`tests/test_dash_route_registry.py` (48) — two lists for one job, and they had drifted far enough that the
+script called `/dash/home/internals` an orphan while it sat in the Graphite top bar, 39 "orphans" in
+total, while the suite was green. Neither could be trusted. The script now DERIVES its allowlist by
+importing that test module and asking `classify()` for each route's kind; anything not a `lens` is
+legitimately not a nav tab, and every non-derivable kind there already demands an owner + rationale
+(playbook §5). The explicit human act is unchanged — it just happens in ONE place.
+`test_the_nav_gate_has_no_second_allowlist` stops the second list growing back.
+
+**3. A fourth contract, because contract B has a Graphite-shaped blind spot.** D148 rejected registering
+Graphite pages as lenses, so the ENTIRE new site is `internal_dev` — a kind contract B exempts by design.
+Without a new contract the whole estate could sit unreachable and gate green, which is exactly what was
+happening: measured on the box, 17 built Graphite pages had NO inbound link. **Contract D:** every
+`/dash/home*` page must be reachable from the post-cutover front door unless its OWN registry rationale
+says it is not a destination ("deliberately unlinked" / "not a page" — the two phrases already used
+verbatim by `/dash/home/_kit` and `/dash/home/pat/ask`). Reachability is now measured by crawling from
+`/dash` (which 302s into Graphite), not from the classic chrome.
+
+**4. All six Graphite doors land inside Graphite.** `shell.DESTS` had two still ejecting the reader into
+classic from the top bar of every page: **Stocks** → `/dash/home/screen` (the v3 contract made "Stocks"
+the workspace landing with the Screener first; the alternative `/dash/home/stock` is a bare ticker input,
+a dead end for anyone who doesn't know the ticker, and it is already reached from every symbol link) and
+**Proof** → `/dash/home/proof` (the only inbound link to the whole Trust cluster — validation · prereg ·
+rule-lab · replay · glossary · strategy-ref · guide, none of which had ANY before). Both machine-pinned.
+The W2-A "Markets depth" strip — whose own comment said "until W6 wires nav" — gained the eight
+cross-links that reach W2-B/W2-C (strength · sectors · seasonal · patterns · own-history · anatomy ·
+compare · rotation). Three stale in-package classic links retargeted to live twins (screener glossary ·
+stock-page not-found → screener · stock-page launchpad + seasonal cross-links).
+
+**Milestones flipped on evidence, not optimism** (`test_done_milestones_are_fully_ported` enforces it):
+M6 + M8 → DONE (nothing assigned to either was unbuilt); M7 → DONE after `shp` was BOX-VERIFIED — the
+quarter matrix renders 40 symbols × 8 quarters off the separate research store and its cells cross-check
+exactly against `research.db.shareholding_history` (89,943 rows). **M-Markets stays PLANNED** — 11
+surfaces still DEFERRED, and a milestone board that lies is worse than one that shows a backlog.
+
 ### D148 — THE LANDING CUTOVER: the Graphite home is the default landing; classic is demoted to a directory, not retired (2026-07-27, owner call)
 **Decision (Ramana, asked and answered):** mechanism **(b)** — make `/dash/home` the default landing and
 demote the classic dashboard into the "Classic site" directory the Graphite chrome already carries.
@@ -678,6 +732,7 @@ correct post-cutover behaviour, and it required no classic edit. The Graphite ch
 to know the new home exists. Only the landing moved.
 **Still open (NOT done here, needs an owner OK):** retiring `/dash/preview` + `/dash/preview/stock` and
 their `*_v3` modules — that is DELETING another lane's work, so it is surfaced, not assumed.
+→ **CLOSED by D149** (owner OK recorded in `3d13d97`): de-routed to 302 compat redirects, modules kept.
 
 ### D148-b — Symbol links inside Graphite resolve INSIDE Graphite; the one classic exit is a declared, labelled escape hatch (2026-07-27)
 *(The call-site flips themselves landed on `main` via the integration lane's **`5115eee`** — `pat_dock.py`
@@ -2358,6 +2413,59 @@ sequence in each changed row is identical before and after.
   5 pre-existing in `test_home_screen.py` (screener lane) and proven so by re-running them at HEAD.
 - Files: `docs/strategy-ledger.md` · `src/automation/rule_lab.py` · `src/web/home/trust_pages.py` ·
   `tests/test_rule_lab.py` · `tests/test_retvol_label_gate.py` · `tests/test_home_journey.py`.
+### Graphite cutover W6 — 2026-07-27 — THE CUTOVER MECHANICS: preview retired, nav given ONE authority, all six doors land in Graphite, M6/M7/M8 flipped on evidence (D149)
+Branch `lane/w6-cutover` off `0f296cf`. The last build lane. Suite **1027 / 0 failed / 1 skipped**
+(baseline 1049; every one of the −22 accounted below). `nav_integrity_gate.py` **exit 0** —
+first time honestly, not by allowlisting.
+- **Preview RETIRED, de-routed not deleted** (owner OK `3d13d97`). Four `_ROUTER_SPECS` mounts → one
+  compat router `src/web/home/preview_retired.py`; four 302s to Graphite twins, `sym` carried and
+  URL-quoted. Traced BEFORE touching: nothing outside the preview cluster imports those modules.
+  `POST /dash/preview/toggle` de-routed with no replacement (an opt-in that no longer exists; a POST
+  is not a bookmark). **Disclosed gap:** the hub's series-CSV has no Graphite twin, so that URL
+  preserves the link, not the capability.
+- **The isolation-contract question, ANSWERED (a): the D148 cutover never falsified it.** The W0
+  concern was that assertions #3/#5 go false at the flip. They did not, and the proof is that both
+  were green in the 1049 baseline on `origin/main` — the middleware is a path rewrite, so no classic
+  page was ever edited and Graphite never leaked onto one. What DID falsify one line was MY OWN
+  retirement: `/dash/preview` was a probe page in #3, and it now 302s INTO Graphite, so following it
+  and asserting "no Graphite marker" would assert that the home is not the home. Re-spec is exactly
+  one list element + the test's name; the two classic probes are untouched. #5 needed nothing.
+- **ONE allowlist authority.** `nav_integrity_gate.py` kept its own 28-entry `INTENTIONAL_NON_NAV`
+  beside the test's 48 — drifted far enough to call `/dash/home/internals` (in the Graphite top bar)
+  an orphan, 39 in total, while the suite was green. The script now DERIVES the allowlist from
+  `tests/test_dash_route_registry.classify()`; `test_the_nav_gate_has_no_second_allowlist` blocks the
+  regrowth. Two pre-existing "orphans" needed no allowlist at all once derived:
+  `/dash/wolfe/learnings` is `api_or_action` (GET+POST JSON store — the Wolfe lane's code untouched),
+  `/dash/sideways-parity` is `internal_dev` "deliberately unlinked".
+- **Contract D, because B has a Graphite-shaped blind spot.** D148 rejected lens registration, so the
+  whole new site is `internal_dev` — a kind B exempts. Measured (box + local, identical): **17 built
+  Graphite pages had zero inbound links.** Fixed by wiring, not by allowlisting: DESTS Stocks →
+  `/dash/home/screen`, Proof → `/dash/home/proof` (that one repoint alone unlocked the 8-page Trust
+  cluster); the W2-A Markets-depth strip — whose own comment read "until W6 wires nav" — gained the
+  8 cross-links reaching W2-B/W2-C; 3 stale in-package classic links retargeted. Gate now: 55
+  surfaces crawled from the real front door, 185 reachable, A/B/C/D all PASS.
+- **Milestones flipped on evidence.** M6 + M8 → DONE (zero assigned surfaces unbuilt). M7 → DONE after
+  BOX-VERIFYING `shp` read-only: 40 symbols × 8 quarters (2025-08→2026-07), zero empty-state markers,
+  cells matching `research.db.shareholding_history` exactly (AARTIDRUGS 2026-03 = 55.03 / 1.57 / 10.22
+  → renders 55.0 / 1.6 / 10.2; store = 89,943 rows / 1,967 symbols). Parity now **PORTED 56 ·
+  DEFERRED 11 · DROPPED 5 · NA 2 · 0 UNSCOPED**. **M-Markets stays PLANNED** — 11 real DEFERRED.
+- **Hygiene.** The `sideways_parity` docstring's "73-surface / 257-metric / 17-strategy" (reality
+  74/265/16) is not corrected but REMOVED, with the rule written in its place: a derived inventory
+  must never restate its own output by hand — ask `summary()`. The duplicate `seasonal_screen_view`
+  in `_ROUTER_SPECS` was TRACED and is **not a defect**: one module serving two lenses from one
+  router, the mount loop skips the second inclusion, and the second tuple is load-bearing as
+  `wire()`'s self-check that the module's second route mounted (both paths carry exactly one handler
+  + one D80 `compat_*` 307, same as every lens). Documented in place so it isn't re-audited.
+- **Suite delta, fully accounted (−22):** deleted `tests/test_v3_today.py` (−11) and
+  `tests/test_v3_stock_hub.py` (−18) — every test in both asserted the RENDERED preview surfaces,
+  which no longer serve; keeping them green would be polishing an unreachable module (the same
+  argument W1 used to refuse re-pinning the chart fork). `test_v3_isolation.py` −2 (its two
+  route-serving tests moved to the retirement gate) and its dock test converted to renderer-level;
+  its still-live contracts KEPT, including the term-chip round-trip, which is the only gate on
+  `docs/metric-verdicts.md`. New `tests/test_preview_retired.py` +8, route-registry +1.
+- Gates: suite 1027/0/1 · `nav_integrity_gate` exit 0 (A/B/C/D PASS) · `doc_hygiene_gate` 5/5 clean ·
+  `test_pat_coverage` 17 green with Graphite deliberately OUT of `lens_registry` (no gate demands
+  otherwise — the coverage gate derives its lens set FROM the registry) · parity gate 7 green.
 
 ### Graphite cutover INTEGRATION-2 — 2026-07-27 — the last four lanes merged; cross-lane retargets
 Branch `lane/integrate-2` off `74e71a0`. Serial merge of W1-convergence → W3-A strategies → W4

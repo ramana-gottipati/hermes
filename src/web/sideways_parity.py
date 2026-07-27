@@ -4,8 +4,8 @@ is silently missed as the modern app ("Sideways") is rebuilt from scratch.
 The problem
 -----------
 Sideways is a from-scratch rebuild (redesign M0-M8; identity mid-reselection). A from-scratch
-rebuild is exactly where a 73-surface / 257-metric / 17-strategy estate loses things — not
-maliciously, just silently. "Be careful" does not scale. This module is the machine-enforced
+rebuild is exactly where an estate of this size loses things — not maliciously, just silently.
+"Be careful" does not scale. This module is the machine-enforced
 answer, same DNA as the gates that already keep the classic site honest (`test_dash_route_registry`
 = no orphan routes, `test_pat_coverage` = every lens known to Pat): a DERIVED inventory of the
 whole product estate, a DISPOSITION for every element, and a gate (`tests/test_sideways_parity.py`)
@@ -18,6 +18,13 @@ appears here the day it ships (it can never drift):
   * SURFACES   — `lens_registry.LENSES` (routed) — the screens a user would notice missing.
   * METRICS    — `docs/metrics-glossary.md` bullets — must stay explainable in Sideways.
   * STRATEGIES — `docs/strategies/*.md` — must stay represented (with their honesty verdict).
+
+⚠ THE COUNTS ARE NEVER WRITTEN DOWN HERE. This docstring used to open with "a 73-surface /
+257-metric / 17-strategy estate" — three numbers that were true the day they were typed and wrong
+by the time anyone read them (74 / 265 / 16 at the Graphite cutover). A derived inventory whose
+own documentation restates its output by hand is exactly the drift the module exists to prevent.
+Ask the code: `summary()` returns {surfaces, metrics, strategies, by_status, unscoped}, and the
+board at /dash/sideways-parity prints the live figures. If you need a number, run it.
 
 Every element carries a DISPOSITION
 ------------------------------------
@@ -59,12 +66,26 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 # ── the Sideways milestones (redesign M0-M8; docs/redesign-coordination.md §5) ───────
 # status: DONE (deployed) · PLANNED (spec/approved, not built) · OPEN (no milestone).
 MILESTONES: dict[str, tuple[str, str]] = {
+    # M3/M4/M5 were marked DONE against the PREVIEW estate; the W6 retirement (2026-07-27) moved
+    # each one's surface to its Graphite twin. Still DONE — the capability did not move milestone,
+    # it moved address: M3's wire → the home's Market-news zone, M4's hub → /dash/home/stock (the
+    # W1-CONVERGENCE lineage), M5's Today → the Graphite home, which IS the default landing (D148).
     "M3":       ("News / flow dock", "DONE"),
     "M4":       ("Stock hub (dossier)", "DONE"),
     "M5":       ("Today / orientation home", "DONE"),
-    "M6":       ("Journey / guided + help layer", "PLANNED"),
-    "M7":       ("Clusters & portfolios (Strategies + Tracker)", "PLANNED"),
-    "M8":       ("Screener", "PLANNED"),
+    # W6 FLIPS (2026-07-27) — each verified by running this module, not by reading the plan:
+    #   M6 → DONE: W5 ported all 11 trust surfaces (10 PORTED + inbox NA, owner write-desk); ZERO
+    #        surfaces still assigned to M6.
+    #   M7 → DONE: W3-A/W3-B ported Strategies + Tracker; the LAST holdout was `shp`, DEFERRED
+    #        pending a box read of the separate research store — box-verified this session (see its
+    #        SURFACE_PARITY note) and promoted to PORTED, which empties M7.
+    #   M8 → DONE: W4 rebuilt screen2 + themes (PORTED); screener + workbench DROPPED with
+    #        rationales, tags-review NA (owner write-desk). Nothing assigned to M8 is unbuilt.
+    # `tests/test_sideways_parity.test_done_milestones_are_fully_ported` is what makes each flip
+    # honest rather than optimistic: a DONE milestone with a non-PORTED surface fails the build.
+    "M6":       ("Journey / guided + help layer", "DONE"),
+    "M7":       ("Clusters & portfolios (Strategies + Tracker)", "DONE"),
+    "M8":       ("Screener", "DONE"),
     # Added 2026-07-24 (owner) to close the gap the parity ledger surfaced: the M6-M8 plan
     # scoped journey/clusters/screener but not the Markets analytical estate. M-Markets carries it.
     "M-Markets": ("Markets analytical estate (internals · anatomy · self-history · rotation · RS · "
@@ -86,10 +107,20 @@ _WS_MILESTONE: dict[str, str] = {
 #   NA      : target = ""; note = REQUIRED rationale.
 # Everything not listed here takes the per-workspace DEFERRED default above.
 SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
-    "markets": ("PORTED", "/dash/preview",
-                "M5 Today IS the migrated markets overview / orientation home"),
-    "wire":    ("PORTED", "/dash/preview",
-                "M3 news/flow dock (?ch=news) is the migrated News/Wire"),
+    # W6 RETARGET (2026-07-27): both used to point at /dash/preview, which is now RETIRED (302 →
+    # the Graphite home). A PORTED target that resolves to a redirect is a target that no longer
+    # says where the capability lives, so both move to the surface that actually carries them.
+    "markets": ("PORTED", "/dash/home",
+                "the Graphite home IS the migrated markets overview / orientation home — the M5 "
+                "Today anatomy (regime line · featured card · market map · pulse deck · today's "
+                "conviction · what changed) now serving as the site's default landing (D148)"),
+    "wire":    ("PORTED", "/dash/home",
+                "the 'Market news' zone of the Graphite home (reads.recent_news, 20 rows, "
+                "symbol-tagged, title/source/link only per the copyright fence) is the migrated "
+                "News/Wire. NOT carried: the preview's 6-channel dock as a separate component — "
+                "its other five channels became first-class Graphite surfaces instead (filings + "
+                "corporate actions + results on the home rail, deals/positioning on "
+                "/dash/home/flows, alerts on /dash/home/attention)"),
 
     # ── M-Markets · lane W2-A (2026-07-27): eleven classic Markets lenses consolidated into FOUR
     # Graphite pages. Consolidation, not transliteration — each page answers ONE question with its
@@ -422,11 +453,14 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
              "same hub, lens 3: the stake × pledge confluence board (sast_events engine keeps the "
              ">=25% control exclusion and the Reg29(1) level-vs-flow split) + a unified tape over "
              "both feeds. NOT carried: the per-symbol drill"),
-    "shp": ("DEFERRED", "M7",
-            "BUILT and routed at /dash/home/strategies/ownership?lens=shp with the ratified §I.5 "
-            "quarter matrix (symbol × quarter × promoter/FII/DII, mixed-source cells marked), but "
-            "shareholding_history lives in the SEPARATE research store which does not exist off-box "
-            "— so the read is unverifiable here. Promote to PORTED only after box verification. "
+    "shp": ("PORTED", "/dash/home/strategies/ownership?lens=shp",
+            "the ratified §I.5 quarter matrix (symbol × quarter × promoter/FII/DII, mixed-source "
+            "cells marked). W3-A held this DEFERRED because shareholding_history lives in the "
+            "SEPARATE research store, absent off-box. BOX-VERIFIED 2026-07-27 (W6, read-only): the "
+            "page renders 40 symbol rows × 8 quarters (2025-08→2026-07) with zero empty-state "
+            "markers, and cells cross-check EXACTLY against research.db.shareholding_history "
+            "(89,943 rows / 1,967 symbols / 2019-06→2026-07) — e.g. AARTIDRUGS 2026-03 promoters "
+            "55.03 · FII 1.57 · DII 10.22 renders 55.0 / 1.6 / 10.2. "
             "NOT carried: the QoQ delta board and its 7 tiles"),
     "launchpad": ("PORTED", "/dash/home/strategies/launchpad",
                   "the setup screen with the 'validated screen, no fundable edge net of cost' "

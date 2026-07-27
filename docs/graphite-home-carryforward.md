@@ -209,12 +209,16 @@ Gate: `tests/test_home_stock.py` (12).
 3. ✅ Chrome made honest: "PREVIEW" badge → **"NEW"**; the vestigial opt-in card → a "Looking for the
    classic site?" pointer; directory home link → `/dash/classic`. Gates updated to the new contract
    (classic LENS pages still carry zero Graphite links — `test_classic_pages_never_link_the_home`).
-4. ⛔ **STILL OPEN — needs the OWNER's OK (do not assume):** retire `/dash/preview` +
+4. ✅ **DONE — cutover lane W6, 2026-07-27 (D149), on the owner OK recorded in `3d13d97`.** The four
+   preview mounts are replaced by one compat router (`src/web/home/preview_retired.py`): every retired
+   URL 302s to its Graphite twin, the modules are DE-ROUTED not deleted, and the route-registry +
+   nav-orphan gates were re-run (the nav gate now exits 0 for the first time honestly). Original text
+   kept below for the record. ⛔ ~~**STILL OPEN — needs the OWNER's OK (do not assume):** retire `/dash/preview` +
    `/dash/preview/stock` and their `*_v3` modules (`stock_hub_v3` · `hub_sections_v3` ·
    `stock_chart_v3` · `today_v3` · `shell_v3` · `news_dock` …). That is **deleting another lane's
    work** (Guardrail #0 = surface first). Its Graphite twin shipped (`815c941`), so only the decision
    is missing. Before deleting: check each module for other live callers, re-point any remaining
-   classic→preview affordances, re-run the route-registry + nav-orphan gates.
+   classic→preview affordances, re-run the route-registry + nav-orphan gates.~~
 5. ⏳ Then fold this carry-forward into `PROJECT_STATE.md` §Decision log (D148 is already there) +
    `docs/redesign-coordination.md` (cutover note added) and `git rm` it — its Lifecycle retire
    condition. **Retire it once (4) lands**, not before.

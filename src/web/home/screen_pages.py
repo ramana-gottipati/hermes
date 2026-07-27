@@ -540,7 +540,7 @@ def _thead(st: State, base_url_state: State) -> str:
         arrow = (" ▼" if st.dir == "desc" else " ▲") if is_sort else ""
         cls = "g-scr-sp" if col.key == "sym" else ""
         aria = ' aria-sort="' + ("descending" if st.dir == "desc" else "ascending") + '"' if is_sort else ""
-        help_link = ('<a class="g-scr-q" href="/dash/glossary" title="What does '
+        help_link = ('<a class="g-scr-q" href="/dash/home/glossary" title="What does '
                      + C.esc(col.label) + ' mean? Opens the glossary.">?</a>') if col.term else ""
         ths.append('<th class="' + cls + ('" data-on="1"' if is_sort else '"') + aria + ">"
                    '<a class="g-scr-sort" href="' + C.esc(href) + '">' + C.esc(col.label)

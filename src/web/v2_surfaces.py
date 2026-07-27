@@ -132,6 +132,13 @@ _ROUTER_SPECS = [
     ("seasonal-tape", "src.web.seasonal_view", "/dash/seasonal-tape"),
     # This-month screen + Index divergence (FIX-1 non-ranked lookup + descriptive co-movement) —
     # two read-only companions to the seasonal tape, same module.
+    # NOT a duplicate mount — TRACED at the W6 cutover audit, which flagged the repeated module
+    # path. `seasonal_screen_view` is one module serving TWO lenses from ONE router (its own
+    # docstring: "two read-only companions"), and `_mount_routers` skips any spec whose sample route
+    # is already present — so the second tuple includes nothing. What it DOES do is load-bearing:
+    # `wire()`'s self-check (`assert sample in mounted`, below) walks these tuples, so the second
+    # entry is the assertion that the module's SECOND route really got mounted. Verified: both paths
+    # carry exactly one handler + one D80 `compat_*` 307, the same shape as every other lens.
     ("seasonal-screen", "src.web.seasonal_screen_view", "/dash/seasonal-screen"),
     ("seasonal-divergence", "src.web.seasonal_screen_view", "/dash/seasonal-divergence"),
     # Event cadence (D128) — cross-entity OVERDUE-vs-own-rhythm + expected-by-cadence, from the
@@ -212,18 +219,16 @@ _ROUTER_SPECS = [
     # S-D search & entry (UX audit §8): the name→ticker typeahead feed behind the ⌘K
     # palette, the home search box, and the stock-miss "Did you mean" strip. JSON-only.
     ("symbol-search", "src.web.symbol_search", "/dash/api/symbol-search"),
-    # Redesign M0-M2 (docs/redesign-plan-2026-07-17.md; approvals + reviewer dispositions in
-    # docs/redesign-coordination.md): the OPT-IN v3 preview gate + the v3 design-system/term-chip
-    # showcase. Direct-URL only — deliberately unlinked from all chrome (Codex B2: default
-    # rendered bytes provably unchanged); remove these two lines to revert the entire preview.
-    ("v3-preview", "src.web.v3_preview", "/dash/preview"),
-    ("ui-showcase-v3", "src.web.ui_showcase_v3", "/dash/_ui3"),
-    # Redesign M4 (docs/redesign-m4-stock-hub-spec.md, owner go 2026-07-21): the evidence-scroll
-    # stock hub. Preview-only, direct-URL; remove this line to revert the module.
-    ("stock-hub-v3", "src.web.stock_hub_v3", "/dash/preview/stock"),
-    # M4 increment 2: the additive chart fork's server side (series-CSV export route);
-    # the snippet itself is embedded by the hub's chart section.
-    ("stock-chart-v3", "src.web.stock_chart_v3", "/dash/preview/stock/export"),
+    # PREVIEW RETIRED (cutover lane W6, 2026-07-27; owner OK recorded in 3d13d97). The four
+    # redesign M0-M5 preview mounts that used to sit here —
+    #     ("v3-preview",      "src.web.v3_preview",     "/dash/preview")
+    #     ("ui-showcase-v3",  "src.web.ui_showcase_v3", "/dash/_ui3")
+    #     ("stock-hub-v3",    "src.web.stock_hub_v3",   "/dash/preview/stock")
+    #     ("stock-chart-v3",  "src.web.stock_chart_v3", "/dash/preview/stock/export")
+    # — are replaced by ONE compat router that 302s each old URL to its Graphite twin. The modules
+    # are DE-ROUTED, not deleted (they stay in the tree + git history); nothing outside that
+    # cluster imports them. Restoring the four tuples above and dropping this one is the revert.
+    ("preview-retired", "src.web.home.preview_retired", "/dash/preview"),
 ]
 
 # ── the canonical site IA — GENERATED from the single lens registry ──────────

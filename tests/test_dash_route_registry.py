@@ -93,14 +93,11 @@ NESTED_CHILDREN: dict[str, tuple[str, str]] = {
 INTERNAL_DEV: dict[str, tuple[str, str]] = {
     "/dash/_ui":     ("ui-kit", "ui_kit design-system showcase — dev-only, deliberately unlinked"),
     "/dash/offline": ("pwa", "PWA offline fallback page — served by the service worker, never a tab"),
-    # redesign M0-M2 preview surfaces (docs/redesign-coordination.md; Codex B1) — OPT-IN,
-    # direct-URL only, deliberately unlinked until cut-over ratification promotes them to lenses.
-    "/dash/preview": ("v3-preview", "v3 preview landing + opt-in gate — additive preview program, "
-                                    "never linked from default chrome (byte-identity rule)"),
-    "/dash/_ui3":    ("v3-preview", "v3 design-system + term-chip showcase — dev/preview-only, "
-                                    "deliberately unlinked"),
-    "/dash/preview/stock": ("v3-preview", "M4 evidence-scroll stock hub — preview-only, reached "
-                                          "from /dash/preview + direct URL, never default chrome"),
+    # The three redesign M0-M4 preview surfaces (/dash/preview · /dash/_ui3 · /dash/preview/stock)
+    # LEFT this table at the W6 retirement (2026-07-27, owner OK 3d13d97). They are no longer
+    # internal_dev pages: they are `compat_redirect`s to their Graphite twins, derived from their
+    # `compat_*` handler names, so no hand-maintained row is needed at all. Contract:
+    # tests/test_preview_retired.py.
     # Graphite Home (2026-07-23) — the fresh-and-parallel v3 home section (spec
     # docs/redesign-graphite-home-spec.md). Direct-URL, opt-in `pvg`, NO lens/nav until cutover.
     "/dash/home":     ("graphite-home", "fresh-and-parallel v3 Graphite home — opt-in preview, "
@@ -549,15 +546,44 @@ def test_every_graphite_dest_actually_serves():
 
 def test_the_graphite_dests_prefer_the_graphite_estate_where_one_exists():
     """Inside Graphite chrome a top-bar click must not eject the reader into the classic site.
-    Where a lane BUILT the Graphite counterpart, the dest points at it. Stocks and Proof are
-    deliberately still classic here: no integration lane was briefed to repoint them, and a
-    silent repoint is exactly the drift this gate exists to catch — W6 owns that call."""
+    Where a lane BUILT the Graphite counterpart, the dest points at it.
+
+    W6 (2026-07-27) closed the last two, which this docstring used to record as open ("W6 owns that
+    call"): Stocks → the W4 screener (the workspace landing that lets you BROWSE to a ticker, and
+    the only inbound link to Themes), Proof → the W5 Proof hub (the only inbound link to the whole
+    Trust cluster). All six doors now stay inside Graphite; the classic site remains one click away
+    through the top-right directory, which is deliberately one-way."""
     from src.web.home import shell
     dests = dict(shell.DESTS)
     assert dests["Today"] == "/dash/home"
     assert dests["Markets"] == "/dash/home/internals"      # W2-A's recommendation
     assert dests["Strategies"] == "/dash/home/strategies"  # W3-A's recommendation
     assert dests["Tracker"] == "/dash/home/tracker"        # W3-B's, landed at Integration-1
+    assert dests["Stocks"] == "/dash/home/screen"          # W6
+    assert dests["Proof"] == "/dash/home/proof"            # W6
+    # and NONE of them leaves the estate — the whole point of the repoints
+    assert all(h.startswith("/dash/home") for _l, h in shell.DESTS), shell.DESTS
+
+
+def test_the_nav_gate_has_no_second_allowlist():
+    """ONE authority (W6). `scripts/nav_integrity_gate.py` used to keep its own `INTENTIONAL_NON_NAV`
+    dict beside the tables in THIS file. They drifted — 28 entries against 48 — until the script was
+    calling linked, live pages orphans while the suite was green. It now derives its allowlist by
+    importing this module and asking `classify()`. This test is what stops the second list from
+    growing back: a re-added local dict, or a script that no longer reads this module, fails here."""
+    import importlib.util
+    path = os.path.join(_ROOT, "scripts", "nav_integrity_gate.py")
+    src = open(path, encoding="utf-8").read()
+    assert "INTENTIONAL_NON_NAV: dict" not in src, (
+        "nav_integrity_gate.py grew a second allowlist again — derive it from this module instead")
+    spec = importlib.util.spec_from_file_location("_navgate_probe", path)
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    assert not hasattr(gate, "INTENTIONAL_NON_NAV")
+    # it must resolve THIS module (same tables, same classifier) — not a copy of them
+    reg = gate._registry()
+    assert reg.INTERNAL_DEV == INTERNAL_DEV and reg.EXEMPT == EXEMPT
+    assert reg.classify("/dash/__synthetic_orphan__", {"GET"}, {"orphan_page"}) is None
 
 
 # ── script mode — prints the full classification table (like nav_integrity_gate) ──

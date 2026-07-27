@@ -3,9 +3,15 @@
 Proves four things, permanently:
   1. ISOLATION — no legacy module imports any v3 module, and legacy pages carry zero v3
      markers (the additive-only rule made mechanical; the S177 lesson).
-  2. The preview surfaces exist, are POST-disciplined, and are route-gate registered.
+  2. QUARANTINE — nothing anywhere links a retired preview URL. This used to read "the preview
+     is direct-URL only"; since the W6 retirement (2026-07-27) the contract is STRONGER, not
+     weaker: those URLs now only 302 to their Graphite twins, so a link to one is a link into a
+     redirect, never a destination. The retirement contract itself lives in
+     `tests/test_preview_retired.py` (routes) — this file keeps the never-link half.
   3. TERM-CHIP ROUND-TRIP — every seed chip resolves chip → glossary.lookup() → a Pat
      explain hit on the same concept, and carries Verdict + Improve lines from the sidecar.
+     Kept after the retirement on purpose: it is the ONLY gate on the `docs/metric-verdicts.md`
+     sidecar, which would otherwise become an unchecked document the day its renderer went quiet.
   4. FENCE DISCIPLINE — the epistemic copy contains no action-verb verdict labels.
 
 Reviewer record: docs/redesign-coordination.md §3-§4.
@@ -58,36 +64,24 @@ def test_legacy_pages_carry_no_v3_markers():
 
 # ── 2. the preview surfaces ───────────────────────────────────────────────────────
 
-def test_preview_routes_serve_and_toggle_is_post_only():
+def test_no_page_links_a_retired_preview_url():
+    """Codex B2, hardened by the W6 retirement.
+
+    Originally: "the preview is direct-URL only — no default page may link it." The preview is now
+    RETIRED (302 → Graphite twins), so the same assertion carries a stronger meaning — a link to one
+    of these URLs would send a reader through a redirect instead of at a destination, and would keep
+    a dead surface looking alive in the nav graph. Absorbs the one still-live contract from the
+    deleted `test_v3_stock_hub.py` (`/dash/preview/stock` + the `hub-idx` marker).
+
+    `/dash` is walked with redirects followed, so this reads the POST-CUTOVER landing (the Graphite
+    home) — i.e. the page a real visitor actually gets."""
     client = TestClient(_app())
-    r = client.get("/dash/preview")
-    assert r.status_code == 200 and "data-ui-v3" in r.text and "PREVIEW" in r.text
-    r = client.get("/dash/_ui3")
-    assert r.status_code == 200 and "pv3chip" in r.text and "demo value" in r.text
-    # the write is POST-only (playbook #11)
-    assert client.get("/dash/preview/toggle").status_code == 405
-    r = client.post("/dash/preview/toggle", follow_redirects=False)
-    assert r.status_code == 303 and r.cookies.get("pv3") == "1"
-    # second toggle clears
-    r2 = client.post("/dash/preview/toggle", cookies={"pv3": "1"}, follow_redirects=False)
-    assert r2.status_code == 303 and "pv3" in r2.headers.get("set-cookie", "")
-    assert 'pv3=""' in r2.headers.get("set-cookie", "") or "pv3=;" in r2.headers.get("set-cookie", "")
-
-
-def test_preview_routes_are_route_gate_registered():
-    from tests import test_dash_route_registry as gate
-    for path in ("/dash/preview", "/dash/_ui3"):
-        assert path in gate.INTERNAL_DEV, path
-        owner, rationale = gate.INTERNAL_DEV[path]
-        assert owner and rationale
-
-
-def test_default_chrome_never_links_the_preview():
-    """Codex B2: the preview is direct-URL only — no default page may link it."""
-    client = TestClient(_app())
-    for path in ("/dash", "/dash/glossary", "/dash/coverage"):
+    for path in ("/dash", "/dash/classic", "/dash/glossary", "/dash/coverage"):
         r = client.get(path, follow_redirects=True)
-        assert "/dash/preview" not in r.text and "/dash/_ui3" not in r.text, path
+        assert r.status_code == 200, (path, r.status_code)
+        for retired in ("/dash/preview", "/dash/_ui3"):   # covers /dash/preview/stock by prefix
+            assert retired not in r.text, (path, retired)
+        assert "hub-idx" not in r.text, path
 
 
 # ── 3. term-chip round-trip (Codex B4) ────────────────────────────────────────────
@@ -117,14 +111,16 @@ def test_chip_degrades_never_breaks():
 # ── 3b. the news/flow dock (M3) ───────────────────────────────────────────────────
 
 def test_dock_all_channels_render_with_url_state():
+    """RENDERER-LEVEL since the W6 retirement: the dock's host page (`/dash/preview`) is de-routed,
+    so this drives `dock_html` directly. Same three contracts — every channel renders, its state is
+    URL-addressable, and the `?symbol=` P0-1 bug class stays dead."""
     from src.web import news_dock
-    client = TestClient(_app())
     for key, _label in news_dock.CHANNELS:
-        r = client.get("/dash/preview", params={"ch": key, "sym": "TCS"})
-        assert r.status_code == 200, key
-        assert "pv3-dock" in r.text and 'class="on"' in r.text, key
-        assert "?ch=" + key in r.text and "sym=TCS" in r.text, key  # URL-addressable state
-        assert "?symbol=" not in r.text, key  # the P0-1 bug class stays dead
+        out = news_dock.dock_html(ch=key, sym="TCS", base="/dash/preview")
+        assert isinstance(out, str) and out, key
+        assert "pv3-dock" in out and 'class="on"' in out, key
+        assert "?ch=" + key in out and "sym=TCS" in out, key   # URL-addressable state
+        assert "?symbol=" not in out, key                      # the P0-1 bug class stays dead
 
 
 def test_dock_reads_are_defensive():
