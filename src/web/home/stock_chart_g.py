@@ -6,7 +6,7 @@ BOTH unusable from this package — `stock_chart_v3` is on the `tests/test_home_
 list by name, and the classic engine's `SNIPPET` binds legacy DOM (`.chartlbl`, `.rangebar`,
 `#ivBar`, `.fbar`) plus the `dashboard` module, which is banned too. So the chart is RE-IMPLEMENTED
 here in the Graphite idiom, carrying the parts a stock page owes: the proprietary candle identity
-(blue-up / grey-down with crisp outlines, straight off `tokens.py`'s `--candle-*` variables),
+(blue-up / grey-down with crisp outlines — see `CANDLES` below, which this module OWNS),
 institutional price zones, the DVPT and delivery-percentage panes, range control, a crosshair
 readout, fullscreen, and the branded one-click screenshot. The analyst WORKSTATION on top of that
 (drawings · fib · Wolfe/harmonic/CPR/MA overlays · compare · indicator panes) is NOT reproduced —
@@ -16,6 +16,12 @@ block-level parity list.
 DOM safety: the data island is emitted inside `<script type="application/json">` (never executable),
 with `<` escaped, and the client parses it with `JSON.parse`. No server value is ever interpolated
 into JavaScript source.
+
+CANDLE LEGIBILITY (owner call, this lane): the first cut painted BOTH bodies solid — blue up, grey
+down — and at real densities the two solids blurred into one another ("if the differences aren't
+clear, the purpose is defeated"). The identity is kept (blue = rising, grey = falling, crisp
+outlines, never green/red) and given a SECOND, non-colour channel plus computed luminance
+separation. See `CANDLES` for the numbers and the floors they clear.
 """
 from __future__ import annotations
 
@@ -29,6 +35,66 @@ RANGES = (("3M", 63), ("6M", 126), ("1Y", 252), ("2Y", 504), ("5Y", 1260), ("Max
 
 
 COLS = ("t", "o", "h", "l", "c", "dvpt", "dp", "r1m", "tv", "dv")
+
+
+# ── the candle encoding (THE single colour-constants block for this chart) ──────────────────────
+#
+# TWO CHANNELS, not one. Colour alone failed: a solid blue body and a solid grey body land close
+# enough in luminance that at 5-year density (~1,200 candles across ~1,100px, so ~1px a candle) the
+# eye reads one grey wash. So:
+#
+#   1. SHAPE — rising candles are HOLLOW (a ~10%-alpha tint, effectively the chart background) with
+#      a crisp blue outline; falling candles are SOLID grey with a slightly darker grey border.
+#      Hollow-vs-solid survives greyscale, 1px widths and every colour-vision type, because it is
+#      not a colour difference at all. This is the channel that actually carries the read.
+#   2. LUMINANCE — the remaining colour difference is tuned by the WCAG relative-luminance formula
+#      rather than by eye, in BOTH themes, against `--bg-0` (what the canvas itself paints):
+#
+#        floor                                   dark      light
+#        up-outline vs down-fill   >= 2.5        2.75      2.67
+#        up-outline vs bg-0        >= 3.0        9.49      8.36
+#        down-fill  vs bg-0        >= 3.0        3.46      3.13
+#        down-border vs bg-0       (dense zoom)  3.01      5.09
+#        up-outline vs bg-2        (panels)      8.28      8.98
+#        down-fill  vs bg-2        (panels)      3.02      3.36
+#
+#      Pinned by `tests/test_home_stock_page.py::test_candle_contrast_floors_both_themes`, which
+#      recomputes every ratio from these hexes — the numbers above can never drift from the CSS.
+#
+# WHY HERE AND NOT IN `tokens.py`: `--candle-up` at `:root` is also consumed as a generic brand
+# accent by `components.py` (sparkline stroke, quality chips, the benefit diagram). Retuning it
+# globally — and especially making it translucent — would silently repaint six unrelated components.
+# So the chart declares its own `--candle-*` on the `.g-chart` element; the values inherit down to
+# the canvas host and nowhere else. Still CSS variables, so a skin layer can retune them later
+# without touching Python.
+CANDLES = {
+    "dark": {
+        "candle-up": "rgba(95,188,255,.10)",   # hollow body: 10% tint of the outline, ~= bg-0
+        "candle-up-line": "#5fbcff",           # brighter, more saturated azure than the first cut
+        "candle-dn": "#57687e",                # deeper, cooler slate-grey (was a light #8496ad)
+        "candle-dn-line": "#4e5f74",           # slightly darker border, still >= 3:1 on bg-0
+    },
+    "light": {
+        "candle-up": "rgba(18,63,158,.08)",
+        "candle-up-line": "#123f9e",           # deep saturated azure — low luminance on a pale panel
+        "candle-dn": "#7b8a9c",
+        "candle-dn-line": "#586878",
+    },
+}
+# the JS fallbacks must equal the dark CSS values (asserted in `_selftest`)
+_CANDLE_ORDER = ("candle-up", "candle-up-line", "candle-dn", "candle-dn-line")
+
+
+def _candle_css() -> str:
+    """The `--candle-*` overrides, scoped to `.g-chart` in both themes.
+
+    Specificity is a non-issue: these set the variables on the CHART element, while `tokens.py`
+    sets them on `:root`, so the nearer declaration simply wins for this subtree in both themes.
+    """
+    def blk(sel: str, d: dict) -> str:
+        return sel + "{" + "".join("--%s:%s;" % (k, d[k]) for k in _CANDLE_ORDER) + "}\n"
+    return (blk(":root[data-ui-g] .g-chart", CANDLES["dark"])
+            + blk(':root[data-ui-g][data-theme="light"] .g-chart', CANDLES["light"]))
 
 
 def _payload(island: dict) -> str:
@@ -133,7 +199,7 @@ def chart_html(sym: str, name: str, island: dict, deep: bool = False) -> str:
 
 
 CSS = """<style>/* g-chart */
-:root[data-ui-g] .g-chart{margin:2px 0 6px}
+""" + _candle_css() + """:root[data-ui-g] .g-chart{margin:2px 0 6px}
 :root[data-ui-g] .g-cbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 :root[data-ui-g] .g-csp{flex:1}
 :root[data-ui-g] .g-crange{display:inline-flex;gap:2px;background:var(--bg-2);border:1px solid var(--line-2);
@@ -176,45 +242,70 @@ _SNIPPET = """<script>
     var CO=D.cols||[], S=(D.rows||[]).map(function(r){
       var o={}; for(var i=0;i<CO.length;i++) o[CO[i]]=r[i]; return o; });
     if(!S.length) return;
-    var cs=getComputedStyle(document.documentElement);
-    function T(n,f){ var v=cs.getPropertyValue(n); return (v&&v.trim())||f; }
-    var CUP=T('--candle-up','#4d9dff'), CDN=T('--candle-dn','#8496ad'),
-        CUPL=T('--candle-up-line','#a9d0ff'), CDNL=T('--candle-dn-line','#c6d1e2'),
-        INK=T('--ink-2','#9fb0c0'), LINE=T('--line','#223040'), BG=T('--bg-0','#080b11'),
-        ACC=T('--accent','#17b0aa'), WARN=T('--warn','#f4b740'), INK3=T('--ink-3','#6f8394');
-    var common={ layout:{background:{color:BG},textColor:INK,fontSize:11},
-      grid:{vertLines:{color:LINE},horzLines:{color:LINE}},
-      timeScale:{borderColor:LINE,rightOffset:3},
-      rightPriceScale:{borderColor:LINE}, crosshair:{mode:0},
-      handleScroll:true, handleScale:true };
+    // read the tokens off the CHART element, not :root — the --candle-* vars are declared on
+    // `.g-chart` so retuning them can never repaint the unrelated components that also consume
+    // --candle-up as a brand accent. Everything else inherits down to here unchanged.
+    var tokEl=document.getElementById('g-chart')||document.documentElement;
+    function T(n,f){ var v=getComputedStyle(tokEl).getPropertyValue(n); return (v&&v.trim())||f; }
+    // fallbacks mirror the DARK block of CANDLES (asserted server-side in _selftest)
+    function tokens(){ return {
+      cup:T('--candle-up','rgba(95,188,255,.10)'), cupl:T('--candle-up-line','#5fbcff'),
+      cdn:T('--candle-dn','#57687e'), cdnl:T('--candle-dn-line','#4e5f74'),
+      ink:T('--ink-2','#9fb0c0'), line:T('--line','#223040'), bg:T('--bg-0','#080b11'),
+      acc:T('--accent','#17b0aa'), warn:T('--warn','#f4b740'), ink3:T('--ink-3','#6f8394') }; }
+    var C=tokens();
+    function common(){ return { layout:{background:{color:C.bg},textColor:C.ink,fontSize:11},
+      grid:{vertLines:{color:C.line},horzLines:{color:C.line}},
+      timeScale:{borderColor:C.line,rightOffset:3},
+      rightPriceScale:{borderColor:C.line}, crosshair:{mode:0},
+      handleScroll:true, handleScale:true }; }
     function mk(node,h){ return LightweightCharts.createChart(node,
-      Object.assign({width:Math.max(0,node.clientWidth),height:h},common)); }
+      Object.assign({width:Math.max(0,node.clientWidth),height:h},common())); }
     var pc=mk(host,host.clientHeight||320);
-    // the proprietary identity: blue-up / grey-down bodies, always outlined (D144)
-    var candle=pc.addCandlestickSeries({upColor:CUP,downColor:CDN,borderVisible:true,
-      borderUpColor:CUPL,borderDownColor:CDNL,wickUpColor:CUPL,wickDownColor:CDNL});
+    // the proprietary identity, on TWO channels (D144 + the legibility recut):
+    //   shape  — rising = HOLLOW body (near-transparent tint) + crisp blue outline
+    //            falling = SOLID grey body + slightly darker grey border
+    //   colour — blue up / grey down, luminance-separated (see CANDLES). Never green/red.
+    // wicks follow their own candle: blue wick up, the solid grey wick down — at dense zoom the
+    // wick is most of what is left of a candle, so it must carry the same separation.
+    var candle=pc.addCandlestickSeries({borderVisible:true});
     candle.setData(S.map(function(d){return {time:d.t,open:d.o,high:d.h,low:d.l,close:d.c};}));
-    (D.zones||[]).forEach(function(z){ try{ candle.createPriceLine({price:z.price,color:ACC,
+    (D.zones||[]).forEach(function(z){ try{ candle.createPriceLine({price:z.price,color:C.acc,
       lineWidth:1,lineStyle:2,axisLabelVisible:true,title:z.label}); }catch(e){} });
 
     var dh=document.getElementById('g-cdvpt'), vh=document.getElementById('g-cdeliv'),
         th=document.getElementById('g-cval');
     var dc=dh?mk(dh,dh.clientHeight||110):null, vc=vh?mk(vh,vh.clientHeight||110):null,
         tc=th?mk(th,th.clientHeight||110):null;
-    if(dc){ dc.addHistogramSeries({priceLineVisible:false}).setData(
-      S.filter(function(d){return d.dvpt!=null;}).map(function(d){
-        return {time:d.t,value:d.dvpt,color:(d.r1m!=null&&d.r1m>1)?WARN:INK3}; })); }
-    if(vc){ vc.addLineSeries({color:ACC,lineWidth:2,priceLineVisible:false}).setData(
-      S.filter(function(d){return d.dp!=null;}).map(function(d){
-        return {time:d.t,value:d.dp}; })); }
-    if(tc){ // turnover in muted grey, the delivered part over it in the accent — same axis
-      tc.addHistogramSeries({priceLineVisible:false,color:INK3}).setData(
-        S.filter(function(d){return d.tv!=null;}).map(function(d){
-          return {time:d.t,value:d.tv}; }));
-      tc.addHistogramSeries({priceLineVisible:false,color:ACC}).setData(
-        S.filter(function(d){return d.dv!=null;}).map(function(d){
-          return {time:d.t,value:d.dv}; })); }
+    // these panes encode INTENSITY (institutional-day flag) and PART-OF-WHOLE (delivered slice of
+    // turnover) — never direction — so they keep their own encoding untouched by the candle recut.
+    var Sd=S.filter(function(d){return d.dvpt!=null;}),
+        Sp=S.filter(function(d){return d.dp!=null;}),
+        Stv=S.filter(function(d){return d.tv!=null;}),
+        Sdv=S.filter(function(d){return d.dv!=null;});
+    var sDvpt=dc?dc.addHistogramSeries({priceLineVisible:false}):null;
+    var sDeliv=vc?vc.addLineSeries({lineWidth:2,priceLineVisible:false}):null;
+    var sTv=tc?tc.addHistogramSeries({priceLineVisible:false}):null;   // turnover, muted grey
+    var sDv=tc?tc.addHistogramSeries({priceLineVisible:false}):null;   // delivered part, accent
+    if(sDeliv) sDeliv.setData(Sp.map(function(d){ return {time:d.t,value:d.dp}; }));
+    if(sTv) sTv.setData(Stv.map(function(d){ return {time:d.t,value:d.tv}; }));
+    if(sDv) sDv.setData(Sdv.map(function(d){ return {time:d.t,value:d.dv}; }));
     var CHARTS=[pc,dc,vc,tc];
+
+    // one place that paints colour — so the ◑ theme toggle (which flips data-theme live, with no
+    // reload) cannot strand a dark canvas inside a light page, or vice versa.
+    function paint(){ C=tokens();
+      CHARTS.forEach(function(c){ if(c) try{ c.applyOptions(common()); }catch(e){} });
+      candle.applyOptions({upColor:C.cup,downColor:C.cdn,borderVisible:true,
+        borderUpColor:C.cupl,borderDownColor:C.cdnl,wickUpColor:C.cupl,wickDownColor:C.cdn});
+      if(sDvpt) sDvpt.setData(Sd.map(function(d){
+        return {time:d.t,value:d.dvpt,color:(d.r1m!=null&&d.r1m>1)?C.warn:C.ink3}; }));
+      if(sDeliv) sDeliv.applyOptions({color:C.acc});
+      if(sTv) sTv.applyOptions({color:C.ink3});
+      if(sDv) sDv.applyOptions({color:C.acc}); }
+    paint();
+    try{ new MutationObserver(paint).observe(document.documentElement,
+      {attributes:true,attributeFilter:['data-theme']}); }catch(e){}
 
     // range control — the island is server-bounded; these buttons slice it client-side
     function setRange(n){ if(!n||n>=S.length){ CHARTS.forEach(function(c){ if(c)c.timeScale().fitContent(); }); return; }
@@ -268,11 +359,11 @@ _SNIPPET = """<script>
       var PAD=44, cv=document.createElement('canvas');
       cv.width=src.width; cv.height=src.height+PAD;
       var g=cv.getContext('2d');
-      g.fillStyle=BG; g.fillRect(0,0,cv.width,cv.height);
+      g.fillStyle=C.bg; g.fillRect(0,0,cv.width,cv.height);
       g.drawImage(src,0,PAD);
       g.fillStyle=T('--ink','#e8eef4'); g.font='600 15px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
       g.fillText(title.slice(0,110),14,27);
-      g.fillStyle=ACC; g.beginPath(); g.arc(cv.width-78,20,4,0,6.284); g.fill();
+      g.fillStyle=C.acc; g.beginPath(); g.arc(cv.width-78,20,4,0,6.284); g.fill();
       g.fillStyle=T('--ink','#e8eef4'); g.font='700 14px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
       g.fillText('patearn',cv.width-68,25);
       var a=document.createElement('a');
@@ -299,6 +390,22 @@ def _selftest() -> int:
     assert "&lt;b&gt;" in html, "the company name must be escaped"
     assert "back-adjusted" in html and "Full history" in html
     assert "candle-up" in _SNIPPET and "takeScreenshot" in _SNIPPET
+    # the two-channel candle encoding — shape first, colour second
+    assert "--candle-up:rgba(" in CSS and "--candle-up:rgba(" in _candle_css()
+    for k in _CANDLE_ORDER:
+        assert CSS.count("--" + k + ":") == 2, k       # once per theme, never more
+    assert 'data-theme="light"] .g-chart{' in CSS and ":root[data-ui-g] .g-chart{--candle" in CSS
+    assert "upColor:C.cup" in _SNIPPET and "downColor:C.cdn" in _SNIPPET
+    assert "wickUpColor:C.cupl" in _SNIPPET and "wickDownColor:C.cdn" in _SNIPPET
+    assert "borderUpColor:C.cupl" in _SNIPPET and "borderDownColor:C.cdnl" in _SNIPPET
+    # the client fallbacks must be the DARK values verbatim — a drift here paints the wrong
+    # identity whenever the stylesheet has not applied yet
+    for k in _CANDLE_ORDER:
+        assert "'--" + k + "','" + CANDLES["dark"][k] + "'" in _SNIPPET, k
+    # never green/red, in either theme (the standing identity rule)
+    for pal in CANDLES.values():
+        for v in pal.values():
+            assert "#3ad17f" not in v and "#f2617f" not in v
     for host in ("g-cprice", "g-cdvpt", "g-cdeliv", "g-cval"):
         assert 'id="' + host + '"' in html, host
     # the payload-budget guard: compact rows must keep a full-archive island well inside 1 MB
