@@ -1114,3 +1114,190 @@ rule, uniformly"**, so all five were downgraded in an addendum commit under iden
 
 Left `PORTED` deliberately, and the rule agrees: `strategist` · `growth` · `launchpad` · `shp` ·
 `event-cadence` each hold MAJOR rows their notes DO name honestly, so there is nothing to correct.
+# §11 — The information contract (first-timer test) · Graphite estate audit
+
+**Lane:** INFO-CONTRACT AUDIT (read-only). **Audited:** 2026-07-28, against the live box
+`https://srv1704897.hstgr.cloud`, 60 fetched documents covering **44 distinct Graphite routes**
+(every `/dash/home*` page plus every view/child reachable from them). Method: served HTML/SVG parsed
+directly (`curl` + regex/structure extraction), cross-read against the emitting module in
+`src/web/home/`. Default tier as served is `<html data-tier="free">` — the audit reads the page as a
+first-time visitor actually receives it.
+
+## The contract
+
+A chart / sparkline / gauge / heat element must let a first-time visitor answer, unaided:
+
+| # | Point | What satisfies it |
+|---|---|---|
+| 1 | **WHAT PERIOD** | time-axis labels, or an explicit span note ("2012-06-01 → 2026-07-01", "252 sessions") |
+| 2 | **WHERE ARE WE NOW** | the last/current value marked *with its number* |
+| 3 | **WHAT SCALE** | y-ticks, or min/max labels, appropriate to the metric |
+| 4 | **WHAT'S TYPICAL** | a reference band / midline / percentile where the metric has a baseline (the estate's own "the reference is the premium" principle) |
+| 5 | **SO WHAT** | the one-line plain-English *today* read (`bottom_line` / `gw2-read` pattern) — **not** the generic metric explainer |
+| 6 | **WHERE FROM** | the evidence / source link (`g-prov`) |
+
+Tiles and stat-cards carrying a bare number are held to **(2)(4)(5)(6)** only.
+
+**Severity.** `MAJOR` = the visual is uninterpretable without the missing furniture (it is the primary
+evidence carrier and cannot be read). `MINOR` = interpretable but reference-poor (an accessory to a
+fully-labelled number or table that sits beside it).
+
+**Origin.** `NEW-CLASS` = a Graphite-original renderer whose classic ancestor never had the furniture
+either. `LOST-IN-PORT` = the classic ancestor (`src/web/infographics.py` kit / the
+`bottom_line`+`plain`+`how_to_read_link` readability scaffold) **did** carry the furniture and the
+Graphite port dropped it — these are parity gaps as well as contract gaps.
+
+**Totals.** 113 elements audited (47 graphical visuals + 66 tile/stat-card families) across 44 routes.
+**12 MAJOR**, **17 MINOR**, 3 systemic rows. 20 PASS.
+
+---
+
+## §11.1 — MAJOR violations
+
+| # | Page | Component | Fails | Origin | Module:line |
+|---|---|---|---|---|---|
+| I-01 | `/dash/home/internals` | Regimes → **Delivery conviction** area strip | 1, 2, 3, 4 | NEW-CLASS | `internals_pages.py:220-259` (`_strip`) |
+| I-02 | `/dash/home/internals` | Regimes → **Dispersion** area strip | 1, 2, 3, 4 | NEW-CLASS | `internals_pages.py:220-259` |
+| I-03 | `/dash/home/internals` | Regimes → **Coil** area strip | 1, 2, 3, 4 | NEW-CLASS | `internals_pages.py:220-259` |
+| I-04 | `/dash/home/internals` | Hero → **Price-breadth** strip | 1, 3 | LOST-IN-PORT | `internals_pages.py:220-259` ← classic `market_internals_view.py:320-322` |
+| I-05 | `/dash/home/internals` | Hero → **The tape** strip | 1, 3 | LOST-IN-PORT | `internals_pages.py:220-259` ← classic `market_internals_view.py:324-326` |
+| I-06 | `/dash/home` | Pulse deck → **expand-panel trend charts** (×4: breadth / delivery / MEP / dispersion) | 1, 2, 3, 4 | NEW-CLASS | `components.py:592-594` (`_expand`), JS `components.py:1989-2001` |
+| I-07 | `/dash/home` | Regime band → **Sector rotation RRG** (landing copy) | 2(Free), 3, 5 | NEW-CLASS | `components.py:1237-1340` (`rrg_map`) |
+| I-08 | `/dash/home` | Go-deeper → **Delivery & flow (DVPT) leader bars** | 3, 4, 5 + data defect | NEW-CLASS | `components.py:439-467` (`rowbars` / `delivery_drawer`) |
+| I-09 | `/dash/home/strategies/books` | **Book-vs-Nifty-500 equity curve** (×4 books) | 3 (and log-vs-linear unstated) | NEW-CLASS | `strategies_blocks.py:248-271` (`spark_pair`) |
+| I-10 | `/dash/home/strategies/sector-rotation` | **Book-vs-Nifty-500 equity curve** | 2, 3 | NEW-CLASS | `strategies_blocks.py:248-271` |
+| I-11 | *estate-wide* | **`.pro-more` hides every reference chip on the default Free tier** | 4 (systemic) | LOST-IN-PORT (classic references were unconditional) | `components.py:198` + `shell.py:62-65` |
+| I-12 | `/dash/home/internals` | **Regimes trio is wrapped in a blurred Pro-Ad** — `filter:blur(5px)` + `aria-hidden="true"` for Free | 1-5 (nothing is readable at all) | NEW-CLASS | `components.py:134-155` (`pro_teaser`), `internals_pages.py` regimes zone |
+
+### Notes on the MAJOR rows
+
+- **I-01…I-03 (the owner's finding, generalised).** `_strip` emits `<svg viewBox="0 0 900 84">` with a
+  polygon + polyline + one last-point `<circle>` and **zero `<text>` elements**. No date labels, no
+  y-ticks, no value pill, no reference line. Coil is the sharpest case: the prose beside it says
+  *"Below 1 the market is wound tight… above 1 it is snapping around"* — and the chart has no 1.0
+  line. Dispersion's own explainer says *"it jumps in every crisis"* — with no scale you cannot tell
+  whether the current print is a crisis. The current values (55% / 2.29 / 0.93×) exist only in the
+  vital-signs tiles three zones higher up the page.
+- **I-04/I-05.** These keep the zero baseline (`signed=True`) and a `gw2-read` today-line, so they
+  clear (4)(5)(6). What is missing is any time axis and any y-scale: the reader cannot tell whether a
+  peak is 60% or 95% advancing, nor when it happened. **Parity:** the classic panel put
+  `ifx.heat_ribbon(...)` under each strip, which renders the first and last cell labels — i.e. **the
+  date endpoints** (`infographics.py:144-147`) — and made every day click-through to its drill-down.
+  The Graphite port dropped the ribbon; the drill links survive only as a separate text row of 22
+  dates.
+- **I-06.** The deck tile invites *"Click any tile for its trend and a plain-English read."* The panel
+  that opens contains a 300×70 area sparkline with no period, no scale, no value and no reference —
+  the "trend" half of the promise is not delivered.
+- **I-07.** The x/y axes have no names, no ticks and no numbers. The per-sector numeric read
+  (`ratio X · mom Y`) is `.pro-more` (`components.py:1333`) → invisible on Free. The axis explainer
+  (*"x = RS-Ratio, y = RS-Momentum, both centred at 100"*) exists as a `g-learn` on
+  `/dash/home/rotation` but **not** on the landing page, where the same RRG is the flagship regime
+  visual. Legend gives period ("tail ≈ 8 weeks") and source, so 1 and 6 pass.
+- **I-08.** Also a **data defect worth escalating**: the live leader list is entirely liquid
+  ETFs/funds — `CASHIETF 4,190,686.5×`, `LIQUIDPLUS 3,293,522.6×`, `SBILIQETF 3,107,387.1×`,
+  `ELIQUID`, `LIQUIDBETF`, `LIQUIDIETF` — so the "scaled to the day's leader" bar normalises against
+  a nonsense maximum (`data-w` = 100/79/74/73/70/69). No equity ever appears in this drawer.
+- **I-09/I-10.** `spark_pair` maps values linearly into a 640×130 box with no ticks and no last-point
+  marker. A 9.43× compounding curve drawn on a linear axis with no scale cannot be read for drawdown
+  depth or shape; whether it is log or linear is never stated. The caption does carry the span
+  ("2012-06-01 → 2026-07-01") and the legend ("solid = the book · dashed = Nifty 500"), so 1, 4 and 6
+  pass. Sector-rotation additionally shows `Per year —` / `Return / volatility —` (empty tiles), so
+  the curve there has no numeric anchor at all.
+- **I-11 (the systemic one).** `ref_chip()` defaults to `class="g-refchip pro-more"` and
+  `shell.py:64` sets `.pro-more{display:none}` unless `data-tier="pro"`. The served default is
+  `data-tier="free"`. Consequence: **contract point (4) is invisible to every first-time visitor on
+  every page** — the 91st-pct / typ-47% / ↑rising blocks that this audit found on 6 routes render to
+  nothing. This is a deliberate product decision ("the reference is the premium"), so it is an
+  **owner decision, not a bug** — but it collides head-on with the first-timer test and should be
+  decided explicitly, not inherited.
+- **I-12.** Because the Regimes trio sits inside `pro_teaser(...)`, a Free visitor sees three blurred
+  rectangles behind an "⚡ Unlock with Pro" lock, with `aria-hidden="true"` on the body (also
+  invisible to assistive tech). The owner's finding describes the **Pro** rendering; the Free
+  rendering is worse.
+
+---
+
+## §11.2 — MINOR violations
+
+| # | Page | Component | Fails | Origin | Module:line |
+|---|---|---|---|---|---|
+| I-13 | `/dash/home` | Featured → Nifty 50 index sparkline (`g-bigspark idx`, ~70 sessions) | 1, 3, 4 | NEW-CLASS | `components.py:893` |
+| I-14 | `/dash/home` | Pulse deck tile sparklines (`g-tspark`, ×4) | 1, 3, 4(Free) | NEW-CLASS | `components.py:577-583` (`_deck_cell`) |
+| I-15 | `/dash/home` | Market map treemap | 3 (no numeric colour scale), 4, 5 — values are hover-only, so touch devices get none | NEW-CLASS | `components.py:1161-1215` (`heatmap`) |
+| I-16 | `/dash/home` | Market-mood semicircle gauge | 3 (no 0/50/100 ticks), 4 | LOST-IN-PORT | `components.py:471-482` ← classic `infographics.py:421-461` (`pct_gauge` renders lo/hi + a marked typical) |
+| I-17 | `/dash/home` | Sector heat chips ("Auto +0.3 …") | 3 (unit of "+0.3" never stated), 4 | NEW-CLASS | `components.py:596-611` |
+| I-18 | `/dash/home` | "What changed today" severity count band | 4, 5 | NEW-CLASS | `components.py:247` |
+| I-19 | `/dash/home` | "Today's conviction" count band | 4, 5 | NEW-CLASS | `components.py:247` |
+| I-20 | `/dash/home/attention` (+`?lens=oi`, `?lens=mep`) | Alert-rail count band | 4, 5 | NEW-CLASS | `components.py:247` |
+| I-21 | `/dash/home/flows` | FII long:short strip | 1 ("recent sessions" — no count/date), 3 | NEW-CLASS | `internals_pages.py:220-259` |
+| I-22 | `/dash/home/rotation` (all 3 horizons) | RRG journey maps | 3, 5 | NEW-CLASS | `components.py:1237-1340` |
+| I-23 | `/dash/home/rotation?view=clock` | Lifecycle clock dial | 3 (no ring scale), 5 | NEW-CLASS | `rotation_pages.py:226` |
+| I-24 | `/dash/home/compare` | Rebased overlay (6 lines, 900×320) | 3 (no y-ticks — mid-window depth unreadable) | NEW-CLASS | `compare_pages.py:48-87` |
+| I-25 | `/dash/home/anatomy` | Pre-move fingerprint bars (8 rows, z-units) | 1 (study window never stated), 3 (no axis / no ±0.2 baseline drawn) | NEW-CLASS | `anatomy_pages.py:48-60` → `w2_kit.py:96` (`bar_row`) |
+| I-26 | `/dash/home/seasonal` (+`?view=tape`) | Month/weekday residual heat grid | 3 (colour ramp has no key), 4 | NEW-CLASS | `seasonal_pages.py:62-68` |
+| I-27 | `/dash/home/sectors?tab=economics` | RoCE / margin decade heat table | 3 (colour ramp has no key) | NEW-CLASS | `sectors_pages.py:147-169` (`_heat`) |
+| I-28 | `/dash/home/stock?sym=…` | Sub-panes: DVPT, Delivery %, Traded value | 4 (no typical band), 5 | NEW-CLASS | `stock_chart_g.py:188-194, 286-292` |
+| I-29 | `/dash/home/strength`, `/themes?tag=…`, `/tracker*`, `/proof`, `/prereg`, `/rule-lab`, `/strategies`, `/strategies/books`, `/strategies/conviction`, `/strategies/sector-rotation` | Stat-card tiles carrying a bare number with no reference and no today-read (≈50 tiles) | 4, 5 | NEW-CLASS | `components.py:206-209` (`tile`), `w2_kit.py`, `tracker_pages.py`, `trust_pages.py` |
+
+---
+
+## §11.3 — Systemic rows (apply across the estate)
+
+| # | Finding | Evidence | Origin |
+|---|---|---|---|
+| I-S1 | **Contract (5) barely exists.** The generic metric explainer (`g-learn`) is on **58/60** documents (94 blocks) — good. The *today* read-line (`gw2-read` / `g-bg-read` / `g-bd-read`) exists on **3 routes, 5 instances** estate-wide. The classic `infographics.bottom_line()` + `how_to_read_link()` scaffold was **not ported**: exactly **1** `/dash/reading-guide` link survives in served HTML (`stock_page.py:791`). | served-HTML census; `infographics.py:522-537`; classic `market_internals_view.py:267,272` | LOST-IN-PORT |
+| I-S2 | **No shared chart frame exists.** Six independent hand-rolled SVG renderers each re-implement viewBox + polyline + last dot, and **none** has any axis/label capability: `components._sparkdiv`+JS (`components.py:533,1989`), `internals_pages._strip` (`:220`), `compare_pages._chart` (`:48`), `strategies_blocks.spark_pair` (`:248`), `tracker_pages._curve_svg` (`:194`), `components.breadth_divergence_chart` (`:1393`). The classic kit they replaced (`infographics.spark_area`) already supported `labels=` (time ticks), `baseline=` and `band=` (reference envelope) — those parameters have no Graphite equivalent. | source read | LOST-IN-PORT (capability) |
+| I-S3 | **Dead furniture.** `tracker_pages._curve_svg` (`gt-curve`, `:194-215`) draws a book-vs-benchmark equity curve and is called at `:604`, but the demo book has no history, so it renders on **zero** live routes — `/dash/home/tracker/performance` instead prints prose describing the chart that is missing. | live crawl: 0 `gt-curve` occurrences | — |
+
+---
+
+## §11.4 — What already PASSES (the models to copy)
+
+| Page | Component | Why it passes | Module:line |
+|---|---|---|---|
+| `/dash/home` | **Breadth vs delivery gauges** | labelled bars + both values (71% / 64%) + gap (8-pt) + typical (−20 pt) + percentile (83rd) + direction (widening) + a one-line so-what + source. **All six points.** | `components.py:1441-1495` (`breadth_gauges`) |
+| `/dash/home`, `/dash/home/flows` | FII/DII divergence track | signed values, ₹ unit, as-of date, streak, and "lower end of 25-session range" as the reference | `components.py:280-300` |
+| `/dash/home/stock?sym=…` | Main candlestick chart | lightweight-charts renders its own time + price axes; institutional zones carry axis-labelled price lines; range control states the span | `stock_chart_g.py:257-274` |
+| `/dash/home/internals` | Vital-signs tiles | value + unit + band word + "as of 2026-07-27 · 5437 sessions on record" + ref chip (Pro) | `internals_pages.py:295-311` |
+| `/dash/home/sectors`, `/dash/home/tracker`, `/dash/home/strategies/sector-rotation` | proportion bars (`g-mbar`, `gt-bar`, `g-bars`) | the number always renders beside the bar; 0-100 scale is explicit | `markets_ui.py:118-121`, `tracker_pages.py:179`, `strategies_blocks.py` |
+| `/dash/home/validation` | strategy verdict table | states the benchmark (0.89) as the reference on the same axis as every row | `trust_pages.py` |
+
+---
+
+## §11.5 — Recommended remediation shape
+
+**One shared chart frame, adopted by all six renderers — not six independent retro-fits.**
+
+Add `components.chart_frame(mark_svg, *, span, last, unit, reference=None, read=None, prov=None,
+y_ticks=None)` returning the mark layer wrapped in furniture:
+
+1. **x-axis** — start and end labels from `span` (the classic `heat_ribbon` endpoint pattern,
+   `infographics.py:144-147`, is the cheapest correct form and already proven in this codebase);
+2. **y-scale** — min/max (or three) tick labels derived from the same `lo/hi` every renderer already
+   computes internally and then throws away;
+3. **last-value pill** — the number at the existing last-point `<circle>`, which every renderer
+   already draws;
+4. **reference** — an optional dashed midline/band from `reference` (`typical`, `pctile`, or a fixed
+   anchor such as coil = 1.0, breadth = 50, rebase = 100);
+5. **read line** — `read` rendered in the existing `gw2-read` style, **required**, not optional;
+6. **source** — `prov` in the existing `g-prov` style.
+
+Why this shape and not per-panel fixes: the six renderers are already structurally identical (each
+computes `lo/hi`, maps to a fixed viewBox, emits a polyline and a last dot), so the frame is one new
+function plus six call-site edits — roughly 60 lines of new code against ~200 lines of duplicated
+retro-fit. It also makes the contract **enforceable**: a `tests/test_info_contract.py` that asserts
+every registered chart-emitting function routes through `chart_frame` and supplies non-empty
+`span`/`read` is the same machine-backstop pattern already used by `tests/test_pat_coverage.py` and
+`tests/test_strategy_docs_coverage.py`, so the contract cannot silently rot on the next page.
+
+**Two decisions the owner must make first (they change what the frame renders):**
+
+- **D-A — reference on the Free tier.** Contract (4) is presently Pro-only by construction
+  (`components.py:198`). Suggested split: the **band word** ("unusually high" / "about typical") and
+  the **typical value** become Free (they are what make a number legible at all); the **percentile
+  and direction arrow** stay `.pro-more`. This preserves the "reference is the premium" line while
+  making the first-timer test passable.
+- **D-B — the blurred Regimes teaser.** The Regimes trio is currently the *only* place delivery /
+  dispersion / coil history is shown, and it is fully blurred on Free (I-12). Either surface the
+  charts with the frame and gate the *full archive* window (matching the existing 1y/3y/5y/all
+  control), or accept that this zone is a pure ad and stop counting it as a Free surface.

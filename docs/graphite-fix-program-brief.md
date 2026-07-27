@@ -36,11 +36,22 @@ improvements. Your mission: close the register, restore-don't-replace, nothing r
    false SURFACE_PARITY notes + M6/M7/M8 re-opened to PLANNED — do not redo; see register §10.**
 
 ## Work order (by leverage; one phase = one worktree lane = one deploy)
-- **P1 — Cross-cutting (M, highest leverage, ~120 rows):** (a) ONE shared table-toolbar
+- **P1 — Cross-cutting (M, highest leverage, ~150 rows):** (a) ONE shared table-toolbar
   component (sort · filter box · row count · server CSV · column picker · `?` popovers) adopted
   by every Graphite table (~40); (b) the Rule-1 un-gating sweep; (c) nav residuals per register
   §0 — but re-verify against main first: W6 (`276762c`) already wired 17 pages, repointed all
-  six doors, and made `nav_integrity_gate` exit 0 — cross off what it closed.
+  six doors, and made `nav_integrity_gate` exit 0 — cross off what it closed; (d) **the
+  INFORMATION CONTRACT (register §11, owner-priority):** ONE shared `components.chart_frame`
+  (x-endpoints · y-ticks · last-value pill · reference band · mandatory read-line · provenance —
+  `components.breadth_gauges` is the model that already passes all six points) adopted by the 6
+  structurally-identical hand-rolled renderers, then MACHINE-ENFORCED via a new
+  `tests/test_info_contract.py` (the Pat-gate pattern); close all 12 MAJOR §11 rows. Parent
+  rulings pending owner override: the Regimes strip renders VISIBLE on Free (blur only the
+  deeper drill — a blurred core regime read violates Rule 1 + the info contract) · charts carry
+  a minimal FREE reference (baseline/typical line as chart furniture); the FULL reference layer
+  (percentile chips, streaks, history) stays Pro. Also fix the §11 DATA defect: the home DVPT
+  drawer normalises against liquid-ETF artefacts (CASHIETF 4.19M×) — exclude the liquid/ETF
+  class from leader scaling, pin it.
 - **P2 — Rotation (L):** Play apparatus + 3/6/12/**18**/24 + the RS-depth table (RSI-of-RS ·
   Mansfield · capture · 7 turn-flag pills) + the stock-grain half (`?phase=` selector,
   300-row member table incl. 18m/24m, "see all", leverage pills). Reuse classic's engine
