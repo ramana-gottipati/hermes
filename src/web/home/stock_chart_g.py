@@ -27,11 +27,15 @@ from __future__ import annotations
 
 import html as _html
 import json as _json
-import urllib.parse as _uq
 
 _LWC_CDN = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"
 
 RANGES = (("3M", 63), ("6M", 126), ("1Y", 252), ("2Y", 504), ("5Y", 1260), ("Max", 0))
+
+# The VISIBLE window on load, in sessions. Not a data bound — the payload always carries the whole
+# tape; this only decides where the viewport starts. Emitted into the island so the rendered "on"
+# pill and the client's opening range are the SAME number and cannot drift apart.
+DEFAULT_SPAN = 252
 
 
 COLS = ("t", "o", "h", "l", "c", "dvpt", "dp", "r1m", "tv", "dv")
@@ -100,9 +104,9 @@ def _candle_css() -> str:
 def _payload(island: dict) -> str:
     """The island as inert JSON. `</script>` and `<` can never close the tag.
 
-    Rows are emitted as COMPACT ARRAYS in `COLS` order rather than objects: at the full-archive
-    depth (`?chart=max`, ~5,400 sessions for the deepest name) the repeated key names alone cost
-    ~50 bytes a row — enough to push the document past the 1,000,000-byte archetype budget. The
+    Rows are emitted as COMPACT ARRAYS in `COLS` order rather than objects: every page now carries
+    the FULL archive (5,718 sessions for the deepest name measured), and the repeated key names
+    alone would cost ~50 bytes a row — enough to push the document past its size budget. The
     client re-labels them in one pass. Rupee figures round to whole rupees; the paise are noise at
     crore scale and cost bytes on every row.
     """
@@ -113,7 +117,7 @@ def _payload(island: dict) -> str:
                      _i(s.get("tv")), _i(s.get("dv"))])
     zones = [{"label": z.get("label"), "price": _f(z.get("price"))}
              for z in ((island or {}).get("zones") or []) if _f(z.get("price")) is not None]
-    body = {"cols": list(COLS), "rows": rows, "zones": zones}
+    body = {"cols": list(COLS), "rows": rows, "zones": zones, "span": DEFAULT_SPAN}
     # `allow_nan=False` is the BACKSTOP, not the guard: Python emits bare `NaN`/`Infinity` by
     # default, which are NOT valid JSON, so the browser's `JSON.parse` throws and the ENTIRE chart
     # silently disappears (the client catch returns). `_f`/`_i` already coerce every non-finite to
@@ -122,7 +126,8 @@ def _payload(island: dict) -> str:
     try:
         txt = _json.dumps(body, separators=(",", ":"), default=str, allow_nan=False)
     except (ValueError, TypeError):
-        txt = _json.dumps({"cols": list(COLS), "rows": [], "zones": []}, separators=(",", ":"))
+        txt = _json.dumps({"cols": list(COLS), "rows": [], "zones": [],
+                           "span": DEFAULT_SPAN}, separators=(",", ":"))
     return txt.replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
 
 
@@ -150,9 +155,11 @@ def _i(v):
         return None
 
 
-def chart_html(sym: str, name: str, island: dict, deep: bool = False) -> str:
-    """The chart block. `deep=True` means the caller already asked the read layer for the full
-    archive (`?chart=max`), so the 'Load full history' affordance is not offered again."""
+def chart_html(sym: str, name: str, island: dict) -> str:
+    """The chart block. The island is ALWAYS the symbol's full archive — there is no shallow mode
+    and no 'Full history' link, because loaded range and VISIBLE range are now different things:
+    the range pills move the viewport across the tape that is already here, client-side and
+    instantly, across every synced pane."""
     series = (island or {}).get("series") or []
     s_sym = _html.escape(str(sym or ""))
     s_name = _html.escape(str(name or ""))
@@ -163,14 +170,12 @@ def chart_html(sym: str, name: str, island: dict, deep: bool = False) -> str:
     hdr = (str(last.get("t") or "")[:10] + " · close " + ("%s" % last.get("c")))
     adj_note = ("" if not (island or {}).get("adjusted") else
                 '<span class="g-cnote">split / bonus back-adjusted</span>')
-    # URL-QUOTE the symbol, do not merely HTML-escape it: `&` is legal in NSE tickers (M&M,
-    # M&MFIN, J&KBANK) and `clean_symbol` preserves it, so `?sym=M&amp;M` decodes to `sym=M`
-    # plus a stray `M` param — the "Full history" link would silently open the wrong stock.
-    deeper = ("" if deep else
-              '<a class="g-cbtn" href="?sym=' + _html.escape(_uq.quote(str(sym or "")))
-              + '&amp;chart=max">Full history</a>')
-    btns = "".join('<button type="button" class="g-cbtn' + (" on" if lab == "1Y" else "") +
-                   '" data-r="' + str(n) + '">' + lab + "</button>" for lab, n in RANGES)
+    # the "on" pill is DERIVED from DEFAULT_SPAN, never hard-coded to a label — the two used
+    # to be written independently, which is how the page shipped a "3M" pill lit over a view
+    # spanning years. `aria-pressed` carries the same state to screen readers.
+    btns = "".join('<button type="button" class="g-cbtn' + (" on" if n == DEFAULT_SPAN else "")
+                   + '" aria-pressed="' + ("true" if n == DEFAULT_SPAN else "false")
+                   + '" data-r="' + str(n) + '">' + lab + "</button>" for lab, n in RANGES)
     return (
         '<div class="g-chart" id="g-chart">'
         '<div class="g-cbar">'
@@ -178,7 +183,6 @@ def chart_html(sym: str, name: str, island: dict, deep: bool = False) -> str:
         '<span class="g-csp"></span>'
         '<button type="button" class="g-cbtn" id="g-cshot" aria-label="Download a branded PNG of this chart">Save PNG</button>'
         '<button type="button" class="g-cbtn" id="g-cfull" aria-label="Toggle fullscreen chart">Fullscreen</button>'
-        + deeper +
         "</div>"
         '<div class="g-cwrap">'
         '<div class="g-chead"><b>' + s_sym + "</b>" + (" · " + s_name if s_name else "")
@@ -253,10 +257,14 @@ _SNIPPET = """<script>
       cdn:T('--candle-dn','#57687e'), cdnl:T('--candle-dn-line','#4e5f74'),
       ink:T('--ink-2','#9fb0c0'), line:T('--line','#223040'), bg:T('--bg-0','#080b11'),
       acc:T('--accent','#17b0aa'), warn:T('--warn','#f4b740'), ink3:T('--ink-3','#6f8394') }; }
-    var C=tokens();
+    var C=tokens(), DEFAULT_SPAN=D.span||252;
     function common(){ return { layout:{background:{color:C.bg},textColor:C.ink,fontSize:11},
       grid:{vertLines:{color:C.line},horzLines:{color:C.line}},
-      timeScale:{borderColor:C.line,rightOffset:3},
+      // minBarSpacing defaults to 0.5px, which SILENTLY CLAMPS 'Max': the deepest name is
+      // 5,718 sessions and the pane is ~742px, so the whole tape needs 0.13px a bar. At the
+      // default, asking for the full range delivered ~1,484 sessions and no pill matched
+      // what was on screen. 0.02 leaves headroom for any archive we can hold.
+      timeScale:{borderColor:C.line,rightOffset:3,minBarSpacing:0.02},
       rightPriceScale:{borderColor:C.line}, crosshair:{mode:0},
       handleScroll:true, handleScale:true }; }
     function mk(node,h){ return LightweightCharts.createChart(node,
@@ -279,18 +287,29 @@ _SNIPPET = """<script>
         tc=th?mk(th,th.clientHeight||110):null;
     // these panes encode INTENSITY (institutional-day flag) and PART-OF-WHOLE (delivered slice of
     // turnover) — never direction — so they keep their own encoding untouched by the candle recut.
-    var Sd=S.filter(function(d){return d.dvpt!=null;}),
-        Sp=S.filter(function(d){return d.dp!=null;}),
-        Stv=S.filter(function(d){return d.tv!=null;}),
-        Sdv=S.filter(function(d){return d.dv!=null;});
+    //
+    // ONE CANONICAL SESSION DOMAIN (the alignment fix). Each pane used to be fed
+    // `S.filter(<field> != null)`, which gave every pane its OWN time domain: `stock_signals`
+    // starts hundreds of sessions after the bhav tape and the old bhav format carried no delivery
+    // column, so the DVPT and delivery panes began later — yet each one still drew from ITS first
+    // date at ITS left edge. The same pixel column therefore meant a different trading date in
+    // every pane, and the same month label sat at a different x. The master domain is the OHLC
+    // tape (S, the longest series, already the ONE time column in the payload); every other pane
+    // is REINDEXED onto it, emitting a whitespace point `{time}` — which occupies the slot and
+    // draws nothing — wherever that pane has no value. Consequence: all four series have identical
+    // length and identical logical indices, so logical index i IS the same trading date in every
+    // pane, and the panes can be range- and crosshair-synced by index.
+    function onMaster(get){ return S.map(function(d){ var v=get(d);
+      return (v===null||v===undefined)?{time:d.t}:{time:d.t,value:v}; }); }
     var sDvpt=dc?dc.addHistogramSeries({priceLineVisible:false}):null;
     var sDeliv=vc?vc.addLineSeries({lineWidth:2,priceLineVisible:false}):null;
     var sTv=tc?tc.addHistogramSeries({priceLineVisible:false}):null;   // turnover, muted grey
     var sDv=tc?tc.addHistogramSeries({priceLineVisible:false}):null;   // delivered part, accent
-    if(sDeliv) sDeliv.setData(Sp.map(function(d){ return {time:d.t,value:d.dp}; }));
-    if(sTv) sTv.setData(Stv.map(function(d){ return {time:d.t,value:d.tv}; }));
-    if(sDv) sDv.setData(Sdv.map(function(d){ return {time:d.t,value:d.dv}; }));
+    if(sDeliv) sDeliv.setData(onMaster(function(d){return d.dp;}));
+    if(sTv) sTv.setData(onMaster(function(d){return d.tv;}));
+    if(sDv) sDv.setData(onMaster(function(d){return d.dv;}));
     var CHARTS=[pc,dc,vc,tc];
+    var PANES=[[pc,candle],[dc,sDvpt],[vc,sDeliv],[tc,sTv]];
 
     // one place that paints colour — so the ◑ theme toggle (which flips data-theme live, with no
     // reload) cannot strand a dark canvas inside a light page, or vice versa.
@@ -298,8 +317,8 @@ _SNIPPET = """<script>
       CHARTS.forEach(function(c){ if(c) try{ c.applyOptions(common()); }catch(e){} });
       candle.applyOptions({upColor:C.cup,downColor:C.cdn,borderVisible:true,
         borderUpColor:C.cupl,borderDownColor:C.cdnl,wickUpColor:C.cupl,wickDownColor:C.cdn});
-      if(sDvpt) sDvpt.setData(Sd.map(function(d){
-        return {time:d.t,value:d.dvpt,color:(d.r1m!=null&&d.r1m>1)?C.warn:C.ink3}; }));
+      if(sDvpt) sDvpt.setData(S.map(function(d){ return d.dvpt==null ? {time:d.t}
+        : {time:d.t,value:d.dvpt,color:(d.r1m!=null&&d.r1m>1)?C.warn:C.ink3}; }));
       if(sDeliv) sDeliv.applyOptions({color:C.acc});
       if(sTv) sTv.applyOptions({color:C.ink3});
       if(sDv) sDv.applyOptions({color:C.acc}); }
@@ -307,15 +326,63 @@ _SNIPPET = """<script>
     try{ new MutationObserver(paint).observe(document.documentElement,
       {attributes:true,attributeFilter:['data-theme']}); }catch(e){}
 
-    // range control — the island is server-bounded; these buttons slice it client-side
-    function setRange(n){ if(!n||n>=S.length){ CHARTS.forEach(function(c){ if(c)c.timeScale().fitContent(); }); return; }
-      var from=S[S.length-n].t, to=S[S.length-1].t;
-      CHARTS.forEach(function(c){ if(c) try{ c.timeScale().setVisibleRange({from:from,to:to}); }catch(e){} }); }
+    // EQUAL PLOT EDGES. Each pane auto-sizes its own right-hand price gutter to its widest label,
+    // and the four panes carry wildly different magnitudes (₹ price · ₹ per trade · a percentage ·
+    // ₹ crore turnover) — measured live, the gutters came out 54/60/78/100px, so the plot areas
+    // were 788/782/764/742px wide and the same date landed up to 46px apart even when the time
+    // ranges already matched. `minimumWidth` is only a FLOOR, so the pass resets it, lets every
+    // pane size itself naturally for one frame, then raises them all to the widest — otherwise the
+    // floor would ratchet upward forever as ranges change.
+    function equalize(){
+      CHARTS.forEach(function(c){ if(c) try{
+        c.priceScale('right').applyOptions({minimumWidth:0}); }catch(e){} });
+      requestAnimationFrame(function(){
+        var w=0;
+        CHARTS.forEach(function(c){ if(c) try{
+          w=Math.max(w,c.priceScale('right').width()||0); }catch(e){} });
+        if(w>0) CHARTS.forEach(function(c){ if(c) try{
+          c.priceScale('right').applyOptions({minimumWidth:Math.ceil(w)}); }catch(e){} }); }); }
+
+    // BIDIRECTIONAL RANGE SYNC. Every pane now shares one domain, so a LOGICAL range (index-based)
+    // means the same thing everywhere — no time-domain arithmetic, and no drift when a pane is
+    // missing values. Reentrancy-guarded: applying a range re-fires the subscription.
+    var syncing=false;
+    function spread(src,r){ if(syncing||!r) return; syncing=true;
+      CHARTS.forEach(function(c){ if(c&&c!==src) try{
+        c.timeScale().setVisibleLogicalRange(r); }catch(e){} });
+      syncing=false; markPill(r); }
+    CHARTS.forEach(function(src){ if(!src) return; try{
+      src.timeScale().subscribeVisibleLogicalRangeChange(function(r){ spread(src,r); });
+    }catch(e){} });
+
+    // range control — the payload carries the whole tape; these buttons move the VISIBLE window
     var rbtns=document.querySelectorAll('.g-crange .g-cbtn');
+    function markPill(r){
+      // the pill must describe what is ACTUALLY on screen — a stale hard-coded default used to
+      // claim "3M" while the view spanned years. Pick the button whose span is nearest the
+      // visible one; "Max" wins whenever the whole tape is in view.
+      if(!r||!rbtns.length) return;
+      var span=Math.round(r.to-r.from), best=null, bd=Infinity;
+      Array.prototype.forEach.call(rbtns,function(b){
+        var n=parseInt(b.getAttribute('data-r'),10)||0;
+        var eff=(!n||n>=S.length)?S.length:n;
+        var d=Math.abs(eff-span);
+        if(d<bd){bd=d;best=b;} });
+      if(!best||bd>Math.max(3,span*0.12)){   // free-panned to an arbitrary zoom — light nothing
+        Array.prototype.forEach.call(rbtns,function(x){
+          x.classList.remove('on'); x.setAttribute('aria-pressed','false'); }); return; }
+      Array.prototype.forEach.call(rbtns,function(x){
+        x.classList.toggle('on',x===best); x.setAttribute('aria-pressed',x===best?'true':'false'); }); }
+    function setRange(n){
+      var span=(!n||n>=S.length)?S.length:n;
+      var to=S.length-0.5, from=S.length-span-0.5;
+      syncing=true;
+      CHARTS.forEach(function(c){ if(c) try{
+        c.timeScale().setVisibleLogicalRange({from:from,to:to}); }catch(e){} });
+      syncing=false; markPill({from:from,to:to}); equalize(); }
     Array.prototype.forEach.call(rbtns,function(b){ b.addEventListener('click',function(){
-      Array.prototype.forEach.call(rbtns,function(x){x.classList.remove('on');});
-      b.classList.add('on'); setRange(parseInt(b.getAttribute('data-r'),10)); }); });
-    setRange(252);
+      setRange(parseInt(b.getAttribute('data-r'),10)); }); });
+    setRange(DEFAULT_SPAN);
 
     // crosshair readout — every number on the chart is legible as text too
     var rdt=document.getElementById('g-crdt');
@@ -327,13 +394,36 @@ _SNIPPET = """<script>
       if(d.dvpt!=null) bits.push('DVPT '+Math.round(d.dvpt).toLocaleString('en-IN'));
       if(d.tv!=null) bits.push('turnover '+Math.round(d.tv/1e7).toLocaleString('en-IN')+' cr');
       rdt.textContent=bits.join('  ·  '); }
-    pc.subscribeCrosshairMove(show); show(null);
+
+    // CROSSHAIR SYNC — the dashed time-line must land on the same DATE in every pane, so reading
+    // "what was delivery doing on the day price gapped" is one glance and not an eyeball estimate.
+    // `setCrosshairPosition` needs a price to anchor its horizontal line: use that pane's own
+    // value for the date, so the line sits on its own series rather than floating.
+    var FLD={0:'c',1:'dvpt',2:'dp',3:'tv'};
+    var crossing=false;
+    function crossTo(time){
+      if(crossing) return; crossing=true;
+      var d=time?byT[tk(time)]:null;
+      PANES.forEach(function(pr,i){ var c=pr[0],s=pr[1]; if(!c||!s) return;
+        try{ if(!d) { c.clearCrosshairPosition(); return; }
+             var v=d[FLD[i]];
+             // no value that session (the pane's coverage starts later) — the TIME line still has
+             // to land on the same date, so anchor it at the axis floor rather than dropping it
+             c.setCrosshairPosition(v==null?0:v,d.t,s); }catch(e){} });
+      crossing=false; }
+    PANES.forEach(function(pr){ var c=pr[0]; if(!c) return;
+      c.subscribeCrosshairMove(function(p){
+        if(crossing) return;
+        var t=(p&&p.time)?tk(p.time):null;
+        show(t?{time:p.time}:null); crossTo(t?p.time:null); }); });
+    show(null);
 
     // keep every canvas bound to its column (observe the stable parent, width-gated)
     var wrap=host.closest('.g-cwrap');
     function fit(){ [[pc,host],[dc,dh],[vc,vh],[tc,th]].forEach(function(pr){
       var c=pr[0],n=pr[1]; if(!c||!n) return; var w=n.clientWidth,h=n.clientHeight;
-      if(w>0&&h>0) try{ c.resize(w,h); }catch(e){} }); }
+      if(w>0&&h>0) try{ c.resize(w,h); }catch(e){} });
+      equalize(); }   // a resize re-derives every gutter — re-level them or the edges drift apart
     var tmr=null; function later(){ if(tmr)clearTimeout(tmr); tmr=setTimeout(fit,120); }
     if(window.ResizeObserver&&wrap) new ResizeObserver(later).observe(wrap);
     window.addEventListener('resize',later);
@@ -385,10 +475,12 @@ def _selftest() -> int:
                        "dvpt": 1000 * i, "dp": 40 + i, "r1m": 1.2, "tv": 5, "dv": 3}
                       for i in range(1, 6)],
            "zones": [{"label": "P3M", "price": 12.5}], "adjusted": True}
-    html = chart_html("TCS", "Tata Consultancy <b>", isl, deep=False)
+    html = chart_html("TCS", "Tata Consultancy <b>", isl)
     assert 'id="g-cdata"' in html and 'type="application/json"' in html
     assert "&lt;b&gt;" in html, "the company name must be escaped"
-    assert "back-adjusted" in html and "Full history" in html
+    assert "back-adjusted" in html
+    assert "Full history" not in html, "one window — the deep-link affordance is retired"
+    assert 'aria-pressed="true"' in html and 'data-r="%d"' % DEFAULT_SPAN in html
     assert "candle-up" in _SNIPPET and "takeScreenshot" in _SNIPPET
     # the two-channel candle encoding — shape first, colour second
     assert "--candle-up:rgba(" in CSS and "--candle-up:rgba(" in _candle_css()
@@ -413,14 +505,13 @@ def _selftest() -> int:
                             "c": 1235.75, "dvpt": 1234567.0, "dp": 56.7, "r1m": 1.23,
                             "tv": 1234567890.12, "dv": 987654321.55}] * 6000,
                 "zones": []}
-    deep_bytes = len(chart_html("RELIANCE", "Reliance Industries", deep_isl, deep=True).encode())
+    deep_bytes = len(chart_html("RELIANCE", "Reliance Industries", deep_isl).encode())
     assert deep_bytes < 640_000, deep_bytes
     # DOM safety: no raw '<' may survive inside the JSON island
     isl2 = {"series": [{"t": "2026-01-01", "o": 1, "h": 1, "l": 1, "c": 1}],
             "zones": [{"label": "</script><img src=x>", "price": 1}]}
     p = _payload(isl2)
     assert "<" not in p and "\\u003c" in p
-    assert "Full history" not in chart_html("TCS", "", isl, deep=True)
     # no legacy/preview marker may appear in this module's output
     for m in ("pv3-", "data-ui-v3", "uk-sub", "chartlbl", "rangebar"):
         assert m not in html and m not in CSS, m

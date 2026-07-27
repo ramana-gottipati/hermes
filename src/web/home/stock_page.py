@@ -334,8 +334,8 @@ def section(key: str, title: str, sub: str, prov: str, body: str, spoke: str = "
 
 
 # ── the evidence sections ───────────────────────────────────────────────────────
-def sec_chart(core: dict, island: dict, deep: bool) -> str:
-    body = CH.chart_html(core["sym"], core.get("name") or "", island, deep=deep)
+def sec_chart(core: dict, island: dict) -> str:
+    body = CH.chart_html(core["sym"], core.get("name") or "", island)
     body += C.learn("Blue candles closed up, grey closed down — the outline keeps both readable in "
                     "either theme. The dashed lines are the institutional price zones: the average "
                     "close on the days big delivery actually happened.")
@@ -822,13 +822,12 @@ def miss(sym: str, suggestions) -> str:
 
 
 # ── the composer ────────────────────────────────────────────────────────────────
-def compose(conn, sym: str, chart_deep: bool = False) -> tuple:
+def compose(conn, sym: str) -> tuple:
     """(body_html, rail_html) — always a 2-tuple, including on the not-found path."""
     core = SR.core(conn, sym)
     if core.get("bar") is None and core.get("sig") is None:
         return (miss(sym, SR.suggest(conn, sym)), "")
-    island = SR.chart_island(conn, sym,
-                             SR.MAX_SESSIONS if chart_deep else SR.DEFAULT_SESSIONS)
+    island = SR.chart_island(conn, sym)      # always the whole tape — one window
     selfref = SR.self_reference(conn, sym)
     xs = SR.x_setups(conn, sym)
     # W1-CONVERGENCE: the two folded blocks come from the market-wide read layer, which already owned
@@ -839,7 +838,7 @@ def compose(conn, sym: str, chart_deep: bool = False) -> tuple:
     events = MR.stock_events(conn, sym)
 
     bodies = {
-        "chart": sec_chart(core, island, chart_deep),
+        "chart": sec_chart(core, island),
         "own": sec_own_history(own),
         "disc": sec_disclosures(events),
         "pos": sec_positioning(core, selfref),
