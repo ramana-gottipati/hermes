@@ -30,8 +30,8 @@ back + record verdicts on genuine forks.
 | W1 | Graphite stock page (cutover blocker; port of `/dash/preview/stock` M4 hub) | dev ✅ → review 🔄 | 1 dev + 1 review + 1 verify | `lane/w1-stock-page` @ `f0f1926`, suite 869/0/1, clean add (0 shared-file edits) |
 | W2 | M-Markets estate (32 remaining surfaces, 3 family lanes) | 🔄 RUNNING ∥ W1 | 3 dev + wave review/verify | `lane/w2-internals` (11: internals·attention·participants·fno·divergence·actions·event-cadence·results-reactions·surveillance·band-locks·buyback-calc) · `lane/w2-rs-rotation` (11: rs/rotation/sectors families) · `lane/w2-seasonal-patterns` (10: seasonal×4·harmonic·wolfe·early-signals·move-anatomy·self-history·compare) |
 | W3 | M7 Strategies (18) + Tracker (6) | 🔄 RUNNING ∥ W1/W2 | 2 dev + wave review/verify | `lane/w3-strategies` · `lane/w3-tracker` (build work independent; integration + deploys stay serial at the parent) |
-| W4 | M8 Screener (5 surfaces) | queued | 1–2 dev + 1 review | — |
-| W5 | M6 Journey/help layer (trust 11) | queued | 1 dev + 1 review | — |
+| W4 | M8 Screener (5 surfaces) | 🔄 RUNNING ∥ | 1 dev + wave review | `lane/w4-screener` — screen2 REBUILD (URL-state · server CSV · <500KB budget) + themes; screener/tags-review/workbench verdicts |
+| W5 | M6 Journey/help layer (trust 11) | 🔄 RUNNING ∥ | 1 dev + wave review | `lane/w5-journey` — trust pages + `journey.py` (nudge/help/teaching-empty per M6 spec v1.1) + Pat-dock reconciliation (no third Pat) |
 | W6 | Cutover mechanics (nav promotion · retire old preview · isolation-contract rewrite · parity 100% accounted) | queued | 1 dev | — |
 | W7 | Full-estate walk on box + docs fold + ledger close | queued | walk fleet + parent | — |
 
