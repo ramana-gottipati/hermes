@@ -111,6 +111,30 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                              "fixed ~10-dot tails) — a declared child of the Graphite "
                                              "home, reached via 'See the full rotation →' from the Today "
                                              "RRG; direct-URL, no lens/nav until cutover"),
+    # Graphite Tracker (2026-07-27, lane w3-tracker / milestone M7) — the classic Tracker's six
+    # surfaces rebuilt as declared children of the Graphite home. Reached from the "Tracker"
+    # destination in the Graphite top bar and from the Today page's watchlist/portfolio card;
+    # direct-URL, no lens/nav until cutover (registering a lens IS the cutover).
+    "/dash/home/tracker": ("graphite-tracker", "Tracker overview — book totals, what's worth a look, "
+                                               "allocation, your named books, and the 'follow a model "
+                                               "book' door; declared child of the Graphite home, "
+                                               "reached from the 'Tracker' destination in its top bar"),
+    "/dash/home/tracker/portfolios": ("graphite-tracker", "Positions — the open book marked to the last "
+                                                          "close in Kite-norm columns (Avg. cost · LTP · "
+                                                          "Cur. val · P&L · Day chg.); reached from the "
+                                                          "Tracker overview's view switcher"),
+    "/dash/home/tracker/watchlists": ("graphite-tracker", "Watchlist — the canonical stocks_in_play watch "
+                                                          "tier, adding through the home's existing "
+                                                          "POST /dash/home/watch/add (no second write "
+                                                          "path); reached from the Tracker view switcher"),
+    "/dash/home/tracker/performance": ("graphite-tracker", "Scoreboard — realised/unrealised P&L, hit-rate, "
+                                                           "excess vs Nifty 500, the chained time-weighted "
+                                                           "return curve, and the measured cash-flow "
+                                                           "fidelity verdict behind XIRR (ratified §K.4)"),
+    "/dash/home/tracker/import": ("graphite-tracker", "Import — file-or-paste holdings onboarding "
+                                                      "(parse → validate against bhavcopy_rows → preview "
+                                                      "→ confirm); reached from the Tracker view switcher "
+                                                      "and every empty state"),
     # Sideways migration-parity board (2026-07-24) — the internal governance dashboard proving no
     # classic element is silently missed in the modern-app rebuild (gate: tests/test_sideways_parity.py).
     # An owner/ops tool, deliberately unlinked; NOT a customer lens, so no lens_registry entry.

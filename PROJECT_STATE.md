@@ -207,6 +207,13 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 - **Increment (iv) (2026-07-23) — the section is now FEATURE-COMPLETE:** the alive floating **Pat** (`src/web/home/pat_dock.py` — breathing/blink/look avatar · proactive **data-bound** bubbles + suggestion answers built from the real reads (FII/DII, what-changed, results) · a11y: `role="dialog"` + `aria-modal` + `inert`-when-closed + Escape + focus-in-on-open/return-to-trigger · DOM-safe hidden-block answers) + the **Beginner⇄Pro** persona toggle (`data-persona`, persisted `pvgmode`; beginner explainers via `C.learn` gated `.new-only`). Three new gates `test_home_pat_a11y`/`_reduced_motion`/`_persona` — all **six** spec gates now green. Suite **804 pass**. **DEPLOYED to the VPS 2026-07-23 ~12:02 UTC — LIVE, isolation proven both directions on the box** (public `https://srv1704897.hstgr.cloud/dash/home` 200 · `/dash/home/_kit` 200 · `/dash` classic 200 with 0 `data-ui-g` · `/dash/preview` 200 with 0 `data-ui-g` · `/dash/home` 0 `pv3`/`data-ui-v3` · 0 journal errors). Deploy craft: callees-first `scp` of the new package + `import` verify → **anchored in-place patch** of the co-edited `v2_surfaces.py` (D80: never full-scp; one `_ROUTER_SPECS` line after the coverage anchor; backup in `/tmp`) → writer-safe restart (no foreign writer; read-only startup; clear of the 14:01 bhavcopy). Then, on the owner's confirmation it's done, the gated **cutover** (§12: register lens/nav + retire the old preview). **Bidirectional-isolation follow-up (owner Q) — CLOSED:** every layer is insulated both ways (proven: NEW→OLD is structurally impossible — the home imports nothing from + writes nothing to the old, so `/dash` renders byte-identical). The ONE deliberate coupling (the shared READ-ONLY data layer) is now a HARD contract — `tests/test_home_read_contract.py` (13 tests) pins every column + shared-helper signature the home reads against the CANONICAL schemas (`db.SCHEMA_BASE`, `market_internals._SCHEMA`, `deals._DDL`, `results_calendar.SCHEMA`, `signal_alerts.ensure_schema`) + the `corp_actions.upcoming`→`(rows, as_of)` / `market_mood(breadth, nifty_above_200dma)` signatures + the `'FII/FPI'` category literal. An old-lane rename/signature-change now goes red EARLY instead of the home silently losing a zone. Suite **817 pass**.
 - **Home polish (owner feedback on a large screen, 2026-07-23):** the live home read as full-width empty bars with dead horizontal space. Reworked to the approved tile-grid: **restored the semicircle mood gauge** (`components.gauge`, breadth-driven 0-100, mood word as label) · market pulse is now a 2-col tile block (index cards + sparkline | gauge + breadth) · **2-col rows** (Today|Flows · Going-ex|Results) kill the dead space · agenda rows are inline (detail beside the symbol, not a far-right chip; date-column dedup so repeats collapse; cap 6; no `[:18]` truncation; no redundant action/details) · empty zones fall back to `src/web/home/demo.py` representative preview data (owner directive: "generate the data"). 43 home gates green.
 - **Rebuilt to the owner-approved 2-region dashboard + review passes (2026-07-23):** market ribbon · MAIN column (Nifty pulse + news hero) · SIDEBAR of fixed-size internally-scrolling widgets (what-changed · FII/DII · corp-actions · results · +reserved watchlist) · restored semicircle gauge (mood via 200-DMA breadth, distinct from today's adv/dec) · clickable symbols · plain-English source labels · nav on its own bar · index-redundancy killed · news dedup · density tightened. Plan `scratchpad/home-layout-plan.html` (artifact `ac8410d3`, MoneyControl-informed). **Carry-forward + takeover prompt + binding corrections + OPEN feedback (rearrange/organize · Market-Pulse more entries/insights · watchlist/portfolio · real-vs-demo honesty · response calibration · cutover PARKED) = `docs/graphite-home-carryforward.md`.** ⚠ In-app browser was DOWN — reviewed HTML, not pixels.
+**Graphite Tracker — the M7 tracker half (2026-07-27, lane `w3-tracker`) — new:**
+- `src/web/home/tracker_pages.py` — the Graphite Tracker: five declared children of the Graphite home (`/dash/home/tracker` overview · `/portfolios` · `/watchlists` · `/performance` · `/import`) plus `GET /export` (server CSV), `GET /template.csv`, and the two importer POSTs. Own `APIRouter`, mounted by ONE anchored `v2_surfaces._ROUTER_SPECS` entry (`graphite-tracker`); registered in `tests/test_dash_route_registry.INTERNAL_DEV`, **no `lens_registry` entry** (registering a lens IS the cutover). Kite-norm column vocabulary (`Avg. cost · LTP · Cur. val · P&L · Day chg.`) per plan Part III §J with a frozen identity spine and a `.pro-more` column layer; fixed-height internally-scrolling tables; every symbol links `/dash/stock?sym=`.
+- `src/web/home/tracker_reads.py` — the lane's read layer (plain rows, never HTML): schema-tolerant `positions`/`watchlist`/`closed_trades` over the canonical `stocks_in_play` (the `book`/`qty` columns are later additions and are absent on thin hosts, so every read is `SELECT *` + `.get()`), `books_overview` · `attention` · `allocation`, a chained **time-weighted** return curve vs `index_rows`, `cashflow_fidelity()` + a guarded `xirr()`, and the importer (`parse_holdings` → `validate_rows` → `commit_rows`, all parameterised).
+- `tests/test_home_tracker.py` — 20 tests: the privacy gate in BOTH directions (anonymous ⇒ demo book on all five pages · a `pt_owner` credential ⇒ the real book · a gate that errors fails CLOSED · writes and exports are owner-only), the single-write-path contract, importer round-trip + injection-safety, the fidelity verdict FAIL/PASS with XIRR silent on FAIL, the TWR property (a position arriving is not a gain), thin-schema survival, isolation/registration/parity.
+- **Writes:** exactly ONE new write path (the importer). The watch tier keeps the home's existing `POST /dash/home/watch/add`; per-row edit/close/promote/alerts stay on the classic tracker and are linked, not forked.
+- **Auth:** reuses `tracker_gate._is_owner` (the classic demo-book gate) rather than forking a second implementation — `/dash/home/*` is outside that middleware's prefix, so the page asks the gate directly and fails closed.
+
 **Orthogonal-data exploration (S214-cont, 2026-07-23) — descriptive lever tests, all NON-price/volume:**
 - `research/explosive_moves/regime_overlay.py` — de-risk overlay (index-200DMA / India VIX regime, PIT) on the low-vol + momentum books; a DRAWDOWN lever not alpha (trend cuts momentum DD −63→−42 at flat CAGR; VIX loses to trend; hurts defensive low-vol).
 - `research/explosive_moves/inst_flow.py` (seal `d582445`) — institutional accumulation Δ(DII+FII) event-study from `shareholding_history` (PIT); `inst_flow_ls.py` = the long-short; `lowvol_flow_tilt.py` = the low-vol × accumulation tilt. Signal real-but-weak (δ+0.07), NOT fundable in any form.
@@ -2242,6 +2249,54 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Graphite Tracker — 2026-07-27 — the M7 TRACKER HALF ported (5 pages + the model-books merge)
+Lane `w3-tracker` of the Graphite cutover orchestration. All six classic Tracker surfaces are now
+dispositioned in the parity ledger: **5 PORTED, 1 DROPPED-as-merge** — the tracker workspace is the
+first to be fully accounted (ledger moved PORTED 2→7, DEFERRED 72→66, DROPPED 0→1).
+- **The pages.** `/dash/home/tracker` (book totals · worth-a-look · movers · allocation + Pro
+  contribution · books · the model-book door) · `/portfolios` (Kite-norm columns, frozen identity
+  spine, Pro column layer, book chips with URL state) · `/watchlists` (the canonical watch tier) ·
+  `/performance` (the scoreboard) · `/import` (file-or-paste onboarding). Plus server CSV at
+  `/export` and the blank `/template.csv`.
+- **🔴 THE HONEST VERDICT — XIRR is NOT shipped as a number; the CHECK is.** Ratified plan §K.4 made
+  per-book CA-adjusted XIRR an ADOPT-as-a-goal conditional on proving the cash-flow data exists at
+  the required fidelity. `tracker_reads.cashflow_fidelity()` runs that check against the live rows:
+  are all positions dated and quantified · does any symbol appear as several lots (so averaging
+  in/out cannot be reconstructed) · does any split/bonus/dividend fall inside a holding period (so
+  stored `qty` and received cash are wrong). `stocks_in_play` is a **position** ledger, not a
+  **cash-flow** ledger, so a real book fails on at least one of these — and the page then prints the
+  measurement and the reason INSTEAD of a plausible-looking number. `xirr()` exists and is exercised,
+  but is guarded by that verdict and returns None whenever it fails.
+- **What replaced it: a chained TIME-WEIGHTED return.** Each session's move is measured only over the
+  names held on BOTH sides of that session, then chained — so a position arriving never reads as a
+  gain (the exact defect in the classic page's book-value equity curve and its CAGR, both of which
+  are deliberately NOT carried). It needs prices, not cash flows, so it is computable today. It
+  answers "how did the selection do", not "how did my money do"; the second question returns the day
+  the ledger records transactions. Rendered against Nifty 500 from `index_rows`, with the deepest
+  peak-to-trough fall. **Verified on a seeded book:** all names +0.4%/day × 23 sessions → book
+  +9.2%, benchmark (+0.2%/day) +4.6%; a late-arriving 10× position did not move it. On a clean
+  single-lot book the fidelity check PASSED and XIRR released at +23.4%.
+- **`model-books` → DROPPED as a MERGE, not a deletion.** It and `model-portfolios` rendered the SAME
+  engine books — the Tracker copy's own nav rationale admitted the numbers were "already covered by
+  the model_portfolios data flow". One data source, two doors: the books live in Strategies, and the
+  Tracker carries the "follow a book" view (a named book seeded with TODAY's date and close, never
+  the backtest's history). The classic route stays live and linked so bookmarks and the Adopt write
+  keep working.
+- **One write path, one auth.** The watchlist adds through the home's existing
+  `POST /dash/home/watch/add` (no second write); the importer is the lane's only new write and
+  validates symbols against `bhavcopy_rows` EQ/BE exactly as `reads.watch_add` does, on the way in
+  AND again at commit (a stale or tampered preview cannot write). The demo-book privacy gate is
+  reused from `tracker_gate._is_owner` — `/dash/home/*` is outside that middleware's prefix, so the
+  page asks the gate directly and fails CLOSED.
+- **Gates:** full suite **872 pass · 0 fail · 1 skip** (baseline 852/0/1; +20 = the new
+  `tests/test_home_tracker.py`). Graphite + governance cluster 108 pass, including isolation both
+  directions, route-registry, sideways-parity and pat-coverage. Glossary gained the 4 metrics these
+  pages introduce (time-weighted return · XIRR · the cash-flow fidelity check · deepest fall).
+- **Shared-file touches (3 lines + 2 tables):** one anchored `_ROUTER_SPECS` mount, one `shell.DESTS`
+  retarget (Tracker → `/dash/home/tracker`, so the pages are reachable rather than orphans), five
+  `INTERNAL_DEV` registrations, six `SURFACE_PARITY` dispositions, four glossary bullets. No classic
+  view, no `lens_registry`, no deploy.
 
 ### Graphite Home — 2026-07-27 — HEATMAP ENHANCEMENTS (§5-E) — colour-by-delivery · size selector · Pro "unusual for this stock"
 Closed §5-E, the last queued Graphite home unit. Additive/isolated, 89 gates green, deployed + box-verified.
