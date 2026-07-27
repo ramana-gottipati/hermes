@@ -90,6 +90,32 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                 "M5 Today IS the migrated markets overview / orientation home"),
     "wire":    ("PORTED", "/dash/preview",
                 "M3 news/flow dock (?ch=news) is the migrated News/Wire"),
+    # ── W1, the Graphite stock page (2026-07-27) ──────────────────────────────────────
+    # HONESTY NOTE, recorded deliberately: the classic stock DOSSIER (`/dash/stock`) is an
+    # integration hub, not a registry lens, so it has no row of its own here — and NONE of the
+    # lenses below is fully ported by /dash/home/stock. What the new page carries is each lens's
+    # PER-SYMBOL dossier tab, re-implemented over the same tables; every estate-wide BOARD (the
+    # ranked list, the screen, the cross-sectional view) is still classic-only. They therefore stay
+    # DEFERRED to their milestone, with the partial coverage written down so the M7 / M-Markets
+    # lanes know what already exists and do not rebuild it.
+    "stocks":      ("DEFERRED", "M7", "per-symbol Positioning/DVPT tab carried by the Graphite "
+                                      "stock page (/dash/home/stock, W1); the ranked board is not"),
+    "mep":         ("DEFERRED", "M7", "per-symbol Accumulation tab carried by /dash/home/stock "
+                                      "(W1), descriptor-only fence travelling with it; the board is not"),
+    "cpr":         ("DEFERRED", "M7", "per-symbol Structure tab (D/W/M/Q pivots) carried by "
+                                      "/dash/home/stock (W1); the board is not"),
+    "concalls":    ("DEFERRED", "M7", "per-symbol Credibility tab carried by /dash/home/stock (W1) "
+                                      "with its Gate-B fence; the ledger board is not"),
+    "growth":      ("DEFERRED", "M7", "per-symbol Quality (pt14 + capital allocation) tab carried "
+                                      "by /dash/home/stock (W1); the board is not"),
+    "conviction":  ("DEFERRED", "M7", "per-symbol conviction read carried as a digest tile on "
+                                      "/dash/home/stock (W1), labelled a sorting heuristic; the "
+                                      "shortlist board is not"),
+    "rs-hub":      ("DEFERRED", "M-Markets", "per-symbol Strength tab (rank · trend · slopes · vs "
+                                             "sector) carried by /dash/home/stock (W1); the hub is not"),
+    "participants": ("DEFERRED", "M-Markets", "the per-symbol F&O tab it declares is carried by "
+                                              "/dash/home/stock (W1) from fno_oi_signals; the "
+                                              "participant-flow board is not"),
 }
 
 _VALID_STATUS = {"PORTED", "DEFERRED", "DROPPED", "NA"}

@@ -107,15 +107,24 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                         "direct-URL only, no lens/nav until cutover (zero classic drift)"),
     "/dash/home/_kit": ("graphite-home", "Graphite component-kit showcase — dev/preview-only, "
                                          "deliberately unlinked"),
-    "/dash/home/stock": ("graphite-home", "Graphite per-symbol evidence scroll (chart · self-relative "
-                                          "3-year reference · delivery · strength · positioning · "
-                                          "events) — the cutover-blocking twin of the retired preview's "
-                                          "/dash/preview/stock; reached from every Graphite symbol link, "
-                                          "direct-URL, no lens/nav until cutover"),
     "/dash/home/rotation": ("graphite-home", "Markets sector-rotation RRG (6/12/24-month journeys, "
                                              "fixed ~10-dot tails) — a declared child of the Graphite "
                                              "home, reached via 'See the full rotation →' from the Today "
                                              "RRG; direct-URL, no lens/nav until cutover"),
+    # ONE entry for this route (W1-CONVERGENCE, 2026-07-27). Two lineages independently built and
+    # registered `/dash/home/stock`; the merge auto-resolved into a DUPLICATE dict key, which Python
+    # silently collapses last-wins — a registry that looks reviewed but is not. The surviving page is
+    # `stock_page.py` (+ stock_reads · stock_chart_g); `stock_view.py` is retired to git history and
+    # its unique blocks (SEBI ownership filings · the 5-metric 3-year self-relative panel · the
+    # watchlist write) are folded in here.
+    "/dash/home/stock": ("graphite-home", "Graphite STOCK PAGE (W1 cutover blocker) — the per-symbol "
+                                          "evidence scroll at ?sym=: identity · digest · chart · "
+                                          "positioning/accumulation/strength/quality/structure/"
+                                          "credibility/setups/F&O · own-history · ownership filings · "
+                                          "context rail. A declared child of the Graphite home, reached "
+                                          "today via peer links inside the page and direct URL; the "
+                                          "parent nav link lands with the cutover (W6), which also "
+                                          "retires /dash/preview/stock"),
     # Sideways migration-parity board (2026-07-24) — the internal governance dashboard proving no
     # classic element is silently missed in the modern-app rebuild (gate: tests/test_sideways_parity.py).
     # An owner/ops tool, deliberately unlinked; NOT a customer lens, so no lens_registry entry.
