@@ -2223,6 +2223,26 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Graphite Home — 2026-07-27 — HEATMAP ENHANCEMENTS (§5-E) — colour-by-delivery · size selector · Pro "unusual for this stock"
+Closed §5-E, the last queued Graphite home unit. Additive/isolated, 89 gates green, deployed + box-verified.
+- **Colour-by-delivery toggle.** `_hm_tile` now emits a second intensity `--d` (delivery 25%→0 … 80%→1,
+  an UNSIGNED conviction ramp) beside the existing signed move `--i`; the container carries
+  `data-mode`, and CSS repaints every tile (cyan ramp, dark+light) when the Move ⇄ Delivery buttons
+  flip it. The legend swaps by pure CSS sibling selector (no JS `innerHTML` — DOM-safety gate).
+- **Full universe → a SIZE SELECTOR (the fork's verdict).** A true 2,692-tile treemap is illegible, so
+  `?map=N` picks Top **150 / 350 / 600** (600 = the practical legibility ceiling), server-clamped to
+  `components._HM_SIZES` (bad/hostile values fall back to 150 — route-tested incl. `?map=<script>`).
+  150 is Free; 350/600 are Pro (gated client-side by `[data-tier="free"]`). Box-measured: 600 tiles =
+  8ms read + 8ms render, 161KB — cheap enough that no pre-render/caching is warranted.
+- **Pro per-tile "is this move unusual FOR THIS STOCK?"** `reads.market_map` now also selects the
+  PRECOMPUTED self-relative columns `stock_signals.turnover_surge_1m` (today's turnover ÷ its own
+  1-month average) + `avg_deliv_pct_1m` (its own delivery norm) — the same self-relative philosophy as
+  `/dash/self-history` **without importing that isolation-gated view module** (verdict on the reuse
+  fork: the engine lives in a web-view module; importing it would break `test_home_isolation`, so we
+  reuse the stored columns instead). In Pro the hover card gains a "vs its own history" section +
+  an "unusual for this stock" / "about typical" read (unusual = ≥2× turnover surge, or delivery ≥12pt
+  above its own norm). Box: **99.5% of rows carry the data** (597/600). Free hover card unchanged.
+
 ### Session 215 — 2026-07-24 — F&O PHASE-0 EDGE VERDICT + the `/dash/fno` positioning board (Phase 1a) — DEPLOYED + WALKED
 Ramana asked for a full F&O reality-check: every F&O data feed we have, what the Indian market shows free-vs-Pro, and the "X-factor". Mapped the estate + benchmarked the ecosystem (2 agents), then RAN the coded-but-never-run Phase-0 edge gate on the box (read-only).
 - **Phase-0 verdict (`research/explosive_moves/fno_oi_phase0.py`, box, full 2024-07→today, 273 F&O stocks; cross-sectional weekly quintiles, 22d fwd excess vs Nifty-500, Cliff's δ):** **PCR SELECTS** (topQ +0.74% vs botQ −0.02%, δ=0.061, both halves same sign) → "PROCEED to Phase 1". **maxpain_dist / basis / fut_oi_chg FAIL** (halves flip sign). ⚠ Effect SMALL (δ 0.061 < the 0.11 "small" bar) on a 2-yr low-power window → **forward-test-only, still descriptive-only (D62)**; flips the per-stock OI dimension from "failed DSR" to "PCR merits Phase-1". maxpain "fail" is partly underpower (872 obs vs PCR 4010 — sparse per-stock chain) and it's really an index-level tool we don't yet compute.

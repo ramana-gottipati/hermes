@@ -32,11 +32,19 @@ def home(request: Request) -> HTMLResponse:
     from src.core.db import get_conn
     on = is_on(request)
     toast = C.add_toast(request.query_params.get("msg", ""))
+    # heatmap size selector (?map=N) — the full-universe control; clamp to the allowed set (larger
+    # universes are Pro, gated client-side). Default = the Free size.
+    try:
+        map_size = int(request.query_params.get("map", C._HM_SIZES[0]))
+    except (TypeError, ValueError):
+        map_size = C._HM_SIZES[0]
+    if map_size not in C._HM_SIZES:
+        map_size = C._HM_SIZES[0]
     body, pat = "", ""
     try:
         with get_conn() as conn:
             conn.row_factory = __import__("sqlite3").Row
-            body = _compose(conn, on)
+            body = _compose(conn, on, map_size)
             from src.web.home import pat_dock
             pat = pat_dock.dock_html(conn)
     except Exception:  # noqa: BLE001 — a busy/edge DB must never 500 the home
@@ -142,7 +150,7 @@ def _feeds(conn, idx, wl, wl_demo, pf, pf_demo):
     return feeds
 
 
-def _compose(conn, on: bool) -> str:
+def _compose(conn, on: bool, map_size: int = 150) -> str:
     """The owner-approved SCROLL-STACK dashboard: a selectable ticker, a MAIN column (a FEATURED card
     you choose — watchlist · portfolio · index — then the always-visible Market-pulse deck · What-
     changed · News), and a RAIL (FII/DII · corporate actions · results · a go-deeper drawer · the
@@ -163,7 +171,7 @@ def _compose(conn, on: bool) -> str:
     vix = reads.vix_latest(conn) or demo.VIX
     pulse_refs = reads.internals_reference(conn)   # Pro reference layer (percentile vs own history)
     vix_ref = reads.vix_reference(conn)
-    mmap, mmap_demo = _pick(reads.market_map(conn), demo.MARKET_MAP)
+    mmap, mmap_demo = _pick(reads.market_map(conn, limit=map_size), demo.MARKET_MAP)
     sev = reads.severity_counts(conn)
     if not sev.get("total"):
         sev = demo.SEVERITY
@@ -202,7 +210,7 @@ def _compose(conn, on: bool) -> str:
     news_rows, news_demo = _pick(reads.recent_news(conn, limit=20), demo.NEWS)
     news = C.zone("Market news", "Newswire · 2× daily", C.wire(news_rows),
                   sub="headlines, symbol-tagged", sample=news_demo)
-    hmap = C.zone("Market map — today", "NSE bhav copy · EOD", C.heatmap(mmap),
+    hmap = C.zone("Market map — today", "NSE bhav copy · EOD", C.heatmap(mmap, size=map_size),
                   sub="the whole market in one look", sample=mmap_demo, name="Market map")
     main = '<div class="g-main">' + regime + featured + hmap + pulse + conviction + trig + news + "</div>"
 

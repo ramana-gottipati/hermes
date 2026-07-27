@@ -1120,7 +1120,7 @@ def _hm_tile(stk, r) -> str:
     except (TypeError, ValueError):
         p = 0.0
     cls = "up" if p >= 0 else "dn"
-    inten = min(1.0, abs(p) / 4.0)                 # saturate the colour at ±4%
+    inten = min(1.0, abs(p) / 4.0)                 # saturate the MOVE colour at ±4%
     left, top = r["x"] / _HM_W * 100, r["y"] / _HM_H * 100
     w, h = r["dx"] / _HM_W * 100, r["dy"] / _HM_H * 100
     sym = esc(stk.get("symbol"))
@@ -1128,16 +1128,31 @@ def _hm_tile(stk, r) -> str:
     turn = _rupee(stk.get("turnover"))
     dv = stk.get("deliv")
     deliv_s = f"{float(dv):.0f}%" if dv is not None else ""
+    # colour-by-DELIVERY intensity (--d): a sequential conviction scale, 25%→0 … 80%→1 (delivery is
+    # unsigned, so it drives a single hue in delivery mode, never up/down). CSS picks --i or --d by mode.
+    try:
+        di = max(0.0, min(1.0, (float(dv) - 25.0) / 55.0)) if dv is not None else 0.0
+    except (TypeError, ValueError):
+        di = 0.0
+    # Pro "unusual for this stock" attrs (self-relative, from stock_signals)
+    surge, dnorm = stk.get("surge"), stk.get("delivnorm")
+    sattr = (' data-surge="%.1f"' % float(surge)) if surge is not None else ""
+    nattr = (' data-delivnorm="%.0f"' % float(dnorm)) if dnorm is not None else ""
     label = ('<span class="g-hm-l">' + sym + "</span>") if (w >= 4.2 and h >= 4.6) else ""
     return ('<a class="g-hm-t ' + cls + '" href="/dash/stock?sym=' + sym + '" aria-label="' + sym + " " + esc(pct_s) + '" '
-            'data-sym="' + sym + '" data-pct="' + esc(pct_s) + '" data-turn="' + esc(turn) + '" data-deliv="' + esc(deliv_s) + '" '
-            'style="left:' + f"{left:.2f}" + "%;top:" + f"{top:.2f}" + "%;width:" + f"{w:.2f}"
-            + "%;height:" + f"{h:.2f}" + "%;--i:" + f"{inten:.2f}" + '">' + label + "</a>")
+            'data-sym="' + sym + '" data-pct="' + esc(pct_s) + '" data-turn="' + esc(turn) + '" data-deliv="' + esc(deliv_s) + '"'
+            + sattr + nattr
+            + ' style="left:' + f"{left:.2f}" + "%;top:" + f"{top:.2f}" + "%;width:" + f"{w:.2f}"
+            + "%;height:" + f"{h:.2f}" + "%;--i:" + f"{inten:.2f}" + ";--d:" + f"{di:.2f}" + '">' + label + "</a>")
 
 
-def heatmap(rows) -> str:
+_HM_SIZES = (150, 350, 600)   # the size selector (full-universe is illegible; 600 = legibility ceiling)
+
+
+def heatmap(rows, size: int = 150) -> str:
     """The whole market as one treemap: sector blocks (sized by sector turnover), each subdivided into
-    its stocks (sized by turnover, coloured by day-move). Descriptive of the tape, never a signal."""
+    its stocks (sized by turnover, coloured by day-move OR delivery). Descriptive of the tape, never a
+    signal. `size` = the active name-count (for the selector's active state)."""
     rows = [_d(r) for r in (rows or [])]
     rows = [r for r in rows if r.get("turnover")]
     if not rows:
@@ -1167,11 +1182,27 @@ def heatmap(rows) -> str:
                            + "%;max-width:" + f"{lw:.2f}" + '%">' + esc(name) + "</div>")
     n_other = len(secs.get("Other", []))
     other_note = (" · " + str(n_other) + " unclassified") if n_other else ""
+    # controls: colour-by (Move ⇄ Delivery, client-toggled) + size selector (?map=N reload; the larger
+    # universes are Pro — locked client-side in Free). The default (150) is Free.
+    modes = ('<div class="g-hm-modes" role="group" aria-label="Colour by">'
+             '<span class="g-hm-ml">Colour</span>'
+             '<button type="button" class="g-hm-mb on" data-mode="move" aria-pressed="true">Move</button>'
+             '<button type="button" class="g-hm-mb" data-mode="deliv" aria-pressed="false">Delivery</button></div>')
+    sbtns = ""
+    for n in _HM_SIZES:
+        on = " on" if int(size) == n else ""
+        pro = "" if n == _HM_SIZES[0] else " g-hm-pro"
+        badge = "" if n == _HM_SIZES[0] else '<span class="g-hm-prob">PRO</span>'
+        sbtns += ('<a class="g-hm-sb' + on + pro + '" href="?map=' + str(n) + '">Top ' + str(n) + badge + "</a>")
+    sizes = ('<div class="g-hm-sizes" role="group" aria-label="How many names">'
+             '<span class="g-hm-ml">Show</span>' + sbtns + "</div>")
+    ctrl = '<div class="g-hm-ctrl">' + modes + sizes + "</div>"
     legend = ('<div class="g-hm-leg"><span><i class="dn"></i> down</span>'
               '<span><i class="up"></i> up</span>'
-              '<span><b>size</b> = turnover · <b>colour</b> = today\'s move (brighter = bigger) · click → its page</span>'
+              '<span class="g-hm-legmode move"><b>size</b> = turnover · <b>colour</b> = today\'s move (brighter = bigger) · click → its page</span>'
+              '<span class="g-hm-legmode deliv"><b>size</b> = turnover · <b>colour</b> = delivery % (brighter = more delivered) · click → its page</span>'
               '<span>' + str(len(rows)) + " most-traded · sectors NSE + Screener" + other_note + "</span></div>")
-    return ('<div class="g-hm">' + tiles + sec_labels
+    return (ctrl + '<div class="g-hm" data-mode="move">' + tiles + sec_labels
             + '<div class="g-hm-tip" role="status" aria-live="polite" hidden></div></div>' + legend)
 
 
@@ -1756,7 +1787,27 @@ def css() -> str:
 :root[data-ui-g] .g-hm-t.dn{background:color-mix(in srgb,#ff5a72 calc(var(--i,.3)*100%),#3a1820)}
 :root[data-ui-g][data-theme="light"] .g-hm-t.up{background:color-mix(in srgb,#0e8a57 calc(var(--i,.3)*100%),#c7ead7)}
 :root[data-ui-g][data-theme="light"] .g-hm-t.dn{background:color-mix(in srgb,#d13a52 calc(var(--i,.3)*100%),#f4ccd3)}
+/* colour-by-DELIVERY mode: an UNSIGNED conviction ramp (cyan), distinct from the signed move hues —
+   overrides .up/.dn by higher specificity (attr + descendant). --d = the delivery intensity. */
+:root[data-ui-g] .g-hm[data-mode="deliv"] .g-hm-t{background:color-mix(in srgb,#38bdf8 calc(var(--d,.15)*100%),#0b2733)}
+:root[data-ui-g][data-theme="light"] .g-hm[data-mode="deliv"] .g-hm-t{background:color-mix(in srgb,#0284c7 calc(var(--d,.15)*100%),#d8ecf7)}
 :root[data-ui-g] .g-hm-t:hover{filter:brightness(1.28);z-index:3;outline-color:var(--ink)}
+/* heatmap controls: colour-by toggle + size selector (larger universes Pro-gated) */
+:root[data-ui-g] .g-hm-ctrl{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:2px 0 10px}
+:root[data-ui-g] .g-hm-modes,:root[data-ui-g] .g-hm-sizes{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+:root[data-ui-g] .g-hm-ml{font-size:11px;color:var(--ink-3);margin-right:3px}
+:root[data-ui-g] .g-hm-mb{border:1px solid var(--line-2);background:var(--bg-2);color:var(--ink-2);font:600 11px var(--font);padding:5px 11px;border-radius:var(--r-pill);cursor:pointer}
+:root[data-ui-g] .g-hm-mb.on{color:var(--on-accent);background:linear-gradient(120deg,var(--accent),var(--accent-hi));border-color:transparent}
+:root[data-ui-g] .g-hm-sb{font:600 11px var(--font);color:var(--ink-2);text-decoration:none;padding:5px 10px;border:1px solid var(--line-2);border-radius:var(--r-pill);background:var(--bg-2);display:inline-flex;align-items:center;gap:5px}
+:root[data-ui-g] .g-hm-sb.on{color:var(--on-accent);background:linear-gradient(120deg,var(--accent),var(--accent-hi));border-color:transparent}
+:root[data-ui-g] .g-hm-prob{font:800 7px/1 var(--mono);letter-spacing:.1em;padding:2px 4px;border-radius:3px;background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent)}
+:root[data-ui-g] .g-hm-sb.on .g-hm-prob{background:color-mix(in srgb,var(--on-accent) 26%,transparent);color:var(--on-accent)}
+:root[data-ui-g][data-tier="free"] .g-hm-sb.g-hm-pro{pointer-events:none;opacity:.5;cursor:not-allowed}
+:root[data-ui-g] .g-hm-tip-u{color:var(--accent);font-weight:700} :root[data-ui-g] .g-hm-tip-hd{margin-top:5px;padding-top:5px;border-top:1px solid var(--line);font:700 8.5px/1 var(--mono);letter-spacing:.1em;color:var(--accent);text-transform:uppercase}
+/* legend follows the mode (CSS sibling toggle — no JS innerHTML) */
+:root[data-ui-g] .g-hm-legmode.deliv{display:none}
+:root[data-ui-g] .g-hm[data-mode="deliv"] ~ .g-hm-leg .g-hm-legmode.move{display:none}
+:root[data-ui-g] .g-hm[data-mode="deliv"] ~ .g-hm-leg .g-hm-legmode.deliv{display:inline}
 :root[data-ui-g] .g-hm-l{padding:0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;
   font:700 9px/1.05 var(--font);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.55);letter-spacing:.01em}
 :root[data-ui-g][data-theme="light"] .g-hm-l{color:#0b1a12;text-shadow:0 1px 1px rgba(255,255,255,.45)}
@@ -2040,9 +2091,22 @@ document.querySelectorAll(".g-cell.click").forEach(function(c){
   function row(k,v){ if(!v) return; var r=document.createElement("div"); r.className="g-hm-tip-r";
     var a=document.createElement("span"); a.textContent=k; var b=document.createElement("b"); b.textContent=v;
     r.appendChild(a); r.appendChild(b); tip.appendChild(r); }
+  function verdict(text,unusual){ var r=document.createElement("div"); r.className="g-hm-tip-r";
+    var a=document.createElement("span"); a.textContent="Read"; var b=document.createElement("b");
+    b.textContent=text; if(unusual) b.className="g-hm-tip-u"; r.appendChild(a); r.appendChild(b); tip.appendChild(r); }
+  function head(text){ var h=document.createElement("div"); h.className="g-hm-tip-hd"; h.textContent=text; tip.appendChild(h); }
   function fill(t){ tip.textContent="";
     var s=document.createElement("div"); s.className="g-hm-tip-s"; s.textContent=t.getAttribute("data-sym")||""; tip.appendChild(s);
-    row("Move",t.getAttribute("data-pct")); row("Turnover",t.getAttribute("data-turn")); row("Delivery",t.getAttribute("data-deliv")); }
+    row("Move",t.getAttribute("data-pct")); row("Turnover",t.getAttribute("data-turn")); row("Delivery",t.getAttribute("data-deliv"));
+    /* PRO: "is this move unusual FOR THIS STOCK?" — self-relative vs its own 1-month history */
+    if(document.documentElement.getAttribute("data-tier")==="pro"){
+      var surge=parseFloat(t.getAttribute("data-surge")), norm=parseFloat(t.getAttribute("data-delivnorm"));
+      var dv=parseFloat((t.getAttribute("data-deliv")||"").replace("%",""));
+      if(!isNaN(surge)||!isNaN(norm)){ head("vs its own history");
+        if(!isNaN(surge)) row("Turnover vs 1-mo", surge.toFixed(1)+"×");
+        if(!isNaN(norm)) row("Delivery 1-mo norm", norm.toFixed(0)+"%");
+        var unusual=(!isNaN(surge)&&surge>=2)||(!isNaN(norm)&&!isNaN(dv)&&(dv-norm)>=12);
+        verdict(unusual?"unusual for this stock":"about typical", unusual); } } }
   function place(e){ var r=hm.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top, tw=tip.offsetWidth, th=tip.offsetHeight;
     x=(x+tw+16>r.width)?x-tw-14:x+14; y=(y+th+16>r.height)?y-th-6:y+16;
     tip.style.left=Math.max(2,x)+"px"; tip.style.top=Math.max(2,y)+"px"; }
@@ -2050,5 +2114,10 @@ document.querySelectorAll(".g-cell.click").forEach(function(c){
   hm.addEventListener("pointerover",function(e){ var t=hit(e); if(t){ fill(t); tip.hidden=false; place(e); } });
   hm.addEventListener("pointermove",function(e){ if(!tip.hidden){ var t=hit(e); if(t) place(e); } });
   hm.addEventListener("pointerout",function(e){ if(hit(e)) tip.hidden=true; });
+  /* colour-by toggle: Move ⇄ Delivery (flips data-mode; CSS repaints tiles + swaps the legend) */
+  document.querySelectorAll(".g-hm-mb").forEach(function(b){ b.addEventListener("click",function(){
+    var mode=b.getAttribute("data-mode"); hm.setAttribute("data-mode",mode);
+    document.querySelectorAll(".g-hm-mb").forEach(function(x){ var on=x===b;
+      x.classList.toggle("on",on); x.setAttribute("aria-pressed",on?"true":"false"); }); }); });
 })();
 })();</script>"""

@@ -78,8 +78,12 @@ def market_map(conn, limit: int = 140) -> list:
     has_about = _has(conn, "company_about")
     sec_expr = "COALESCE(s.primary_sector, a.screener_industry)" if has_about else "s.primary_sector"
     join_about = "LEFT JOIN company_about a ON a.symbol=b.symbol" if has_about else ""
+    # s.* self-relative fields (from stock_signals, already joined): the stock's OWN 1-month turnover
+    # surge + delivery norm — the "is this move unusual FOR THIS STOCK" reference (Pro), the same
+    # self-relative philosophy as /dash/self-history but from precomputed columns (no view import).
     rows = _rows(conn,
-                 f"SELECT b.symbol, b.close, b.prev_close, b.value, b.deliv_per, {sec_expr} AS sector "
+                 f"SELECT b.symbol, b.close, b.prev_close, b.value, b.deliv_per, {sec_expr} AS sector, "
+                 f"       s.turnover_surge_1m AS surge, s.avg_deliv_pct_1m AS delivnorm "
                  f"FROM bhavcopy_rows b LEFT JOIN stock_signals s ON s.symbol=b.symbol AND s.trade_date=? "
                  f"{join_about} "
                  f"WHERE b.trade_date=? AND b.series IN ('EQ','BE') "
@@ -93,6 +97,8 @@ def market_map(conn, limit: int = 140) -> list:
             continue
         out.append({"symbol": r["symbol"], "pct": pct, "turnover": float(r["value"] or 0.0),
                     "deliv": r.get("deliv_per"),              # delivery % — for the hover card
+                    "surge": r.get("surge"),                 # today's turnover ÷ its 1-month avg (Pro)
+                    "delivnorm": r.get("delivnorm"),         # its own 1-month avg delivery % (Pro)
                     "sector": r.get("sector")})              # raw label — components._canon_sector buckets it
     return out
 
