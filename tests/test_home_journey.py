@@ -226,12 +226,25 @@ def test_rule_lab_rejects_a_token_outside_the_closed_vocabulary(client):
 
 # ── 4. the Pat contract — no third Pat ───────────────────────────────────────────────
 def test_there_is_exactly_one_pat_in_the_graphite_package():
-    """A second dock module, or a second `dock_html`, would BE the third Pat."""
+    """A second dock module, or a second `dock_html`, would BE the third Pat.
+
+    INTEGRATION-2 (2026-07-27): the original matcher was `"pat" in m`, which went red on the
+    merged package for a pure NAMING coincidence — W2-C's `patterns_pages` (the Wolfe/harmonic
+    Patterns page) contains the letters p-a-t and has nothing to do with Pat. Tightened to a
+    `pat`-TOKEN match, and backed by a package-wide CONTENT scan that is strictly stronger than
+    the name check ever was: a third Pat is now caught whatever it is called.
+    """
     import os
     import pkgutil
     import src.web.home as H
-    mods = {m.name for m in pkgutil.iter_modules([os.path.dirname(H.__file__)])}
-    assert {m for m in mods if "pat" in m} == {"pat_dock"}, mods
+    pkg_dir = os.path.dirname(H.__file__)
+    mods = {m.name for m in pkgutil.iter_modules([pkg_dir])}
+    assert {m for m in mods if m == "pat" or m.startswith("pat_")} == {"pat_dock"}, mods
+    # the real invariant: exactly ONE module in the package owns the dock.
+    owners = sorted(m for m in mods
+                    if "def dock_html" in open(os.path.join(pkg_dir, m + ".py"),
+                                               encoding="utf-8").read())
+    assert owners == ["pat_dock"], owners
     src = open(T.__file__, encoding="utf-8").read()
     assert "def dock_html" not in src and "_AVATAR" not in src
 
