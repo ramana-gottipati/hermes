@@ -58,6 +58,36 @@ improvements. Your mission: close the register, restore-don't-replace, nothing r
   tables (alerts/ready-to-act · attribution · ownership-hub controls · Pat's ~15 guided flows ·
   coverage memo · rule-lab verdict card · screen2 instrument visuals + Pat bridge · themes cols).
 
+## Session schedule + REQUIRED LEARNING (owner directive, 2026-07-28)
+
+Run the program as SCHEDULED Opus-5 sessions, one per phase (S-P1…S-P7; split a phase across
+two sessions only if its lane report says it overran). **Capability lives in the brief, not the
+model tier** (`docs/FABLE-PROTOCOL.md` doctrine): every session MUST read this section before
+building and its wrap report MUST answer "which of these lessons did this session's work
+exercise, and where."
+
+**The lessons — every one is a scar this program actually earned; violating one is a regression:**
+1. **Fixture blindness:** the local DB is a 4-row fixture; a green render proves STRUCTURE only.
+   Any claim about data shape/coverage/perf is unproven until walked on the box. (The 756-session
+   truncation and two dead-render defects all passed green suites.)
+2. **One-domain rule:** multi-pane/multi-series views share ONE canonical session-date domain,
+   equal array lengths, synced visible ranges, equalized axis gutters — pinned by test.
+3. **Default-window rule:** the default view must show what the owner owns (the deep tape);
+   payload budgets are proven FIRST, then the full data ships — visible range ≠ loaded range.
+4. **Per-block parity:** a page "reads well" ≠ ported. Every classic control/column/interaction
+   is carried, or its absence is a written register row. Never mark PORTED past an open MAJOR row.
+5. **Free-never-gated:** anything classic showed free stays free; Pro gates only NEW depth.
+6. **S158 ship-together:** a caller never deploys without its callee; import+hasattr sweep under
+   the PROD venv before any restart; captions must never assert what the data on the box isn't.
+7. **Verify by content:** pushes (`diff origin.. --stat` empty), deploys (md5), claims (re-run
+   the command). Exit codes and green checkmarks lie; bytes don't.
+8. **Pinning test per fix:** a fixed bug without a RED-then-GREEN test doesn't count as fixed.
+9. **Argue back with evidence:** contest any register row or brief instruction you can falsify
+   with file:line proof; record the verdict where the next session will find it.
+10. **Sample-first for identity/pixel choices:** owner-visible visual changes are presented as
+    labeled 100%-scale samples for the owner's pick BEFORE shipping; verification crops are
+    never presented as the viewing experience.
+
 ## Non-negotiable mechanics (every phase)
 - Worktree per lane off current `origin/main`; branch `fix/p<N>-<name>`; NEVER edit the shared
   checkout `D:\patearn` directly; atomic add→commit; src/-touching commits carry PROJECT_STATE
