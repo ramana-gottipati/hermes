@@ -27,9 +27,9 @@ back + record verdicts on genuine forks.
 |---|---|---|---|---|
 | W0 | Recon + briefing pack + env probes | ✅ DONE | 1 recon (Opus) | BRIEFING.md + WORKLIST.md in session scratchpad; findings §2 |
 | W0.5 | Reconcile diverged main↔origin (68 local / 33 origin, base `09052db`) | ✅ DONE | 1 reconcile (Opus) | merge `35c8a47` pushed + content-verified; suite **852/0/1**; doc gates PASS; shared checkout ff'd |
-| W1 | Graphite stock page (cutover blocker; port of `/dash/preview/stock` M4 hub) | 🔄 RUNNING | 1 dev + 1 review + 1 verify | — |
-| W2 | M-Markets estate (34 markets surfaces, 4 family lanes) | queued | 4 dev + 1 review + 1 verify | — |
-| W3 | M7 Strategies (18) + Tracker (6) | queued | 2 dev + 1 review/verify | — |
+| W1 | Graphite stock page (cutover blocker; port of `/dash/preview/stock` M4 hub) | dev ✅ → review 🔄 | 1 dev + 1 review + 1 verify | `lane/w1-stock-page` @ `f0f1926`, suite 869/0/1, clean add (0 shared-file edits) |
+| W2 | M-Markets estate (32 remaining surfaces, 3 family lanes) | 🔄 RUNNING ∥ W1 | 3 dev + wave review/verify | `lane/w2-internals` (11: internals·attention·participants·fno·divergence·actions·event-cadence·results-reactions·surveillance·band-locks·buyback-calc) · `lane/w2-rs-rotation` (11: rs/rotation/sectors families) · `lane/w2-seasonal-patterns` (10: seasonal×4·harmonic·wolfe·early-signals·move-anatomy·self-history·compare) |
+| W3 | M7 Strategies (18) + Tracker (6) | 🔄 RUNNING ∥ W1/W2 | 2 dev + wave review/verify | `lane/w3-strategies` · `lane/w3-tracker` (build work independent; integration + deploys stay serial at the parent) |
 | W4 | M8 Screener (5 surfaces) | queued | 1–2 dev + 1 review | — |
 | W5 | M6 Journey/help layer (trust 11) | queued | 1 dev + 1 review | — |
 | W6 | Cutover mechanics (nav promotion · retire old preview · isolation-contract rewrite · parity 100% accounted) | queued | 1 dev | — |
@@ -79,6 +79,20 @@ back + record verdicts on genuine forks.
   green. Parent then ff'd the shared checkout after md5-proving the 8 sibling untracked
   `research/explosive_moves/*.py` byte-identical to origin (backup in session scratchpad
   `sibling-backup-w05/`), deleted them, `merge --ff-only` → `D:\patearn` at `35c8a47`.
+
+- **2026-07-27 · W1 dev (Opus):** `/dash/home/stock?sym=` BUILT — `stock_reads.py` +
+  `stock_chart_g.py` (Graphite-native chart; `stock_chart_v3` fork NOT re-pinned: banned by name in
+  the isolation gate + binds legacy DOM, so a re-pin would polish an unreachable module) +
+  `stock_page.py` + 17 tests. Suite **869/0/1**; isolation 8/8; page 132 KB, 0.04-0.07s;
+  `?chart=max` gate-asserted <700 KB. X-04/07/09 setups block shipped (bounded SELECT, not
+  `latest()` — that calls `ensure_table()`, a WRITE, on a read-only page). Dropped-with-reason:
+  drawings/overlay engines (banned imports; linked to classic) · seasonality section (legacy render
+  module) · track-capture (home already owns the write path). Branch `lane/w1-stock-page`
+  @ `f0f1926`, push content-verified. Candid handoff to review: production-schema read-contract
+  risk (2 self-caught invented-column bugs), chart JS runtime-untested, zero real-data exposure.
+- **W1 dev cross-lane finding:** the M4 hub (`hub_sections_v3.load_core`) queries `wolfe_signals`
+  by `symbol` but the table keys on `sym` — its Wolfe badge has NEVER fired. Not fixed (module
+  retires at W6); recorded so the retirement isn't mistaken for losing a working feature.
 
 ### Banked findings (not cutover work, tracked so they aren't lost)
 - `tests/test_home_featured.py::test_conviction_now_caches_by_date` silently passes/fails on
