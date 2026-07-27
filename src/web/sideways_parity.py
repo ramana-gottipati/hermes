@@ -90,6 +90,93 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                 "M5 Today IS the migrated markets overview / orientation home"),
     "wire":    ("PORTED", "/dash/preview",
                 "M3 news/flow dock (?ch=news) is the migrated News/Wire"),
+
+    # ── W3-A · M7 Strategies estate (2026-07-27) — the 18 Strategies lenses, ported into the
+    # Graphite workspace at /dash/home/strategies* per the ratified consolidations (plan §1c +
+    # Part III §J). Each note states honestly what landed AND what did not.
+    "strategist": ("PORTED", "/dash/home/strategies",
+                   "the Strategies hub: registry health cards + the estate's honest headline + the "
+                   "directory of every sub-page. NOT yet carried: the confluence-alerts strip, the "
+                   "per-strategy new/dropped diff, the CCI-RRG divergence tile and 'Your boards'"),
+    "model-portfolios": ("PORTED", "/dash/home/strategies/books",
+                         "the 4 engine-locked books: per-book stats (return/vol labelled as a ratio, "
+                         "not a Sharpe), NAV vs Nifty 500, the §J identity spine + book-core "
+                         "constituents, the rebalance ledger, FUNDABLE-CORE vs GROSS-LENS banners. "
+                         "NOT carried: survivability ballast overlay, all-books comparative chart, "
+                         "time-travel stepper UI, Union/graduating table, CSV"),
+    "sector-rotation": ("PORTED", "/dash/home/strategies/sector-rotation",
+                        "the V21 sector-index book with the D138 scope gap ('picks SECTORS, not "
+                        "STOCKS') and the D141 rejection rendered ABOVE the headline stat; weights, "
+                        "rebalance diff, NAV, stats. NOT carried: the year-strip stepper UI, CSV"),
+    "factor-league": ("PORTED", "/dash/home/strategies/library",
+                      "MERGED with `classics` into one Strategy library with 🧑/🏠/📚 origin filters. "
+                      "Live family rosters render from factor_league; the MEASURED verdicts "
+                      "(return/vol, CAGR, excess, MaxDD, pass/fail) are deliberately LINKED to the "
+                      "validation record + reference pages rather than restated — one copy of every "
+                      "number. NOT carried: the churn feed"),
+    "classics": ("PORTED", "/dash/home/strategies/library",
+                 "the merge target: the classic-screens catalog + per-screen roster + NAV with the "
+                 "'insufficient history — not a track record' fence. NOT carried: year-by-year "
+                 "table, backdate form, holdings-as-of, CSV"),
+    "conviction": ("PORTED", "/dash/home/strategies/conviction",
+                   "the cross-pillar shortlist with the 'a sorting heuristic, not a validated model' "
+                   "chip ABOVE the table and the Screener-archive provenance note on the Quality "
+                   "column. NOT carried: the client-side filter pills"),
+    "stocks": ("PORTED", "/dash/home/strategies/positioning",
+               "the DVPT positioning board. NOT carried: the 14 default-hidden columns, the "
+               "weekly/monthly rollup, watchlist chips and filter pills"),
+    "stealth": ("PORTED", "/dash/home/strategies/positioning?view=stealth",
+                "MERGED into `stocks` as a toggle — the classic site already admitted one renderer "
+                "(/dash/stealth delegated to view=='stealth'); the stealth filter is reproduced "
+                "exactly (accumulation + p>=3 + thinning trade count + <=-10% off the 52w high)"),
+    "mep": ("PORTED", "/dash/home/strategies/mep",
+            "the accumulation/distribution tape with the D62 descriptor-only fence first, the five "
+            "phase counts, and the full component columns. NOT carried: glossary popovers"),
+    "cpr": ("DROPPED", "",
+            "DEMOTED, not deleted (plan §1c). Verified against the source: the standalone page's "
+            "ONLY unique evidence is cross-SYMBOL ranking (reversal leaderboard, compression "
+            "leaderboard, per-timeframe EOD digests) — every per-name CPR fact already lives in the "
+            "stock dossier's CPR panel and the chart overlay (cpr_overlay.py), which is where a "
+            "structure read is actually used. Classic /dash/cpr stays live and reachable for "
+            "bookmarks; it simply leaves primary nav in the new experience"),
+    "concalls": ("PORTED", "/dash/home/strategies/credibility",
+                 "management credibility, ABSORBING the orphaned /dash/credibility fingerprint as "
+                 "?sym=. Gate-B fence rendered first ('descriptive only — never ranked') and the "
+                 "board is ordered coverage-first, not by score. NOT carried: the three ·AI "
+                 "behaviour columns (concall_behavior)"),
+    "growth": ("PORTED", "/dash/home/strategies/growth",
+               "the growth-intent proposal ledger with the placebo-kill verdict first. Adds the "
+               "concall-corpus provenance disclosure (~98.6% discovered via Screener.in links, "
+               "frozen legacy path) which the classic page did NOT carry. NOT carried: the "
+               "instant text filter and the pullback tab (min-₹/since are query params, no UI)"),
+    "insider": ("PORTED", "/dash/home/strategies/ownership",
+                "MERGED into the Ownership & filings hub (registry anomaly H): tiles + by-symbol "
+                "board + the tape, all classified by the insider_events engine so the hub can never "
+                "disagree with the classic lens"),
+    "ratings": ("PORTED", "/dash/home/strategies/ownership?lens=ratings",
+                "same hub, lens 2: company-level deduped transitions (credit_ratings engine) + the "
+                "tape. ⚠ credit_rating_events is ABSENT from the laptop fixture, so this lens is "
+                "SQL-verified against the canonical DDL but data-verified only on the box"),
+    "sast": ("PORTED", "/dash/home/strategies/ownership?lens=sast",
+             "same hub, lens 3: the stake × pledge confluence board (sast_events engine keeps the "
+             ">=25% control exclusion and the Reg29(1) level-vs-flow split) + a unified tape over "
+             "both feeds. NOT carried: the per-symbol drill"),
+    "shp": ("DEFERRED", "M7",
+            "BUILT and routed at /dash/home/strategies/ownership?lens=shp with the ratified §I.5 "
+            "quarter matrix (symbol × quarter × promoter/FII/DII, mixed-source cells marked), but "
+            "shareholding_history lives in the SEPARATE research store which does not exist off-box "
+            "— so the read is unverifiable here. Promote to PORTED only after box verification. "
+            "NOT carried: the QoQ delta board and its 7 tiles"),
+    "launchpad": ("PORTED", "/dash/home/strategies/launchpad",
+                  "the setup screen with the 'validated screen, no fundable edge net of cost' "
+                  "verdict above it. Reads the nightly snapshot only — never the live market-wide "
+                  "scan. NOT carried: the regime banner and the genuine-buyer count tile"),
+    "launchpad-track": ("PORTED", "/dash/home/strategies/launchpad?tab=evidence",
+                        "MERGED into `launchpad` as its evidence tab (it IS the screen's evidence): "
+                        "the ignition_outcomes study — signals studied, hit rate, median 12m, median "
+                        "dip, per-setup cohorts, the outcome histogram and the recovery ladder, "
+                        "under its own gross-of-cost + survivorship warning. NOT carried: the "
+                        "click-through winners/losers drill"),
 }
 
 _VALID_STATUS = {"PORTED", "DEFERRED", "DROPPED", "NA"}

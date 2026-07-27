@@ -111,6 +111,52 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                              "fixed ~10-dot tails) — a declared child of the Graphite "
                                              "home, reached via 'See the full rotation →' from the Today "
                                              "RRG; direct-URL, no lens/nav until cutover"),
+    # Graphite Strategies workspace (2026-07-27, milestone M7) — the 18 classic Strategies lenses
+    # consolidated per plan §1c. Declared children of the Graphite home, reached from the "Strategies"
+    # directory on /dash/home/strategies (itself linked from the Today page's Strategies destination
+    # at cutover); direct-URL, no lens/nav until then, so the classic nav stays byte-identical.
+    "/dash/home/strategies": ("graphite-home", "Strategies workspace hub — the port of /dash/strategist "
+                                               "(registry health cards + the estate's honest headline "
+                                               "+ the directory of every strategy sub-page); reached "
+                                               "from the Strategies destination in the Graphite top bar"),
+    "/dash/home/strategies/books": ("graphite-home", "Model portfolios — the 4 engine-locked books "
+                                                     "(port of /dash/model-portfolios); reached from "
+                                                     "the 'Model portfolios' card on the Strategies hub"),
+    "/dash/home/strategies/sector-rotation": ("graphite-home", "Sector-rotation book (port of "
+                                                               "/dash/sector-rotation, D138 scope gap "
+                                                               "rendered above the headline); reached "
+                                                               "from the 'Sector rotation' card on the "
+                                                               "Strategies hub"),
+    "/dash/home/strategies/library": ("graphite-home", "Strategy library — factor-league + classics "
+                                                       "MERGED with 🧑/🏠/📚 origin filters (plan §1c); "
+                                                       "reached from the 'Strategy library' card and "
+                                                       "the origin legend on the Strategies hub"),
+    "/dash/home/strategies/positioning": ("graphite-home", "Positioning board with Stealth as a "
+                                                           "toggle (?view=stealth) — stocks + stealth "
+                                                           "merged (same renderer in classic); reached "
+                                                           "from the 'Positioning & stealth' card"),
+    "/dash/home/strategies/conviction": ("graphite-home", "Conviction shortlist (port of "
+                                                          "/dash/conviction, 'sorting heuristic not a "
+                                                          "validated model' chip); reached from the "
+                                                          "'Conviction shortlist' card"),
+    "/dash/home/strategies/mep": ("graphite-home", "Accumulation / distribution tape (port of /dash/mep, "
+                                                   "D62 descriptor-only); reached from the "
+                                                   "'Accumulation & distribution' card"),
+    "/dash/home/strategies/credibility": ("graphite-home", "Management credibility CCI + the absorbed "
+                                                           "per-symbol fingerprint (?sym=) — port of "
+                                                           "/dash/concalls + /dash/credibility; reached "
+                                                           "from the 'Management credibility' card"),
+    "/dash/home/strategies/growth": ("graphite-home", "Growth-intent proposal ledger (port of "
+                                                      "/dash/growth); reached from the 'Growth intent' "
+                                                      "card on the Strategies hub"),
+    "/dash/home/strategies/ownership": ("graphite-home", "Ownership & filings hub — insider · ratings · "
+                                                         "sast · shp MERGED into 4 lenses over one "
+                                                         "pipeline (?lens=); reached from the "
+                                                         "'Ownership & filings' card"),
+    "/dash/home/strategies/launchpad": ("graphite-home", "Launchpad screen + its outcome study as the "
+                                                         "evidence tab (?tab=evidence) — launchpad + "
+                                                         "launchpad-track merged; reached from the "
+                                                         "'Launchpad' card"),
     # Sideways migration-parity board (2026-07-24) — the internal governance dashboard proving no
     # classic element is silently missed in the modern-app rebuild (gate: tests/test_sideways_parity.py).
     # An owner/ops tool, deliberately unlinked; NOT a customer lens, so no lens_registry entry.

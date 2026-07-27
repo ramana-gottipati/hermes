@@ -46,6 +46,11 @@ _ROUTER_SPECS = [
     # Direct-URL /dash/home + `pvg` opt-in only; NO lens_registry entry (nav stays byte-identical)
     # until cutover. This one additive spec entry is the ONLY pre-existing-file touch for the mount.
     ("graphite-home", "src.web.home", "/dash/home"),
+    # Graphite Strategies workspace (2026-07-27, milestone M7) — the 18 classic Strategies lenses
+    # consolidated into one hub + ten sub-pages (plan §1c + Part III §J). Declared children of the
+    # Graphite home (tests/test_dash_route_registry.INTERNAL_DEV); NO lens_registry entry until
+    # cutover, so the classic nav stays byte-identical. Own router, one additive spec entry.
+    ("graphite-strategies", "src.web.home.strategies_pages", "/dash/home/strategies"),
     # Replay the Tape — the standalone PIT-audit one-pager linked off the Coverage/Trust
     # front-door (D-PITCH-1/4). A tiny view that serves docs/replay-the-tape.html verbatim;
     # durably mounted here so the trail off Coverage never dead-ends after a main.py clobber.
