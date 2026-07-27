@@ -213,6 +213,24 @@ back + record verdicts on genuine forks.
   post-integration) — one cleanup owed before nav wiring. Pre-existing: `_ROUTER_SPECS` carries
   `seasonal_screen_view` at two paths (not a merge artifact).
 
+- **2026-07-27 · W5 (Opus):** 11 trust keys → 8 pages + 1 fragment (`proof` · `validation`
+  (+`?pack=1` absorbing evidence-pack — VERIFIED an assembly; its 2 self-originating claims kept)
+  · `prereg` · `rule-lab` · `replay` · `glossary` · `strategy-ref` · `guide` · `pat/ask`).
+  The M6 layer ships as `journey.py`: one-shot nudge · persistent help · `teaching_empty()` whose
+  contract is ENFORCED by the component (bare "no data" raises) · 4 persona exits — adoption via
+  `extra_head=journey.assets()`, zero shared-file edits. Pat reconciled, NO third Pat: the dock
+  gained closed-vocab model-free `resolve()` (AST-proven no model/network import — ₹0); threads/
+  boards/feedback honestly not carried. 10 PORTED + 1 NA (inbox = owner write-desk). Suite
+  883/0/1 (+31). `5bf5414`, content-verified. PARENT RATIFIES its unilateral verdict: ZERO Pro
+  gating across the Proof estate (ratified §J — evidence is never gated), gate-enforced.
+  🔴 Banked: classic `strategies_view._public` sanitizer LEAKS on live `/dash/strategy-ref`
+  today (`S164BB`/`S155-e`/`S1234` escape the regex) — W5's port widens it + adds a line-drop
+  backstop; classic byte-frozen so recorded, not patched. 🔴 `BLOCKING_ROWS` still carry the
+  pre-D142 ratio name byte-verbatim under a machine gate (page prints the correction beside the
+  quote) — ledger+mirror must move together. Review verdicts owed: `spec_sheets._SHEETS`
+  imported as content (data-not-renderer — defensible, wants a ruling) · glossary `_ENTRIES`
+  private-accessor use.
+
 ### Banked findings (not cutover work, tracked so they aren't lost)
 - `tests/test_home_featured.py::test_conviction_now_caches_by_date` silently passes/fails on
   AMBIENT DB presence (`data/hermes.db` is CWD-relative; empty schema-only DB → cache skipped
