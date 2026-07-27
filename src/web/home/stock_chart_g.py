@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import html as _html
 import json as _json
-import urllib.parse as _uq
 
 _LWC_CDN = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"
 
@@ -105,9 +104,9 @@ def _candle_css() -> str:
 def _payload(island: dict) -> str:
     """The island as inert JSON. `</script>` and `<` can never close the tag.
 
-    Rows are emitted as COMPACT ARRAYS in `COLS` order rather than objects: at the full-archive
-    depth (`?chart=max`, ~5,400 sessions for the deepest name) the repeated key names alone cost
-    ~50 bytes a row — enough to push the document past the 1,000,000-byte archetype budget. The
+    Rows are emitted as COMPACT ARRAYS in `COLS` order rather than objects: every page now carries
+    the FULL archive (5,718 sessions for the deepest name measured), and the repeated key names
+    alone would cost ~50 bytes a row — enough to push the document past its size budget. The
     client re-labels them in one pass. Rupee figures round to whole rupees; the paise are noise at
     crore scale and cost bytes on every row.
     """
@@ -156,9 +155,11 @@ def _i(v):
         return None
 
 
-def chart_html(sym: str, name: str, island: dict, deep: bool = False) -> str:
-    """The chart block. `deep=True` means the caller already asked the read layer for the full
-    archive (`?chart=max`), so the 'Load full history' affordance is not offered again."""
+def chart_html(sym: str, name: str, island: dict) -> str:
+    """The chart block. The island is ALWAYS the symbol's full archive — there is no shallow mode
+    and no 'Full history' link, because loaded range and VISIBLE range are now different things:
+    the range pills move the viewport across the tape that is already here, client-side and
+    instantly, across every synced pane."""
     series = (island or {}).get("series") or []
     s_sym = _html.escape(str(sym or ""))
     s_name = _html.escape(str(name or ""))
@@ -169,12 +170,6 @@ def chart_html(sym: str, name: str, island: dict, deep: bool = False) -> str:
     hdr = (str(last.get("t") or "")[:10] + " · close " + ("%s" % last.get("c")))
     adj_note = ("" if not (island or {}).get("adjusted") else
                 '<span class="g-cnote">split / bonus back-adjusted</span>')
-    # URL-QUOTE the symbol, do not merely HTML-escape it: `&` is legal in NSE tickers (M&M,
-    # M&MFIN, J&KBANK) and `clean_symbol` preserves it, so `?sym=M&amp;M` decodes to `sym=M`
-    # plus a stray `M` param — the "Full history" link would silently open the wrong stock.
-    deeper = ("" if deep else
-              '<a class="g-cbtn" href="?sym=' + _html.escape(_uq.quote(str(sym or "")))
-              + '&amp;chart=max">Full history</a>')
     # the "on" pill is DERIVED from DEFAULT_SPAN, never hard-coded to a label — the two used
     # to be written independently, which is how the page shipped a "3M" pill lit over a view
     # spanning years. `aria-pressed` carries the same state to screen readers.
@@ -188,7 +183,6 @@ def chart_html(sym: str, name: str, island: dict, deep: bool = False) -> str:
         '<span class="g-csp"></span>'
         '<button type="button" class="g-cbtn" id="g-cshot" aria-label="Download a branded PNG of this chart">Save PNG</button>'
         '<button type="button" class="g-cbtn" id="g-cfull" aria-label="Toggle fullscreen chart">Fullscreen</button>'
-        + deeper +
         "</div>"
         '<div class="g-cwrap">'
         '<div class="g-chead"><b>' + s_sym + "</b>" + (" · " + s_name if s_name else "")
@@ -266,7 +260,11 @@ _SNIPPET = """<script>
     var C=tokens(), DEFAULT_SPAN=D.span||252;
     function common(){ return { layout:{background:{color:C.bg},textColor:C.ink,fontSize:11},
       grid:{vertLines:{color:C.line},horzLines:{color:C.line}},
-      timeScale:{borderColor:C.line,rightOffset:3},
+      // minBarSpacing defaults to 0.5px, which SILENTLY CLAMPS 'Max': the deepest name is
+      // 5,718 sessions and the pane is ~742px, so the whole tape needs 0.13px a bar. At the
+      // default, asking for the full range delivered ~1,484 sessions and no pill matched
+      // what was on screen. 0.02 leaves headroom for any archive we can hold.
+      timeScale:{borderColor:C.line,rightOffset:3,minBarSpacing:0.02},
       rightPriceScale:{borderColor:C.line}, crosshair:{mode:0},
       handleScroll:true, handleScale:true }; }
     function mk(node,h){ return LightweightCharts.createChart(node,
@@ -370,8 +368,9 @@ _SNIPPET = """<script>
         var eff=(!n||n>=S.length)?S.length:n;
         var d=Math.abs(eff-span);
         if(d<bd){bd=d;best=b;} });
-      if(!best||bd>Math.max(3,span*0.12)){
-        Array.prototype.forEach.call(rbtns,function(x){x.classList.remove('on');}); return; }
+      if(!best||bd>Math.max(3,span*0.12)){   // free-panned to an arbitrary zoom — light nothing
+        Array.prototype.forEach.call(rbtns,function(x){
+          x.classList.remove('on'); x.setAttribute('aria-pressed','false'); }); return; }
       Array.prototype.forEach.call(rbtns,function(x){
         x.classList.toggle('on',x===best); x.setAttribute('aria-pressed',x===best?'true':'false'); }); }
     function setRange(n){
@@ -476,10 +475,12 @@ def _selftest() -> int:
                        "dvpt": 1000 * i, "dp": 40 + i, "r1m": 1.2, "tv": 5, "dv": 3}
                       for i in range(1, 6)],
            "zones": [{"label": "P3M", "price": 12.5}], "adjusted": True}
-    html = chart_html("TCS", "Tata Consultancy <b>", isl, deep=False)
+    html = chart_html("TCS", "Tata Consultancy <b>", isl)
     assert 'id="g-cdata"' in html and 'type="application/json"' in html
     assert "&lt;b&gt;" in html, "the company name must be escaped"
-    assert "back-adjusted" in html and "Full history" in html
+    assert "back-adjusted" in html
+    assert "Full history" not in html, "one window — the deep-link affordance is retired"
+    assert 'aria-pressed="true"' in html and 'data-r="%d"' % DEFAULT_SPAN in html
     assert "candle-up" in _SNIPPET and "takeScreenshot" in _SNIPPET
     # the two-channel candle encoding — shape first, colour second
     assert "--candle-up:rgba(" in CSS and "--candle-up:rgba(" in _candle_css()
@@ -504,14 +505,13 @@ def _selftest() -> int:
                             "c": 1235.75, "dvpt": 1234567.0, "dp": 56.7, "r1m": 1.23,
                             "tv": 1234567890.12, "dv": 987654321.55}] * 6000,
                 "zones": []}
-    deep_bytes = len(chart_html("RELIANCE", "Reliance Industries", deep_isl, deep=True).encode())
+    deep_bytes = len(chart_html("RELIANCE", "Reliance Industries", deep_isl).encode())
     assert deep_bytes < 640_000, deep_bytes
     # DOM safety: no raw '<' may survive inside the JSON island
     isl2 = {"series": [{"t": "2026-01-01", "o": 1, "h": 1, "l": 1, "c": 1}],
             "zones": [{"label": "</script><img src=x>", "price": 1}]}
     p = _payload(isl2)
     assert "<" not in p and "\\u003c" in p
-    assert "Full history" not in chart_html("TCS", "", isl, deep=True)
     # no legacy/preview marker may appear in this module's output
     for m in ("pv3-", "data-ui-v3", "uk-sub", "chartlbl", "rangebar"):
         assert m not in html and m not in CSS, m

@@ -13,6 +13,7 @@ Two layers deliberately:
 """
 from __future__ import annotations
 
+import datetime
 import json
 import sqlite3
 
@@ -138,15 +139,17 @@ def test_symbol_input_is_sanitised_and_never_reflected_raw():
 def test_payload_stays_inside_the_budget_even_at_full_archive_depth():
     """The ratified stock archetype budget: an initial document under 1,000,000 raw bytes.
 
-    The route test alone is weak (the local fixture is shallow), so the WORST case is constructed:
-    the deepest name in the bhav archive is ~5,400 sessions, and `?chart=max` serves all of them.
+    This matters MORE now that every page carries the symbol's whole archive rather than a
+    756-session window. Measured against a real 5,718-session TCS tape: 496 KB of island, 515 KB of
+    whole page. The route test alone is weak (the local fixture is shallow), so the WORST case is
+    constructed below at MAX_SESSIONS.
     """
-    for url in (ROUTE + "?sym=TCS", ROUTE + "?sym=TCS&chart=max"):
+    for url in (ROUTE + "?sym=TCS", ROUTE + "?sym=TCS&chart=max"):   # the retired param is inert
         assert len(_client().get(url, follow_redirects=True).content) < 1_000_000, url
     row = {"t": "2024-01-01", "o": 1234.55, "h": 1240.1, "l": 1220.05, "c": 1235.75,
            "dvpt": 1234567.0, "dp": 56.7, "r1m": 1.23, "tv": 1234567890.12, "dv": 987654321.55}
     deep = CH.chart_html("RELIANCE", "Reliance Industries",
-                         {"series": [row] * SR.MAX_SESSIONS, "zones": []}, deep=True)
+                         {"series": [row] * SR.MAX_SESSIONS, "zones": []})
     # the chart is the whole payload risk; leave >300 KB of headroom for the page around it
     assert len(deep.encode()) < 700_000, len(deep.encode())
 
@@ -440,7 +443,7 @@ def test_chart_island_still_draws_when_stock_signals_is_absent():
     isl = SR.chart_island(con, "TESTX")
     assert isl["n"] == 30 and len(isl["series"]) == 30, isl["n"]
     assert all(r["dvpt"] is None for r in isl["series"]), "dvpt must degrade to None, not vanish"
-    assert "No price tape" not in SP.sec_chart({"sym": "TESTX", "name": ""}, isl, False)
+    assert "No price tape" not in SP.sec_chart({"sym": "TESTX", "name": ""}, isl)
 
 
 def test_self_reference_still_computes_when_stock_signals_is_absent():
@@ -499,14 +502,17 @@ def test_payload_integer_coercion_never_raises_on_infinity():
     assert CH._i(3.6) == 4
 
 
-def test_full_history_link_url_quotes_symbols_containing_an_ampersand():
-    """REGRESSION: the link HTML-escaped the symbol instead of URL-quoting it, so `M&M` became
-    `?sym=M&amp;M&amp;chart=max` — which decodes to sym=M. `&` is legal in NSE tickers (M&M,
-    M&MFIN, J&KBANK) and clean_symbol deliberately preserves it."""
+def test_the_full_history_deep_link_is_retired_not_broken():
+    """The chart used to offer a "Full history" link to `?sym=…&chart=max`, and a REGRESSION once
+    HTML-escaped the symbol there instead of URL-quoting it, so `M&M` decoded to `sym=M`. The whole
+    affordance is gone now that every page carries the whole tape — but the hazard it exposed is
+    not, so the sanitiser's `&`-preserving behaviour stays pinned: any FUTURE symbol link must
+    URL-quote, never merely HTML-escape."""
     isl = {"series": [{"t": "2026-01-01", "o": 1, "h": 1, "l": 1, "c": 1}], "zones": []}
-    html = CH.chart_html("M&M", "Mahindra & Mahindra", isl, deep=False)
-    assert "?sym=M%26M&amp;chart=max" in html
-    assert SR.clean_symbol("M&M") == "M&M", "the sanitiser keeps & — the link must too"
+    html = CH.chart_html("M&M", "Mahindra & Mahindra", isl)
+    assert "chart=max" not in html and "Full history" not in html
+    assert "?sym=" not in html, "the chart block no longer emits a symbol link at all"
+    assert SR.clean_symbol("M&M") == "M&M", "the sanitiser keeps & — any link must quote it"
 
 
 def test_non_finite_payload_values_never_render_as_the_word_nan():
@@ -709,3 +715,60 @@ def test_visible_ranges_and_gutters_and_crosshair_are_synced_across_panes():
     assert "var crossing=false" in snip, "crosshair fan-out needs its own reentrancy guard"
     # a resize re-derives every gutter, so it has to re-level them
     assert snip.count("equalize()") >= 3
+
+
+# ── the full-tape gate (owner defect: "I need the 2023 data") ──────────────────────────────────
+def test_the_chart_island_is_always_the_whole_archive():
+    """OWNER DEFECT: the OHLC pane stopped ~3 years back while the sub-panes reached further, and
+    the older tape only existed behind a `?chart=max` reload. Root cause: `DEFAULT_SESSIONS = 756`
+    capped the island, so LOADED range and VISIBLE range were the same thing. They are now
+    different things — the island always carries the symbol's whole archive and the range pills
+    move the viewport over it."""
+    assert not hasattr(SR, "DEFAULT_SESSIONS"), "the shallow window is retired, not merely unused"
+    import inspect
+    sig = inspect.signature(SR.chart_island)
+    assert sig.parameters["max_sessions"].default == SR.MAX_SESSIONS
+    assert "chart_deep" not in inspect.signature(SP.compose).parameters
+    assert "deep" not in inspect.signature(CH.chart_html).parameters
+
+    con = _db()
+    n = 900
+    day = datetime.date(2020, 1, 1)
+    rows = []
+    while len(rows) < n:
+        if day.weekday() < 5:
+            rows.append(day.isoformat())
+        day += datetime.timedelta(days=1)
+    for i, d in enumerate(rows):
+        con.execute("INSERT INTO bhavcopy_rows(symbol,trade_date,series,segment,open,high,low,"
+                    "close,prev_close,volume,value,deliv_qty,deliv_per) "
+                    "VALUES('DEEPX',?,'EQ','CM',100,101,99,100,100,1000,100000,500,50.0)", (d,))
+    con.commit()
+    isl = SR.chart_island(con, "DEEPX")
+    assert isl["n"] == n, "every session in the archive, not a 756-window"
+    assert len(isl["series"]) == n
+    assert isl["series"][0]["t"] == rows[0] and isl["series"][-1]["t"] == rows[-1]
+
+
+def test_the_default_visible_range_is_1y_and_the_active_pill_says_so():
+    """OWNER DEFECT: the "3M" pill rendered active while the view spanned years. Root cause: the
+    rendered `on` class was hard-coded to the "1Y"/"3M" LABEL in one place while the client opened
+    on a separately-written number — two independent sources for one fact. Now both derive from
+    `DEFAULT_SPAN`, it travels in the payload, and the client re-derives the pill from the range
+    actually on screen after every pan/zoom."""
+    assert CH.DEFAULT_SPAN == 252, "~1 trading year"
+    assert ("1Y", CH.DEFAULT_SPAN) in CH.RANGES, "the default must be one of the offered pills"
+    isl = {"series": [{"t": "2026-01-%02d" % i, "o": 1, "h": 1, "l": 1, "c": 1}
+                      for i in range(1, 9)], "zones": []}
+    html = CH.chart_html("TCS", "Tata", isl)
+    on = [b for b in html.split("<button") if " on\"" in b or ' on"' in b]
+    assert len(on) == 1, "exactly one pill may be lit"
+    assert 'data-r="%d"' % CH.DEFAULT_SPAN in on[0] and 'aria-pressed="true"' in on[0]
+    assert html.count('aria-pressed="true"') == 1
+    # the same number reaches the client, so the opening viewport cannot disagree with the pill
+    body = json.loads(CH._payload(isl))
+    assert body["span"] == CH.DEFAULT_SPAN
+    assert "setRange(DEFAULT_SPAN)" in CH._SNIPPET
+    assert "DEFAULT_SPAN=D.span" in CH._SNIPPET
+    # and the pill tracks what is on screen rather than staying where it was rendered
+    assert "function markPill(" in CH._SNIPPET and "markPill(r)" in CH._SNIPPET
