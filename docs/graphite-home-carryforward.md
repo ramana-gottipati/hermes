@@ -235,6 +235,25 @@ hermes-api` → `curl …/dash/home` 200 + structure grep → **the verify-curl 
 → NEVER full-scp it). Chat/Telegram calibration lives in `src/assistant/chat.py` → restart
 `hermes-api` AND `hermes-telegram`. See [[vps-deploy-reality]].
 
+🔴 **A 200 IS NOT A VERIFICATION** (2026-07-27 incident, `9290ba7`). Every Graphite page wraps its
+body in a broad `except Exception` that serves a "…hasn't landed on this host yet" placeholder, so a
+CODE defect renders an EMPTY page behind HTTP 200 — `/dash/home/events` shipped that way through a
+whole deploy range and a 38/38-green status sweep. The post-deploy walk must therefore assert
+CONTENT, per route:
+
+```
+curl -s -o /tmp/p.html -w '%{http_code}\n' http://127.0.0.1:8000<route>
+grep -o '<section class="g-zone"' /tmp/p.html | wc -l     # expected zone count, NOT zero
+grep -c "hasn't landed on this host yet" /tmp/p.html       # MUST be 0
+```
+
+Since `9290ba7` those fallbacks `log.warning(..., exc_info=True)`, so `journalctl -u hermes-api` shows
+a traceback when one fires — box-verified that uvicorn leaves the root logger handler-less, so
+Python's last-resort handler puts WARNING+ on stderr and journald captures it. A clean journal is only
+meaningful evidence from that commit forward; before it, the page was broken AND the journal was clean.
+Note the fixture DB used by local gates has no `board_meetings` rows, so the defect's code path never
+ran locally either — data-shaped fixtures (see `test_home_markets_pages.py` §7) are what close that gap.
+
 ---
 
 ## 7. AUTONOMOUS NEXT-SESSION TAKEOVER PROMPT (paste to start)
