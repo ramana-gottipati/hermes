@@ -140,10 +140,14 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                          "regime charts are Pro-BLURRED and the exact percentile ordinal Pro-only, "
                          "both FREE in classic — this note claimed the regimes carried, with no "
                          "Pro caveat"),
-    "divergence": ("PORTED", "/dash/home/internals",
-                   "the RSI-of-RS divergence watch (bullish/bearish columns + the momentum-extremes "
-                   "strip) is the Divergence-watch zone of the Graphite internals page; the home's "
-                   "own breadth-vs-delivery two-gauge stays the Today-level seed"),
+    "divergence": ("DEFERRED", "M-Markets",
+                   "LANDED at /dash/home/internals: the RSI-of-RS divergence watch (bullish/bearish "
+                   "columns + the momentum-extremes strip) is the Divergence-watch zone of the "
+                   "Graphite internals page; the home's own breadth-vs-delivery two-gauge stays the "
+                   "Today-level seed. RE-OPENED by the 2026-07-28 gap audit (register §3b, 1 "
+                   "MAJOR): every divergence name is a click-through to its RS-momentum pane in "
+                   "classic and is DEAD TEXT here — a divergence you cannot open is a list, not a "
+                   "watch; the bull/bear lists are also truncated to 10 a side (classic unbounded)"),
     "participants": ("DEFERRED", "M-Markets",
                      "LANDED at /dash/home/flows: the FII index-futures stance with its own-history "
                      "percentile, the four-participant matrix (index fut net · long:short · stock "
@@ -161,11 +165,14 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
             "max-pain · put/call walls from fno_oi_signals) is the F&O section of /dash/home/stock "
             "(W1). RE-OPENED by the 2026-07-28 gap audit (register §3d, 1 MAJOR): Free sees 12 of "
             "~200 names and the rest is Pro-blurred — classic served the whole cross-section free"),
-    "actions": ("PORTED", "/dash/home/events",
-                "the forward corporate-actions calendar grouped by ex-date with type counts, the "
-                "recent-past + security-events context (Pro) and a server CSV; reuses the home's "
-                "reads.upcoming_ca (same corp_actions.upcoming single source). E-11/E-12 logistics "
-                "fence carried"),
+    "actions": ("DEFERRED", "M-Markets",
+                "LANDED at /dash/home/events: the forward corporate-actions calendar grouped by "
+                "ex-date with type counts, the recent-past + security-events context (Pro) and a "
+                "server CSV; reuses the home's reads.upcoming_ca (same corp_actions.upcoming single "
+                "source). E-11/E-12 logistics fence carried. RE-OPENED by the 2026-07-28 gap audit "
+                "(register §3e, 2 MAJOR): the just-went-ex + restructure context is Pro-gated "
+                "(free in classic) AND cut ~16× under that gate — 30d/200 rows became 14d/12, "
+                "security_events 180d/40 became 14d/6 — a depth loss the note never named"),
     "results-reactions": ("DEFERRED", "M-Markets",
                           "LANDED at /dash/home/events: the results-reaction board (surprise · "
                           "delivery multiple · realized 22/60-day abnormal move) + who-reports-next, "
@@ -479,12 +486,18 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                    "the Strategies hub: registry health cards + the estate's honest headline + the "
                    "directory of every sub-page. NOT yet carried: the confluence-alerts strip, the "
                    "per-strategy new/dropped diff, the CCI-RRG divergence tile and 'Your boards'"),
-    "model-portfolios": ("PORTED", "/dash/home/strategies/books",
-                         "the 4 engine-locked books: per-book stats (return/vol labelled as a ratio, "
-                         "not a Sharpe), NAV vs Nifty 500, the §J identity spine + book-core "
-                         "constituents, the rebalance ledger, FUNDABLE-CORE vs GROSS-LENS banners. "
-                         "NOT carried: survivability ballast overlay, all-books comparative chart, "
-                         "time-travel stepper UI, Union/graduating table, CSV"),
+    "model-portfolios": ("DEFERRED", "M7",
+                         "LANDED at /dash/home/strategies/books: the 4 engine-locked books — "
+                         "per-book stats (return/vol labelled as a ratio, not a Sharpe), NAV vs "
+                         "Nifty 500, the §J identity spine + book-core constituents, the rebalance "
+                         "ledger, FUNDABLE-CORE vs GROSS-LENS banners. NOT carried: survivability "
+                         "ballast overlay, all-books comparative chart, Union/graduating table, "
+                         "CSV. CORRECTED + RE-OPENED 2026-07-28 (register §6b, 2 MAJOR): this note "
+                         "said 'time-travel stepper UI', i.e. a missing CONTROL — the whole "
+                         "TIME-TRAVEL CAPABILITY is missing. The route never passes ?asof= and "
+                         "book_holdings(conn, book) is called without it, so holdings at a past "
+                         "rebalance cannot be read at all, by any URL. The since-year chips "
+                         "(2012/2019/2022) are likewise parsed with no door rendered"),
     "sector-rotation": ("PORTED", "/dash/home/strategies/sector-rotation",
                         "the V21 sector-index book with the D138 scope gap ('picks SECTORS, not "
                         "STOCKS') and the D141 rejection rendered ABOVE the headline stat; weights, "
@@ -579,10 +592,14 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                 "window selector is hardcoded to 180, the ?cls=UPGRADE|DOWNGRADE tab filter and the "
                 "per-symbol drill did not travel; the Action column and the filing link are also "
                 "off the board"),
-    "sast": ("PORTED", "/dash/home/strategies/ownership?lens=sast",
-             "same hub, lens 3: the stake × pledge confluence board (sast_events engine keeps the "
-             ">=25% control exclusion and the Reg29(1) level-vs-flow split) + a unified tape over "
-             "both feeds. NOT carried: the per-symbol drill"),
+    "sast": ("DEFERRED", "M7",
+             "LANDED at /dash/home/strategies/ownership?lens=sast — same hub, lens 3: the stake × "
+             "pledge confluence board (sast_events engine keeps the >=25% control exclusion and the "
+             "Reg29(1) level-vs-flow split) + a unified tape over both feeds. NOT carried: the "
+             "per-symbol drill. RE-OPENED by the 2026-07-28 gap audit (register §6i, 3 MAJOR): the "
+             "drill was the only loss recorded, but the 30/90/180-day WINDOW SELECTOR is hardcoded "
+             "to 90 and the ?feed=INVOKE|… class filter did not travel either; the Acq-90d, "
+             "Sold-90d and Invoked columns are also off the board"),
     "shp": ("PORTED", "/dash/home/strategies/ownership?lens=shp",
             "the ratified §I.5 quarter matrix (symbol × quarter × promoter/FII/DII, mixed-source "
             "cells marked). W3-A held this DEFERRED because shareholding_history lives in the "
@@ -680,9 +697,14 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
     "glossary":     ("PORTED", "/dash/home/glossary",
                      "261 terms / 39 families rendered from the SAME docs/metrics-glossary.md parse "
                      "(src.web.glossary) that feeds the ? popovers and Pat — never a second copy"),
-    "strategy-ref": ("PORTED", "/dash/home/strategy-ref",
-                     "the same docs/strategies/ pages, list DERIVED from the directory (so a new "
-                     "strategy page appears the day it lands) through a widened public sanitizer"),
+    "strategy-ref": ("DEFERRED", "M6",
+                     "LANDED at /dash/home/strategy-ref: the same docs/strategies/ pages, list "
+                     "DERIVED from the directory (so a new strategy page appears the day it lands) "
+                     "through a widened public sanitizer. RE-OPENED by the 2026-07-28 gap audit "
+                     "(register §8d, 1 MAJOR): the SURFACE HAND-OFF STRIP — 'Open the live surface "
+                     "this page describes →' on 13 of 16 pages, a ratified 2026-07-15 requirement — "
+                     "has no twin; the port renders the markdown only, and doc-relative cross-links "
+                     "are no longer rewritten to served hrefs"),
     "reading-guide": ("DEFERRED", "M6",
                       "LANDED at /dash/home/guide — 'How to read this site', the newcomer exit and "
                       "the standing destination of the M6 persistent help control; carries the "

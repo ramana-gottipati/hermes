@@ -1094,19 +1094,23 @@ Both pins assert the ENGINE's vocabulary too (`band_lock` emits `UP`/`DOWN`; `se
 | 7 | `launchpad` | "NOT carried: the regime banner and the genuine-buyer count tile" | ALL FOUR count tiles are gone (disposition unchanged: the regime banner was the only MAJOR and was already recorded) |
 | + | `insider` | recorded with NO residual at all | four controls and two columns missing — the 8th correction, and it forced a downgrade rather than only a note fix |
 
-### 10f. ⚠ FLAGGED, NOT ACTED ON — 4 keys the ratified downgrade list omits
+### 10f. Escalated, then RULED ON — 5 more downgrades (orchestrator, 2026-07-28)
 
-Applying §10's rule mechanically to every key finds four more surfaces that are still `PORTED`
-while holding an open MAJOR row **whose loss their note does not name**. They were outside this
-lane's ratified scope, so the disposition was left alone and the finding recorded here instead:
+Applying §10's rule mechanically to every key — not only to the ratified list — found five more
+surfaces still `PORTED` while holding an open MAJOR row **whose loss their note does not name**.
+This lane flagged them rather than acting unilaterally; the orchestrator ruled **"the rule is the
+rule, uniformly"**, so all five were downgraded in an addendum commit under identical treatment
+(`LANDED at <route>` clause + a `RE-OPENED` line citing the row):
 
-| key | open MAJOR the note does not name | register |
-|---|---|---|
-| `actions` | the Pro-gated just-went-ex context is ALSO cut ~16× under the gate (30d/200 rows → 14d/12; security_events 180d/40 → 14d/6) | §3e row 2 |
-| `divergence` | every divergence name is a click-through to its RS-momentum pane in classic; Graphite names are dead text | §3b row 1 |
-| `sast` | the 30/90/180d window selector and the `?feed=` class filter did not travel (only the per-symbol drill is recorded) | §6i rows 2-3 |
-| `strategy-ref` | the "Open the live surface this page describes →" hand-off strip (a ratified 2026-07-15 requirement, on 13 of 16 pages) has no twin | §8d row 1 |
+| key | → milestone | open MAJOR the note did not name | register |
+|---|---|---|---|
+| `actions` | M-Markets | the Pro-gated just-went-ex context is ALSO cut ~16× under the gate (30d/200 rows → 14d/12; security_events 180d/40 → 14d/6) | §3e row 2 |
+| `divergence` | M-Markets | every divergence name is a click-through to its RS-momentum pane in classic; Graphite names are dead text | §3b row 1 |
+| `sast` | M7 | the 30/90/180d window selector and the `?feed=` class filter did not travel (only the per-symbol drill was recorded) | §6i rows 2-3 |
+| `strategy-ref` | M6 | the "Open the live surface this page describes →" hand-off strip (a ratified 2026-07-15 requirement, on 13 of 16 pages) has no twin | §8d row 1 |
+| `model-portfolios` | M7 | recorded as a missing "time-travel stepper UI" = a CONTROL; the whole CAPABILITY is missing — **verified by mechanism, not by reading the row**: `book_holdings(conn, book, asof="")` accepts the parameter, its ONLY caller `strategies_pages.py:123` never passes it, and the books route never reads `?asof=`, so past-rebalance holdings are unreachable by any URL | §6b row 1 |
 
-Borderline, left PORTED: `model-portfolios` (its `?asof=` MAJOR is recorded, but as a "stepper UI"
-— the whole capability is missing, not just the control). `strategist` · `growth` · `launchpad` ·
-`shp` · `event-cadence` each hold MAJOR rows their notes DO name honestly, so the rule leaves them.
+**Board after the ruling:** PORTED 22 → **17** · DEFERRED 45 → **50** · DROPPED 5 · NA 2.
+
+Left `PORTED` deliberately, and the rule agrees: `strategist` · `growth` · `launchpad` · `shp` ·
+`event-cadence` each hold MAJOR rows their notes DO name honestly, so there is nothing to correct.
