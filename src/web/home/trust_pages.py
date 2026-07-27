@@ -387,13 +387,13 @@ def _blocking_table(rows) -> str:
                    '<td class="g-tledger">' + C.esc(row) + "</td></tr>")
     out.append("</table>")
     # These rows are quoted BYTE-VERBATIM from the failure ledger and are machine-compared against
-    # it, so we cannot silently modernise their wording. Some still use the pre-D142 label for what
-    # is, in every case, a return/vol ratio (no risk-free rate is subtracted anywhere in this
-    # estate). Rather than edit a quote, we say so once, next to the quotes.
-    out.append('<p class="g-tsub">Quoted verbatim from the failure ledger, including its older '
-               "wording: every ratio named in these rows is a <b>return/vol</b> ratio — mean "
-               "return divided by volatility, with no risk-free rate subtracted. Nothing in this "
-               "product has ever computed the textbook ratio of that name.</p>")
+    # it, so their wording is the ledger's, never ours to edit here. The ledger's own label was
+    # corrected on 2026-07-27 (ledger + rule_lab mirror moved in one commit), so the quotes now
+    # arrive correct and this caption only has to say what the number IS.
+    out.append('<p class="g-tsub">Quoted verbatim from the failure ledger. Ratios in these rows '
+               "are <b>return/vol</b> — mean return divided by volatility, with no risk-free rate "
+               "subtracted. Where a row names a published statistic from the literature, that "
+               "name is the literature's, not our label for our own number.</p>")
     return "".join(out)
 
 

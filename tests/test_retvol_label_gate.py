@@ -34,9 +34,12 @@ S166 extension (the D142 block's queued follow-on): the gate now ALSO polices
     recorded tables, which the strategy-ledger banner disowns wholesale).
 
 docs/strategy-ledger.md is deliberately NOT line-scanned: it is an append-only record
-whose rows rule_lab.py byte-compares verbatim (relabelling history desyncs the pair —
-D142 carve-out #2). Its file-level disown is the estate-wide banner, which
-test_the_ledger_banner_disowns_the_label asserts is really there.
+whose rows rule_lab.py byte-compares verbatim (D142 carve-out #2). Its file-level disown
+is the estate-wide banner, which test_the_ledger_banner_disowns_the_label asserts is
+really there. The carve-out is about DESYNC, not about the label being permanent: the
+BLOCKING table — doctrine that live surfaces quote, not a dated session record — was
+relabelled on 2026-07-27 by moving the ledger and its rule_lab mirror in ONE commit, which
+is the only way that pair may ever move. The dated session entries below it stay as written.
 
 Still NOT policed: the rolling session records (PROJECT_STATE.md,
 docs/NEXT-SESSION-CARRYFORWARD.md — they quote experiment history verbatim), the
@@ -144,10 +147,6 @@ _ALLOW: dict[tuple[str, str], str] = {
         "Names a CATEGORY of claim the page refuses to make, alongside alpha and sigma — "
         "not one of our figures. Refusing to claim 'a Sharpe' is exactly right, and "
         "relabelling would weaken the sentence (and garble it: 'never alpha/return/vol/sigma').",
-    ("src/automation/rule_lab.py", 'the "Sharpe" in these rows is a return/vol ratio'):
-        "The D142 carve-out comment itself, explaining why the BLOCKING ledger rows below "
-        "are not relabelled: they are VERBATIM quotes byte-compared against "
-        "docs/strategy-ledger.md by tests/test_rule_lab.py. The ledger wins.",
     ("docs/strategies/sector-rotation.md", "page led with a Sharpe ratio"):
         "Historical honesty-note quoting ledger §2026-07-15h about the page's OLD state — "
         "the criticism of the mislabel, not a use of it.",

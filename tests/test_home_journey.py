@@ -340,21 +340,33 @@ def test_pages_carry_the_descriptive_fence(client):
 def test_no_page_introduces_the_retired_ratio_name(client):
     """D142: every ratio in this project is return/vol; the retired word may not be AUTHORED here.
 
-    FINDING (recorded, not fixed here): the failure ledger's BLOCKING rows still contain the old
-    word, and `rule_lab.BLOCKING_ROWS` mirrors them BYTE-VERBATIM under a machine gate — so the
-    validation page cannot modernise the quote without breaking that gate. The page therefore
-    quotes it and states the correction next to the quote. Everywhere else the word must be absent.
+    The ledger's BLOCKING rows carried the old word until 2026-07-27, when the ledger and its
+    byte-verbatim `rule_lab.BLOCKING_ROWS` mirror were relabelled in ONE commit — the only way
+    that machine-compared pair may move. The quotes now arrive correct, so the page no longer
+    prints a correction beside them; it states what the number is, which this still pins.
+
+    AUTHORED is the operative word — two mentions are legitimate, the same two the source-level
+    gate (tests/test_retvol_label_gate.py) carves out: the NAMED published statistic, and a
+    sentence that DISOWNS the label. The glossary's Return/vol entry exists to say what our
+    number is not, and naming it is how that sentence does its job.
     """
+    disown = ("not a sharpe", "textbook sharpe", "never a sharpe")
     for url in PAGES:
         h = _visible(client.get(url).text)
-        # "deflated-sharpe" is a NAMED published method (Bailey & López de Prado), not our label
-        h = re.sub(r"deflated[-\s]?sharpe", "", h, flags=re.I)
         if url == "/dash/home/validation":
-            assert "every ratio named in these rows is a <b>return/vol</b> ratio" in h
-            h = re.sub(r'<td class="g-tledger">.*?</td>', "", h, flags=re.S)
-        assert not re.search(r"sharpe", h, re.I), url   # : "sharpest" is a word
+            assert "Ratios in these rows are <b>return/vol</b>" in h
+        # 1. "deflated-sharpe" is a NAMED published method (Bailey & López de Prado), not our label
+        h = re.sub(r"deflated[-\s]?sharpe", "", h, flags=re.I)
+        # 2. drop whole sentences that disown the label; what remains is authored use
+        h = " ".join(s for s in re.split(r"(?<=[.!?])\s+", h)
+                     if not any(d in s.lower() for d in disown))
+        assert not re.search(r"\bsharpe\b", h, re.I), url   # \b: "sharpest" is a word
+    # Source-level: these modules may never AUTHOR the label. Case-SENSITIVE, the same
+    # convention the label gate uses — lowercase `sharpe` is the legacy research.db COLUMN
+    # NAME (trust_reads reads it and immediately re-keys it to ret_vol; it is never rendered).
     for mod in (journey, T, R, pat_dock):
-        assert not re.search(r"sharpe", open(mod.__file__, encoding="utf-8").read(), re.I)
+        src = open(mod.__file__, encoding="utf-8").read()
+        assert not re.search(r"\bSharpe\b", src), mod.__name__
 
 
 def test_boxes_scroll_internally_rather_than_running_the_page_forever(client):

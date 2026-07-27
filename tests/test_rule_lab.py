@@ -151,7 +151,7 @@ def test_book_yield_shaped_rule_auto_cites_the_blocking_rows_verbatim():
     book_row = next(r for r in ledger_rows if r.startswith("| **BOOK_YIELD"))
     earn_row = next(r for r in ledger_rows if r.startswith("| **EARN_YIELD"))
     assert book_row in cites and earn_row in cites          # verbatim, from the file itself
-    assert "Sharpe 0.61-0.63" in book_row                   # the exact recorded numbers ride along
+    assert "return/vol 0.61-0.63" in book_row               # the exact recorded numbers ride along
     # and the citation is STAPLED into the verdict object (even a refusal carries it)
     v = rl.build_verdict(spec, {}, "t", {"env": "test"})
     assert v.verdict.startswith("NO-VERDICT") and book_row in v.ledger_citations
