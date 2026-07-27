@@ -111,6 +111,13 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                              "fixed ~10-dot tails) — a declared child of the Graphite "
                                              "home, reached via 'See the full rotation →' from the Today "
                                              "RRG; direct-URL, no lens/nav until cutover"),
+    "/dash/home/stock": ("graphite-home", "Graphite STOCK PAGE (W1 cutover blocker) — the per-symbol "
+                                          "evidence scroll at ?sym=: identity · digest · chart · "
+                                          "positioning/accumulation/strength/quality/structure/"
+                                          "credibility/setups/F&O · context rail. A declared child of "
+                                          "the Graphite home, reached today via peer links inside the "
+                                          "page and direct URL; the parent nav link lands with the "
+                                          "cutover (W6), which also retires /dash/preview/stock"),
     # Sideways migration-parity board (2026-07-24) — the internal governance dashboard proving no
     # classic element is silently missed in the modern-app rebuild (gate: tests/test_sideways_parity.py).
     # An owner/ops tool, deliberately unlinked; NOT a customer lens, so no lens_registry entry.

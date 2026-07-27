@@ -72,6 +72,40 @@ def rotation(request: Request) -> HTMLResponse:
     return HTMLResponse(shell.shell("Rotation", body, current="Markets", pat_html=pat))
 
 
+@router.get("/dash/home/stock", response_class=HTMLResponse, include_in_schema=False)
+def stock(request: Request) -> HTMLResponse:
+    """The Graphite STOCK PAGE (W1) — a NEW isolated Graphite sub-page and the last blocker on
+    cutover (the old preview uniquely served a per-symbol dossier). ONE evidence scroll: identity
+    strip → digest tiles → the chart → the evidence sections (each a fixed box that scrolls
+    internally) → a context rail (news · results · corporate actions · peers).
+
+    URL state: `?sym=` (never `?symbol=`) · `?chart=max` deepens the chart island to the full
+    archive. A shared URL reproduces the view; an unknown ticker gets the did-you-mean recovery,
+    never a dead end. Read-only; never 500s (defensive)."""
+    from src.core.db import get_conn
+    from src.web.home import stock_page as SP
+    from src.web.home import stock_reads as SR
+    sym = SR.clean_symbol(request.query_params.get("sym", ""))
+    deep = str(request.query_params.get("chart", "")).lower() == "max"
+    body, rail, pat = "", "", ""
+    if not sym:
+        body = SP.picker()
+    else:
+        try:
+            with get_conn() as conn:
+                conn.row_factory = __import__("sqlite3").Row
+                body, rail = SP.compose(conn, sym, chart_deep=deep)
+                from src.web.home import pat_dock
+                pat = pat_dock.dock_html(conn)
+        except Exception:  # noqa: BLE001 — a heavy/edge read must never 500 the page
+            body = (C.fence("This stock's evidence could not be assembled just now.")
+                    + C.empty("Try again in a moment, or open the classic dossier for the same "
+                              "symbol."))
+    return HTMLResponse(shell.shell((sym + " · stock") if sym else "Stocks", body,
+                                    rail_html=rail, extra_head=SP.head_assets(),
+                                    current="Stocks", pat_html=pat))
+
+
 @router.post("/dash/home/watch/add", include_in_schema=False)
 def watch_add(symbol: str = Form("")) -> RedirectResponse:
     """Add a name to the watch tier (owner B2). Home-owned WRITE (the home was read-only) — writes the

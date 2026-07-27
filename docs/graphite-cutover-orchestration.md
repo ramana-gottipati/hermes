@@ -27,7 +27,7 @@ back + record verdicts on genuine forks.
 |---|---|---|---|---|
 | W0 | Recon + briefing pack + env probes | ✅ DONE | 1 recon (Opus) | BRIEFING.md + WORKLIST.md in session scratchpad; findings §2 |
 | W0.5 | Reconcile diverged main↔origin (68 local / 33 origin, base `09052db`) | ✅ DONE | 1 reconcile (Opus) | merge `35c8a47` pushed + content-verified; suite **852/0/1**; doc gates PASS; shared checkout ff'd |
-| W1 | Graphite stock page (cutover blocker; port of `/dash/preview/stock` M4 hub) | 🔄 RUNNING | 1 dev + 1 review + 1 verify | — |
+| W1 | Graphite stock page (cutover blocker; port of `/dash/preview/stock` M4 hub) | 🔄 dev DONE, review pending | 1 dev + 1 review + 1 verify | `lane/w1-stock-page`: `/dash/home/stock?sym=` + 3 new home modules + 17-test gate; suite 869/0/1 |
 | W2 | M-Markets estate (34 markets surfaces, 4 family lanes) | queued | 4 dev + 1 review + 1 verify | — |
 | W3 | M7 Strategies (18) + Tracker (6) | queued | 2 dev + 1 review/verify | — |
 | W4 | M8 Screener (5 surfaces) | queued | 1–2 dev + 1 review | — |
@@ -79,6 +79,37 @@ back + record verdicts on genuine forks.
   green. Parent then ff'd the shared checkout after md5-proving the 8 sibling untracked
   `research/explosive_moves/*.py` byte-identical to origin (backup in session scratchpad
   `sibling-backup-w05/`), deleted them, `merge --ff-only` → `D:\patearn` at `35c8a47`.
+
+- **2026-07-27 · W1 dev (Opus), branch `lane/w1-stock-page` (base `f1ee223`):** the Graphite stock
+  page `/dash/home/stock?sym=` shipped — `src/web/home/{stock_reads,stock_chart_g,stock_page}.py`
+  + one route on the existing home router + one anchored `INTERNAL_DEV` entry +
+  `tests/test_home_stock_page.py` (17). **Zero edits to `components.py` / `reads.py` /
+  `v2_surfaces.py`** — the hot multi-lane files are untouched, so integration is a clean add.
+  Suite **869 passed / 0 failed / 1 skipped** (baseline 852 + 17); Graphite+governance cluster 108
+  green; `doc_hygiene_gate` 5/5.
+  - **Three real bugs the adversarial pass caught (all fixed + pinned):** F&O columns were invented
+    (`oi`/`oi_change`/`pcr_oi` vs canonical `fut_oi`/`fut_oi_chg`/`pcr`) — would have been silent em
+    dashes on the box; **`wolfe_signals` keys on `sym`, not `symbol`** — the query inherited from
+    `hub_sections_v3.load_core` raises and is swallowed, so the Wolfe badge can never fire (**the M4
+    hub still has this bug** — worth a fix wherever the preview survives); and `str.capitalize()`
+    mangled stored grades ("tier B" -> "tier b"). New read-contract test builds the schema the way
+    production does (`db._init_ddl` + the capital_allocation/wolfe/rs_phase module DDLs).
+  - **Payload:** a 6,000-session `?chart=max` island was 854KB of the 1MB archetype budget; rows now
+    serialise as compact arrays (519KB, -39%, full history kept), which also bought back the classic
+    traded-vs-delivered-value pane.
+  - **Chart verdict (from the diff, not vibes):** fork base `20b28161` = `stock_chart.py` @ `392ec2c`;
+    the single newer legacy commit is `f830a0e` (6 hunks; click-to-place + fullscreen-overlay trim +
+    in-chart brand badge). The fork was **not** regenerated — `stock_chart_v3` is BANNED by name in
+    `test_home_isolation`, and the classic engine binds legacy DOM + the banned `dashboard`, so the
+    Graphite page can import neither. A Graphite-native chart carries identity/zones/panes/fullscreen/
+    branded-PNG; the analyst workstation (drawings · fib · overlays · compare · indicator panes) is
+    explicitly NOT carried and stays on classic `/dash/stock`.
+  - **Parity, not over-claimed:** classic `/dash/stock` is not a registry lens (no row); no lens is
+    fully ported. Eight lenses gained DEFERRED-with-note entries recording per-symbol-tab coverage.
+    PORTED stays 2.
+  - **For W6:** this route is an intentional `nav_integrity_gate` orphan until the flip; the parent
+    nav link, repointing `components.sym_link` to `/dash/home/stock`, and retiring
+    `/dash/preview/stock` all belong to the cutover.
 
 ### Banked findings (not cutover work, tracked so they aren't lost)
 - `tests/test_home_featured.py::test_conviction_now_caches_by_date` silently passes/fails on
