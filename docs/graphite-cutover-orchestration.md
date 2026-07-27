@@ -231,6 +231,26 @@ back + record verdicts on genuine forks.
   imported as content (data-not-renderer — defensible, wants a ruling) · glossary `_ENTRIES`
   private-accessor use.
 
+- **2026-07-27 · INTEGRATION-2 (Opus) → main `994ad06`:** four branches merged (converge →
+  strategies → screener → journey), suite 955 → 988 → 1012 → 1043 → retargets `e17e518` (1045)
+  → main-remerge + D148-b gate repoint `994ad06` = **1049/0/1**. Parity FINAL-BUILD state:
+  **PORTED 55 · DEFERRED 12 · DROPPED 5 · NA 2 · 0 UNSCOPED** (74 surfaces · 265 metrics).
+  6 parity-key collisions resolved by the ratified board-wins-dossier-clause precedent; a
+  one-Pat gate false-positive (substring 'pat' matched patterns_pages) tightened to a
+  package-wide content scan, falsified before landing. D148-b repoint RATIFIED: escape-hatch
+  constants → stock_page.py/`g-sclassic`, CLASSIC_EXITS enumerated w/ citations + a
+  dead-exception detector; deviation ratified — cpr deep-link RETARGETED to the stock page
+  rather than excepted (SECTIONS carries cpr; stronger than licensing). Main's 3 external
+  commits identified: `49f1f7e` ambient-DB test fix (the banked chip — CLOSED) · `aea042d`
+  D148-b gates (tests only) · `c8cc22d` sectors drill empty-state fix (sibling W2-B follow-up).
+  Retargets: model-books browse door → strategies/books (follow door stays classic — it's a
+  WRITE, the books page is read-only); DESTS Markets/Strategies repointed, machine-pinned
+  (previously ZERO assertions read those hrefs). Parent ff'd + pushed main (0/0).
+- **2026-07-27 · DEPLOY dispatched** (main `994ad06` → box): home package + sideways_parity +
+  anchored v2_surfaces tuples + glossary; stock_view.py retired on box; import/hasattr sweep
+  under the prod venv before restart; writer-safe restart; full real-data walk incl. the
+  &-ticker probe (`ARE&M`); rollback = `.bak-w6` set. Owner links hand-off on completion.
+
 ### Banked findings (not cutover work, tracked so they aren't lost)
 - `tests/test_home_featured.py::test_conviction_now_caches_by_date` silently passes/fails on
   AMBIENT DB presence (`data/hermes.db` is CWD-relative; empty schema-only DB → cache skipped
