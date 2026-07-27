@@ -82,7 +82,7 @@ back + record verdicts on genuine forks.
 
 ### Banked findings (not cutover work, tracked so they aren't lost)
 - ~~`tests/test_home_featured.py::test_conviction_now_caches_by_date` silently passes/fails on
-  AMBIENT DB presence~~ → **CLOSED 2026-07-27, test-only + additive.** The test now seeds its own
+  AMBIENT DB presence~~ → **CLOSED 2026-07-27 (`64e85da`), test-only + additive.** The test now seeds its own
   `stock_signals` date into a `tmp_path` DB and monkeypatches `src.core.db.DB_PATH` (the real
   `get_conn()` resolves that global per call), plus `reads._CONV_CACHE` → `{}` so module state
   leaks in neither direction. Mechanism correction for the record: `DB_PATH` is **not**
