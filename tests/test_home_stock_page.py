@@ -542,3 +542,16 @@ def test_absent_relative_strength_flags_read_as_unknown_not_as_no():
     assert SP._yn(None) == "—" and SP._yn(1) == "yes" and SP._yn(0) == "no"
     rows = [r for r in html.split("<tr>") if "50-day RS average" in r]
     assert rows and "—" in rows[0], rows
+
+
+def test_the_conviction_composite_is_labelled_a_heuristic_on_the_surface():
+    """REGRESSION: `_conviction`'s docstring and the sideways_parity note both claimed the tile was
+    "labelled a sorting heuristic on the surface" — but the word appeared NOWHERE in the rendered
+    page, which showed a bare "96/100". An unvalidated composite rendered as a naked score reads as
+    a verdict; the qualifier has to be where the number is."""
+    core = {"sym": "TESTX", "sig": {"symbol": "TESTX", "p_score": 5, "rs_rank": 91,
+                                    "trigger_rank": "SS", "pct_from_52w_high": -3.2},
+            "mep": None, "pt": None, "cci": None, "cpr": {}}
+    html = SP.digest(core)
+    assert "Conviction" in html
+    assert "sorting heuristic" in html, "the composite must qualify itself where it is shown"

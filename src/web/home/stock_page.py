@@ -201,8 +201,10 @@ def digest(core: dict) -> str:
     tiles = []
     if sig:
         conv = _conviction(_g(sig, "p_score"), _g(sig, "rs_rank"))
+        # the qualifier is on the SURFACE, not only in the docstring: an unvalidated composite
+        # rendered as a bare "96/100" reads as a verdict. Say what it is, where it is shown.
         tiles.append(_tile(str(conv) + "/100" if conv is not None else "—", "Conviction", "pos",
-                           "p" + str(_g(sig, "p_score", 0)) + "/5 · RS "
+                           "sorting heuristic · p" + str(_g(sig, "p_score", 0)) + "/5 · RS "
                            + str(_g(sig, "rs_rank", "—")) + "/99"))
         xp = _g(sig, "ratio_today_vs_power_1m")
         tiles.append(_tile(str(_g(sig, "trigger_rank", "—")), "Delivery trigger", "pos",

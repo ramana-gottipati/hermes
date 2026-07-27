@@ -2339,7 +2339,11 @@ isolated worktree `lane/w1-stock-page`. Additive only; classic site and the old 
   now", `db.py`) and was rendered raw — "0.8" under a label reading *percentile*. Two honesty
   tightenings alongside: non-finite values can no longer print as the literal "nan" (the X-setups
   scans store `float('nan')` deliberately and `json` round-trips it back), and an absent RS flag now
-  reads "—" rather than asserting "no". **Verified units, not assumed:** `base_depth`, `on_share`,
+  reads "—" rather than asserting "no". (9) an **over-claim caught by checking the rendered HTML
+  rather than the docstring:** `_conviction` and the `sideways_parity` note both stated the tile was
+  "labelled a sorting heuristic on the surface", but the word appeared NOWHERE on the page — which
+  showed a naked `96/100`. The qualifier now sits in the tile itself, where the number is.
+  **Verified units, not assumed:** `base_depth`, `on_share`,
   `cum_total_pct` and `breakout_velocity` were each traced to their writer in
   `research/explosive_moves/` and are all genuinely FRACTIONS — the unconditional ×100 is correct;
   `basis_pct` / `fut_oi_chg_pct` / `width_pct` are already percents and are correctly not rescaled.
