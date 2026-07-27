@@ -114,7 +114,9 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
     "fno": ("PORTED", "/dash/home/flows",
             "the own-history F&O board (OI · PCR · max-pain percentiles + build-up streak) with the "
             "auto reality-check callouts and a server CSV; the Phase-0 fence travels ON the block "
-            "(PCR selects weakly, forward-test-only; max-pain/basis/OI-change failed)"),
+            "(PCR selects weakly, forward-test-only; max-pain/basis/OI-change failed). The "
+            "PER-SYMBOL F&O read (OI · change · quadrant · PCR · basis · max-pain · put/call walls "
+            "from fno_oi_signals) is the F&O section of /dash/home/stock (W1)"),
     "actions": ("PORTED", "/dash/home/events",
                 "the forward corporate-actions calendar grouped by ex-date with type counts, the "
                 "recent-past + security-events context (Pro) and a server CSV; reuses the home's "
@@ -167,7 +169,10 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                     "plot plus the same dial as a table, from the same rs_extras snapshot"),
     "rs-hub":    ("PORTED", "/dash/home/strength",
                   "the RS hub — universe-wide standing counts, the four-reading card set, and "
-                  "today's strongest names with their phase and trend state"),
+                  "today's strongest names with their phase and trend state. The PER-SYMBOL half "
+                  "(rank · trend state · phase · 1/3/6/12-month slopes · vs its own sector) is the "
+                  "Strength section of /dash/home/stock (W1), so the pair is complete: board here, "
+                  "dossier there"),
     "leaders":   ("PORTED", "/dash/home/strength?view=leaders",
                   "strong-in-strong / weak-in-weak, straight from the canonical "
                   "stock_rs.leaders_laggards screen with all three trend states shown in Pro"),
@@ -251,9 +256,14 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                      "stock_signals ratio columns (turnover vs own 1m/1y norm, delivery 1m vs 6m, "
                      "delivery size vs own 30-day and own best month, distance from own 52w high), "
                      "plus a per-symbol view ranking each ratio against that symbol's own trailing "
-                     "history. DISCLOSED DIFFERENCE: the classic lens's 3-year percentile over "
-                     "adjusted OHLC is NOT reproduced — the Graphite package may not import that "
-                     "web-view engine (tests/test_home_isolation.py). OUTSTANDING: the "
+                     "history. DISCLOSED DIFFERENCE, NARROWED BY W1-CONVERGENCE (2026-07-27): the "
+                     "3-year percentile over CORPORATE-ACTION-ADJUSTED OHLC now DOES exist, "
+                     "per-symbol, as the Own-history section of /dash/home/stock — "
+                     "reads.stock_selfref replicates the method (price · 3-month momentum · "
+                     "delivery · turnover · coil) without importing the banned web-view engine, and "
+                     "the adjustment is gate-pinned (a 1:1 bonus must not invert the percentile). "
+                     "What is still not reproduced is that percentile as an ESTATE-WIDE MAP here. "
+                     "OUTSTANDING: the "
                      "cross-sectional second lens (peer percentile + the both-extreme gold ring) "
                      "and the five-universe selector"),
     "compare": ("DEFERRED", "M-Markets",
@@ -322,6 +332,27 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                     "'follow a book' view (a named book seeded with today's date and today's close, never "
                     "the backtest's history) as a section of /dash/home/tracker. The classic route stays "
                     "live and linked so existing bookmarks and the Adopt write keep working"),
+    # ── W1, the Graphite stock page (2026-07-27) ──────────────────────────────────────
+    # HONESTY NOTE, recorded deliberately: the classic stock DOSSIER (`/dash/stock`) is an
+    # integration hub, not a registry lens, so it has no row of its own here — and NONE of the
+    # lenses below is fully ported by /dash/home/stock. What the new page carries is each lens's
+    # PER-SYMBOL dossier tab, re-implemented over the same tables; every estate-wide BOARD (the
+    # ranked list, the screen, the cross-sectional view) is still classic-only. They therefore stay
+    # DEFERRED to their milestone, with the partial coverage written down so the M7 / M-Markets
+    # lanes know what already exists and do not rebuild it.
+    "stocks":      ("DEFERRED", "M7", "per-symbol Positioning/DVPT tab carried by the Graphite "
+                                      "stock page (/dash/home/stock, W1); the ranked board is not"),
+    "mep":         ("DEFERRED", "M7", "per-symbol Accumulation tab carried by /dash/home/stock "
+                                      "(W1), descriptor-only fence travelling with it; the board is not"),
+    "cpr":         ("DEFERRED", "M7", "per-symbol Structure tab (D/W/M/Q pivots) carried by "
+                                      "/dash/home/stock (W1); the board is not"),
+    "concalls":    ("DEFERRED", "M7", "per-symbol Credibility tab carried by /dash/home/stock (W1) "
+                                      "with its Gate-B fence; the ledger board is not"),
+    "growth":      ("DEFERRED", "M7", "per-symbol Quality (pt14 + capital allocation) tab carried "
+                                      "by /dash/home/stock (W1); the board is not"),
+    "conviction":  ("DEFERRED", "M7", "per-symbol conviction read carried as a digest tile on "
+                                      "/dash/home/stock (W1), labelled a sorting heuristic; the "
+                                      "shortlist board is not"),
 }
 
 _VALID_STATUS = {"PORTED", "DEFERRED", "DROPPED", "NA"}

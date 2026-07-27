@@ -216,6 +216,9 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 - `tests/test_home_tracker.py` — 20 tests: the privacy gate in BOTH directions (anonymous ⇒ demo book on all five pages · a `pt_owner` credential ⇒ the real book · a gate that errors fails CLOSED · writes and exports are owner-only), the single-write-path contract, importer round-trip + injection-safety, the fidelity verdict FAIL/PASS with XIRR silent on FAIL, the TWR property (a position arriving is not a gain), thin-schema survival, isolation/registration/parity.
 - **Writes:** exactly ONE new write path (the importer). The watch tier keeps the home's existing `POST /dash/home/watch/add`; per-row edit/close/promote/alerts stay on the classic tracker and are linked, not forked.
 - **Auth:** reuses `tracker_gate._is_owner` (the classic demo-book gate) rather than forking a second implementation — `/dash/home/*` is outside that middleware's prefix, so the page asks the gate directly and fails closed.
+- **Graphite STOCK PAGE (W1 of the cutover orchestration, 2026-07-27) — `/dash/home/stock?sym=`, the last §5-F blocker.** Three NEW additive modules in the isolated home package: `src/web/home/stock_reads.py` (the per-symbol bounded read layer — `core` · `chart_island` [corporate-action back-adjusted via the canonical `adjust.adjustment_factors`, tape-primary from `corp_actions.price_ratios`] · `self_reference` [percentile vs the stock's OWN year, the Pro reference layer] · `peers`/`news_for`/`results_next`/`actions_for` · `x_setups` [the numpy-free `x_setups_signals.latest()` read] · `suggest` for did-you-mean); `src/web/home/stock_chart_g.py` (the Graphite chart — proprietary blue-up/grey-down OUTLINED candles straight off `tokens.py`'s `--candle-*`, institutional zone price-lines, DVPT + delivery panes, range control, crosshair readout, fullscreen, branded PNG; the data island is inert `<script type="application/json">` with `<` escaped); `src/web/home/stock_page.py` (the evidence scroll — identity strip → digest tiles-as-anchors → one deterministic descriptive sentence → fired-lens badges → sticky section index → 8-9 fixed-size internally-scrolling sections [Chart · Positioning · Accumulation · Strength · Quality · Structure · Credibility · **Setups** · F&O-when-it-exists] → a context rail [news · results · corporate actions · peers · go-deeper]). Route added to the existing home router; registered in `tests/test_dash_route_registry.INTERNAL_DEV` (declared child, **no lens/nav until cutover**). Gate `tests/test_home_stock_page.py` (28 tests: route/marker/registry/XSS/payload-budget through TestClient + section-structure, chart-island inertness, reference-layer honesty, X-setups units, fences and verb discipline against a synthetic DB). **W1-CONVERGENCE (2026-07-27):** this page absorbed the rival `stock_view.py` lineage (retired to git history at `815c941`) and gained two more sections from it — **Own history** (`reads.stock_selfref`: price · 3-month momentum · delivery · turnover · coil, percentile-ranked over ~3 years on a corporate-action-ADJUSTED close) and **Ownership & disclosures** (`reads.stock_events`: SEBI PIT insider trades · SAST pledge events · Reg-29 crossings + recorded corporate actions) — plus the `+ Add to watchlist` write and the classic escape hatch on the identity header. Gate `tests/test_home_stock.py` (15 tests) covers the read layer + those folds, including the CA-adjustment invariant and the `&`-in-ticker URL-quoting regression.
+- **The chart-fork VERDICT (W1, argued from the diff, not from vibes):** `stock_chart_v3.py`'s `BASE_MD5 20b28161` = `stock_chart.py` @ `392ec2c`; the only newer legacy commit is `f830a0e` (6 hunks: `hsc-row`/`wfKeep` fullscreen trim · `railCollapsedH` overlay layout · `__cfsToolPicked` auto-collapse · in-chart name + brand badge · **click-to-place drawing** · `setTool`/`finishTool` placing-reset) — none of which the fork carries. **The fork was NOT regenerated, because the Graphite page cannot import it either way:** `stock_chart_v3` is on the `tests/test_home_isolation.BANNED` list by name, and the classic engine is unusable too (its `SNIPPET` binds legacy DOM — `.chartlbl`, `.rangebar`, `#ivBar`, `.fbar` — and `dashboard` is banned). Spending the lane on a re-pin would have refreshed a module the new page can never reach. The Graphite chart is therefore a re-implementation that carries the identity + zones + panes + fullscreen + branded PNG, and deliberately does NOT carry the analyst workstation (drawings · fib · Wolfe/harmonic/CPR/MA overlays · compare · indicator panes · server drawing persistence) — that stays on classic `/dash/stock`, linked from the section footer. The fork keeps serving `/dash/preview/stock` until W6 retires it.
+- **Parity ledger, honestly (W1):** the classic `/dash/stock` dossier is an integration hub, not a registry lens, so it has no `SURFACE_PARITY` row — and **no routed lens is fully ported** by the new page. Eight lenses (`stocks`·`mep`·`cpr`·`concalls`·`growth`·`conviction`·`rs-hub`·`participants`) gained explicit **DEFERRED-with-note** entries recording that their PER-SYMBOL dossier tab is now carried by `/dash/home/stock` while every estate-wide board is still classic-only. PORTED stays 2 — nothing was over-claimed.
 
 **Orthogonal-data exploration (S214-cont, 2026-07-23) — descriptive lever tests, all NON-price/volume:**
 - `research/explosive_moves/regime_overlay.py` — de-risk overlay (index-200DMA / India VIX regime, PIT) on the low-vol + momentum books; a DRAWDOWN lever not alpha (trend cuts momentum DD −63→−42 at flat CAGR; VIX loses to trend; hurts defensive low-vol).
@@ -2280,6 +2283,45 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Graphite cutover W1-CONVERGENCE — 2026-07-27 — TWO STOCK PAGES COLLIDED; ONE SURVIVES
+Two lineages independently built `/dash/home/stock?sym=` and both registered it. Resolved by merge
+(both histories preserved), not by cherry-pick.
+
+- **Verdict: `stock_page.py` (+ `stock_reads.py` · `stock_chart_g.py`) serves the route.** Decided on
+  evidence, not recency: it carries 9 evidence sections + a context rail against 4 inline zones; a real
+  interactive chart (LightweightCharts, browser-walked: crosshair, 6 ranges, fullscreen, branded PNG)
+  against a static server SVG; 28 gates against 10; and an adversarial review that found and test-pinned
+  11 defects. The retired lineage had never had one — and **carries two of the same defect classes**,
+  confirmed here by observation, not assumption: its "Full classic view →" link HTML-escapes the symbol
+  instead of URL-quoting it, so `M&M` renders `?sym=M&amp;M` and the server reads `sym=M` (the wrong
+  stock — reproduced: `parse_qs` returns `{'sym': ['M']}`); and its `_fmt` prints a literal `nan`/`inf`
+  for any non-finite value.
+- **Folded from the retired lineage (it was not strictly dominated).** Three blocks it uniquely served
+  are now on the surviving page: (1) the **SEBI ownership-filings feed** — `insider_events` ·
+  `sast_pledge_events` · `sast_reg29_events`, primary-source disclosures the winner never read;
+  (2) the **5-metric 3-year self-relative panel** (price · 3-month momentum · delivery · turnover ·
+  coil, on a corporate-action-ADJUSTED close) — strictly richer than the winner's 3-metric 252-session
+  reference, and the load-bearing CA-adjustment gate travels with it; (3) the **"+ Add to watchlist"**
+  write, which reuses the home-owned `POST /dash/home/watch/add`.
+- **Retired.** `src/web/home/stock_view.py` deleted (recoverable at `815c941`); its route mount removed.
+  `reads.stock_selfref` / `stock_events` / `stock_core` stay LIVE — the folds call them, so the
+  market-wide read layer keeps its per-symbol half rather than becoming dead code.
+- **One registration.** The auto-merge left a DUPLICATE `/dash/home/stock` key in `INTERNAL_DEV`, which
+  Python collapses last-wins — a registry that reads as reviewed but is not. Deduped to one entry.
+- **Gates.** Full suite **899 passed / 1 skipped**, 0 failed (baselines: main 866, `lane/w1-stock-page` 880).
+  Isolation gate green; `doc_hygiene_gate` clean. NOT deployed — the parent serialises deploys.
+- **Integration-1 rebase (same day, second merge of `origin/main` @ `ab49f80`).** Absorbed the four
+  W2/W3 lane merges (16 new home modules) and the `sym_link` retarget, so the surviving stock page is
+  now the link target estate-wide (`components.sym_link` · `_hm_tile` · `pat_dock` chip JS · tracker
+  movers all resolve to `/dash/home/stock`). Two `SURFACE_PARITY` keys genuinely collided and were
+  resolved AGAINST this lane: `rs-hub` and `participants` were DEFERRED here but the W2 lanes actually
+  BUILT those boards, so main's `PORTED` wins and W1's per-symbol half is recorded as a clause on
+  their entries (board there, dossier here). One stale note was corrected in the other direction:
+  `self-history` claimed the classic 3-year percentile over ADJUSTED OHLC "is NOT reproduced — the
+  Graphite package may not import that web-view engine". The W1 fold reproduces exactly that,
+  per-symbol, by replicating the method rather than importing it — so the note now says what is
+  genuinely still owed (that percentile as an estate-wide MAP), not something the estate already has.
+
 ### Graphite Home — 2026-07-27 — 🚩 THE LANDING CUTOVER (D148) — `/dash` now lands on the Graphite home
 The owner chose mechanism **(b)**; executed. **`/dash` 302s to `/dash/home`; the classic home is
 preserved byte-identically at `/dash/classic`.** Full decision + rationale + rollback: **§Decision log
@@ -2329,6 +2371,9 @@ Built the per-symbol evidence scroll — **the one thing that was blocking cutov
   link retarget). Fixed a chip defect found in the RENDERED output: the reference "typical" now renders
   in the same unit as the value above it (`ref_chip(scale=, rupee=)`) — it was showing a raw
   `8102541000` under "₹921.63Cr" and `-0.0%` under "−4.2%".
+### Graphite cutover W1 — 2026-07-27 — THE GRAPHITE STOCK PAGE (`/dash/home/stock?sym=`), the §5-F blocker
+Wave-1 dev lane of the cutover orchestration (`docs/graphite-cutover-orchestration.md`), built in the
+isolated worktree `lane/w1-stock-page`. Additive only; classic site and the old preview byte-untouched.
 
 ### Graphite cutover W2-A — 2026-07-27 — THE MARKETS ESTATE: 11 classic lenses → 4 consolidated Graphite pages
 Cutover wave W2, lane A (Markets: internals · flows · events). Built in the isolated worktree
@@ -2528,7 +2573,110 @@ first to be fully accounted (ledger moved PORTED 2→7, DEFERRED 72→66, DROPPE
   retarget (Tracker → `/dash/home/tracker`, so the pages are reachable rather than orphans), five
   `INTERNAL_DEV` registrations, six `SURFACE_PARITY` dispositions, four glossary bullets. No classic
   view, no `lens_registry`, no deploy.
-
+- **What shipped.** Three new modules inside the isolated home package — `src/web/home/stock_reads.py`
+  (per-symbol bounded reads), `src/web/home/stock_chart_g.py` (the Graphite chart), and
+  `src/web/home/stock_page.py` (the evidence scroll + context rail) — plus one route on the existing
+  home router (`GET /dash/home/stock`), one anchored `INTERNAL_DEV` registration, and the gate
+  `tests/test_home_stock_page.py` (15 tests). Zero edits to `components.py` / `reads.py` /
+  `v2_surfaces.py` (the hot, multi-lane files), by design.
+- **Shape.** Identity strip (price · day move · RS phase · delivery, with the Pro "unusual for this
+  stock?" chip) → digest tiles that are anchors into their own evidence → ONE deterministic
+  descriptive sentence → fired-lens badges → sticky section index → the sections, each a fixed-size box
+  that scrolls INTERNALLY: **Chart · Positioning · Accumulation · Strength · Quality · Structure ·
+  Credibility · Setups · F&O** (F&O only when the symbol actually has a future) → a context rail
+  (news · next results · corporate actions · peers · go-deeper). `?sym=` everywhere, never `?symbol=`;
+  `?chart=max` deepens the chart island; an unknown ticker gets did-you-mean, never a dead end.
+- **Free / Pro.** Free is complete — every number is on the page. Pro adds only the REFERENCE layer via
+  the existing `components.ref_chip`: percentile · typical · direction vs **the stock's own** last ~250
+  sessions (delivery share, turnover, delivery size), computed from bhav rows so it needs neither the
+  `/dash/self-history` view engine (banned by the isolation gate) nor a fabricated number — under 20
+  observations the chip is simply not rendered. One `pro_teaser` advertises the layer to Free.
+- **The chart verdict (argued from the diff).** The fork `stock_chart_v3.py` pins `BASE_MD5 20b28161`
+  = `stock_chart.py` @ `392ec2c`; exactly one legacy commit has landed since (`f830a0e`, 6 hunks —
+  fullscreen overlay trim, rail-layout fix, tool-pick auto-collapse, in-chart name + brand badge,
+  **click-to-place drawing**, placing-state reset), none of which the fork has. It was NOT regenerated:
+  `stock_chart_v3` is on `tests/test_home_isolation.BANNED` and the classic engine binds legacy DOM +
+  the banned `dashboard`, so **the Graphite page cannot import either engine** — re-pinning would have
+  polished a module the new page can never reach. `stock_chart_g.py` instead re-implements the parts a
+  stock page owes (blue-up / grey-down OUTLINED candles from the `--candle-*` tokens, institutional
+  zone lines, DVPT + delivery panes, range control, crosshair readout, fullscreen, branded PNG) and
+  deliberately does not carry the analyst workstation (drawings · fib · Wolfe/harmonic/CPR/MA overlays
+  · compare · indicator panes · server drawing persistence) — that stays on classic `/dash/stock`,
+  linked from the section footer. The fork keeps serving `/dash/preview/stock` until W6 retires it.
+- **Setups block (per `docs/x-setups-render-spec.md`, shape = dossier block).** X-09 base/breakout ·
+  X-07 volume shelves · X-04 overnight split for the symbol, read from the nightly `x_setups_signals`
+  snapshot through the numpy-free `latest()` (prod venv is stdlib-only), never recomputed at render
+  time, honest-empty when the table or the symbol is absent. X-10 is cross-linked to
+  `/dash/seasonal-calendar` rather than repeated, and Launchpad is cross-linked as the pre-breakout
+  half of the same family. **Units gotcha caught and fixed:** `base_depth`, `on_share` and — despite
+  its name — `cum_total_pct` (= `expm1(Σ log-returns)`) are all FRACTIONS; they are multiplied by 100
+  unconditionally, because a magnitude heuristic would under-report exactly the explosive movers this
+  scan selects for (+200% reads 2.0, not 2%). NaN renders as an em dash, never a fabricated zero.
+- **Honesty.** Descriptive-only fences travel with their evidence (MEP's failed out-of-sample gate,
+  CCI's failed leak-free gate, the setups family's "no edge net of cost"); conviction is labelled a
+  sorting heuristic; no verdict verbs anywhere (gate-tested); the chart data island is inert JSON with
+  `<` escaped; hostile `?sym=` input is hard-sanitised to `[A-Z0-9&.-]{,20}`.
+- **Three real defects caught by the adversarial pass, all fixed + gate-pinned:**
+  (1) the F&O section invented `oi` / `oi_change` / `pcr_oi`; the canonical columns are `fut_oi` /
+  `fut_oi_chg` / `pcr`, so every value would have rendered a silent em dash on the box while the
+  tests stayed green. (2) `wolfe_signals` keys on **`sym`, not `symbol`** — the inherited M4-hub
+  query `WHERE symbol=?` raises, the defensive layer swallows it, and the "Wolfe wave in zone" badge
+  can never fire (the M4 hub still ships this bug at `hub_sections_v3.load_core`). (3) the narrative
+  sentence used `str.capitalize()`, which lower-cases everything after the first character and
+  mangled stored grades ("tier B" → "tier b"). A new read-contract test builds the schema exactly the
+  way production does (`db._init_ddl` on a temp path + the `capital_allocation` / `wolfe` /
+  `rs_phase` module DDLs) and asserts both the column names AND that the reads return their rows.
+- **Payload budget.** A 6,000-session `?chart=max` island was 854 KB of the 1,000,000-byte archetype
+  budget. Rows now serialise as compact arrays in a `cols` order (the client re-labels in one pass) —
+  519 KB, a 39% cut with full history preserved and ~300 KB of headroom, gate-asserted at the worst
+  case. That headroom also bought back the classic traded-value-vs-delivered-value pane.
+- **Gates.** Full suite **869 passed / 0 failed / 1 skipped** (baseline 852 + the 17 new); the
+  Graphite + governance cluster 108 green (isolation · read-contract · tokens-AA · Pat-a11y ·
+  DOM-safety · reduced-motion · persona · zones · featured · v3-isolation · route-registry ·
+  sideways-parity · pat-coverage). `scripts/doc_hygiene_gate.py` 5/5.
+- **Not done here, by design:** no nav link from the parent (the cutover wires nav — W6), so
+  `scripts/nav_integrity_gate.py` still reports this route among its expected pre-cutover orphans; no
+  deploy (the parent serialises deploys); real-data verification is a box activity.
+- **W1-R adversarial review pass (same day, same lane) — 8 further defects found and fixed, each
+  pinned by a test that was RED before its fix.** The dev's own "I invent column names" warning
+  proved well-founded twice more, and the runtime-untested chart carried two silent-death paths.
+  (1) **`wolfe_signals` ordered by `id`** — the table is created by `CREATE TABLE IF NOT EXISTS`, so a
+  box whose table predates the `id` column keeps the older shape for ever; `id` then raises `no such
+  column`, `_row` swallows it, and the Wolfe badge silently never fires — **the same bug class the
+  `symbol`→`sym` fix was meant to end, and OBSERVED live on this repo's own `data/hermes.db` fixture.**
+  Now `rowid`, which resolves on both shapes. (2)+(3) `chart_island` and `self_reference` **LEFT
+  JOINed `stock_signals` unconditionally**: on a DB with tape but no signals table the SELECT raises,
+  is swallowed, and the page claims "no price tape" while the tape sits right there — the join is now
+  conditional on the table existing. (4) the chart query filtered **`series='EQ'` only** while
+  `exists`/`core`/`self_reference` accept `EQ`+`BE`, so a trade-to-trade name opened the page, showed a
+  price in the identity strip, and got a blank chart. (5) **`json.dumps` emits bare `NaN`/`Infinity`**,
+  which are not valid JSON — the browser's `JSON.parse` throws, the client `catch` returns, and the
+  ENTIRE chart silently disappears; Python's `json.loads` *accepts* them, which is exactly why local
+  testing never saw it. Every payload value now passes a finite guard, with `allow_nan=False` as the
+  backstop. (6) **`_i()` did not catch `OverflowError`** — `int(round(float('inf')))` raises, escapes
+  `_payload` and `compose`, and turns the whole page into the failure fence. (7) the **"Full history"
+  link HTML-escaped the symbol instead of URL-quoting it**, so `M&M` became `?sym=M&amp;M` → the server
+  read `sym=M`; `&` is legal in NSE tickers (M&M, M&MFIN, J&KBANK) and `clean_symbol` preserves it.
+  (8) **`cpr_signals.compression_pctile` is a 0-1 fraction** ("fraction of trailing N widths wider than
+  now", `db.py`) and was rendered raw — "0.8" under a label reading *percentile*. Two honesty
+  tightenings alongside: non-finite values can no longer print as the literal "nan" (the X-setups
+  scans store `float('nan')` deliberately and `json` round-trips it back), and an absent RS flag now
+  reads "—" rather than asserting "no". (9) an **over-claim caught by checking the rendered HTML
+  rather than the docstring:** `_conviction` and the `sideways_parity` note both stated the tile was
+  "labelled a sorting heuristic on the surface", but the word appeared NOWHERE on the page — which
+  showed a naked `96/100`. The qualifier now sits in the tile itself, where the number is.
+  **Verified units, not assumed:** `base_depth`, `on_share`,
+  `cum_total_pct` and `breakout_velocity` were each traced to their writer in
+  `research/explosive_moves/` and are all genuinely FRACTIONS — the unconditional ×100 is correct;
+  `basis_pct` / `fut_oi_chg_pct` / `width_pct` are already percents and are correctly not rescaled.
+- **W1-R runtime verification (the gap the dev could not close).** A uvicorn instance served the
+  worktree and a real browser drove the page: LightweightCharts loaded, the island parsed strictly,
+  200 rows across 7 canvases, crosshair readout correct **including units** (`turnover 52 cr` from
+  ₹519,990,000), all 6 range buttons, fullscreen via button + Shift-F + Escape, `takeScreenshot`
+  producing `ALPHA-patearn.png`, zero console errors, zero animations (reduced-motion safe), the
+  520 px internally-scrolling boxes, the sticky index, and the Free⇄Pro switch hiding/showing
+  `.pro-more`. Pixels remain an owner check (standing correction #9). Full suite after the pass:
+  **879 passed / 0 failed / 1 skipped**; gate cluster 117 green.
 ### Graphite Home — 2026-07-27 — HEATMAP ENHANCEMENTS (§5-E) — colour-by-delivery · size selector · Pro "unusual for this stock"
 Closed §5-E, the last queued Graphite home unit. Additive/isolated, 89 gates green, deployed + box-verified.
 - **Colour-by-delivery toggle.** `_hm_tile` now emits a second intensity `--d` (delivery 25%→0 … 80%→1,

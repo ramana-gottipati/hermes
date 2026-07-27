@@ -16,7 +16,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from src.web.home import components as C
-from src.web.home import reads, shell, stock_view
+from src.web.home import reads, shell
 
 router = APIRouter()
 
@@ -78,28 +78,36 @@ def rotation(request: Request) -> HTMLResponse:
 
 @router.get("/dash/home/stock", response_class=HTMLResponse, include_in_schema=False)
 def stock(request: Request) -> HTMLResponse:
-    """The Graphite STOCK page — the per-symbol evidence scroll (the unit that unblocks cutover: the
-    old `/dash/preview/stock` was the last thing the retired preview uniquely served). Built from
-    scratch in the home package (no `*_v3` import — isolation gate). Its spine is the REFERENCE layer:
-    every number ranked vs THIS stock's own ~3-year past. Read-only; never 500s."""
+    """The Graphite STOCK PAGE (W1) — a NEW isolated Graphite sub-page and the last blocker on
+    cutover (the old preview uniquely served a per-symbol dossier). ONE evidence scroll: identity
+    strip → digest tiles → the chart → the evidence sections (each a fixed box that scrolls
+    internally) → a context rail (news · results · corporate actions · peers).
+
+    URL state: `?sym=` (never `?symbol=`) · `?chart=max` deepens the chart island to the full
+    archive. A shared URL reproduces the view; an unknown ticker gets the did-you-mean recovery,
+    never a dead end. Read-only; never 500s (defensive)."""
     from src.core.db import get_conn
-    sym = reads.clean_symbol(request.query_params.get("sym", ""))
-    body, pat = "", ""
-    try:
-        with get_conn() as conn:
-            conn.row_factory = __import__("sqlite3").Row
-            core = reads.stock_core(conn, sym) if sym else {}
-            series = reads.stock_series(conn, sym) if core else {}
-            ref = reads.stock_selfref(conn, sym) if core else {}
-            events = reads.stock_events(conn, sym) if core else {}
-            body = stock_view.stock_page(core, series, ref, events, sym=sym)
-            from src.web.home import pat_dock
-            pat = pat_dock.dock_html(conn)
-    except Exception:  # noqa: BLE001 — a busy/edge DB must never 500 the page
-        body = C.fence("Stock data hasn't landed yet.") + C.empty("Check back after the next nightly run.")
-    title = (sym + " — stock") if sym else "Stock"
-    return HTMLResponse(shell.shell(title, body, current="Stocks", pat_html=pat,
-                                    extra_head=stock_view.CSS))
+    from src.web.home import stock_page as SP
+    from src.web.home import stock_reads as SR
+    sym = SR.clean_symbol(request.query_params.get("sym", ""))
+    deep = str(request.query_params.get("chart", "")).lower() == "max"
+    body, rail, pat = "", "", ""
+    if not sym:
+        body = SP.picker()
+    else:
+        try:
+            with get_conn() as conn:
+                conn.row_factory = __import__("sqlite3").Row
+                body, rail = SP.compose(conn, sym, chart_deep=deep)
+                from src.web.home import pat_dock
+                pat = pat_dock.dock_html(conn)
+        except Exception:  # noqa: BLE001 — a heavy/edge read must never 500 the page
+            body = (C.fence("This stock's evidence could not be assembled just now.")
+                    + C.empty("Try again in a moment, or open the classic dossier for the same "
+                              "symbol."))
+    return HTMLResponse(shell.shell((sym + " · stock") if sym else "Stocks", body,
+                                    rail_html=rail, extra_head=SP.head_assets(),
+                                    current="Stocks", pat_html=pat))
 
 
 # --- w2-seasonal-patterns: Markets seasonal · patterns · anatomy · own-history · compare children
