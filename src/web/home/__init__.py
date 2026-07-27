@@ -102,6 +102,11 @@ def stock(request: Request) -> HTMLResponse:
                                     extra_head=stock_view.CSS))
 
 
+# --- w2-seasonal-patterns: Markets seasonal · patterns · anatomy · own-history · compare children
+from src.web.home import w2_pages as _w2  # noqa: E402
+router.include_router(_w2.router)
+
+
 @router.post("/dash/home/watch/add", include_in_schema=False)
 def watch_add(symbol: str = Form("")) -> RedirectResponse:
     """Add a name to the watch tier (owner B2). Home-owned WRITE (the home was read-only) — writes the

@@ -159,6 +159,30 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                             "fundamentals and what the strength cost in risk; "
                                             "reached from the Strength overview cards; direct-URL, "
                                             "no lens/nav until cutover"),
+    # Graphite Markets children, lane W2-C (2026-07-27) — the seasonal · patterns · anatomy ·
+    # self-relative · compare family, consolidated from 10 classic lenses into 5 declared-child
+    # routes. Direct-URL + reached from each other's view selectors; no lens/nav until cutover.
+    "/dash/home/seasonal": ("graphite-home", "Seasonal — ONE page consolidating the classic "
+                                             "seasonal-tape / this-month screen / index-divergence / "
+                                             "expiry-and-holidays quartet behind a view selector; "
+                                             "declared child of the Graphite home, direct-URL, no "
+                                             "lens/nav until cutover"),
+    "/dash/home/patterns": ("graphite-home", "Patterns — ONE page consolidating the classic Wolfe "
+                                             "scanner and harmonic scanner behind a view selector "
+                                             "(read-only over the nightly snapshots); declared child "
+                                             "of the Graphite home, no lens/nav until cutover"),
+    "/dash/home/anatomy": ("graphite-home", "Move anatomy — the labelled explosive-move research "
+                                            "panel's precursor fingerprint + excursion envelope; "
+                                            "declared child of the Graphite home, reached from the "
+                                            "own-history page, no lens/nav until cutover"),
+    "/dash/home/own-history": ("graphite-home", "Own history — the self-relative map (how unusual "
+                                                "today is FOR THIS NAME) rebuilt from stored "
+                                                "stock_signals ratio columns; declared child of the "
+                                                "Graphite home, no lens/nav until cutover"),
+    "/dash/home/compare": ("graphite-home", "Compare — rebased side-by-side overlay of up to six "
+                                            "stocks/indices (?sym=&cmp=&idx=); the NEW Graphite twin "
+                                            "of the sacred classic /dash/compare, which stays "
+                                            "untouched; declared child, no lens/nav until cutover"),
     # Sideways migration-parity board (2026-07-24) — the internal governance dashboard proving no
     # classic element is silently missed in the modern-app rebuild (gate: tests/test_sideways_parity.py).
     # An owner/ops tool, deliberately unlinked; NOT a customer lens, so no lens_registry entry.

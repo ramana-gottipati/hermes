@@ -74,6 +74,20 @@ INTENTIONAL_NON_NAV: dict[str, str] = {
                            "and by direct URL; never from default chrome (byte-identity rule)",
     "/dash/preview/stock/export": "M4 chart series CSV — a data endpoint reached from the chart "
                                   "rail's CSV link; an export, never a page",
+    # Graphite Markets children, lane W2-C (2026-07-27). Declared children of /dash/home (itself
+    # an intentional pre-cutover non-nav surface): direct-URL + cross-linked to each other by the
+    # 'More market context' strip, deliberately absent from classic nav until the cutover promotes
+    # them to lenses. Linking them from default chrome now would break the byte-identity rule.
+    "/dash/home/seasonal": "Graphite Seasonal (tape · this-month · divergence · expiry) — declared "
+                           "child of the Graphite home preview, no classic nav until cutover",
+    "/dash/home/patterns": "Graphite Patterns (Wolfe · harmonic) — declared child of the Graphite "
+                           "home preview, no classic nav until cutover",
+    "/dash/home/anatomy": "Graphite Move anatomy — declared child of the Graphite home preview, "
+                          "reached from the own-history page, no classic nav until cutover",
+    "/dash/home/own-history": "Graphite Own history (self-relative map) — declared child of the "
+                              "Graphite home preview, no classic nav until cutover",
+    "/dash/home/compare": "Graphite Compare — declared child of the Graphite home preview; the "
+                          "sacred classic /dash/compare keeps its own nav row untouched",
     # /dash/pat left this allowlist (S-D): "Ask Pat" is now a registered Trust lens —
     # reachable from the rendered nav, so the old "Cmd-K summon only" IA note is amended.
     "/dash/api/symbol-search": "name→ticker JSON typeahead feed (S-D) — consumed by the Cmd-K bar, "

@@ -202,6 +202,7 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 **Graphite Home — the fresh-and-parallel v3 home section (increment i, 2026-07-23) — new:**
 - `src/web/home/` — a self-contained, ISOLATED `/dash/home` section built completely separately from the classic site AND the existing v3 preview (owner decision 2026-07-23; spec `docs/redesign-graphite-home-spec.md`, two Codex passes, review-clean). `tokens.py` (Graphite palette both themes, scope `:root[data-ui-g]`/`.g-*`, corrected light candle-AA `#6f8096`/`#455468`) · `shell.py` (own chrome, none of the legacy `.uk-*`/preview `.pv3-*` markers) · `components.py` (`.g-*` DOM-safe kit + `safe_url`) · `reads.py` (self-contained read-only layer with a hard import-ban on all preview/`*_v3` render modules) · `__init__.py` (`router`: `/dash/home` + `/dash/home/toggle` POST-only + `/dash/home/_kit`). Direct-URL + `pvg` opt-in; **NO lens/nav until cutover** (zero classic-nav drift). Mounted by ONE additive `v2_surfaces._ROUTER_SPECS` entry.
 - **Graphite Markets estate (cutover wave W2-B, 2026-07-27) — 5 new lane-owned modules in `src/web/home/`:** `markets_reads.py` (the RS/rotation/sectors read layer — reuses the canonical `src/automation/` engines `rrg`·`rsband`·`capture`·`rs_phase`·`stock_rs` + the `momentum_scan` rows; bounded, defensive, plus the `DEMO_*` sample fallbacks) · `markets_ui.py` (the shared `.g-m*` atoms: view switcher, fixed-height internally-scrolling box, table, 0-100 position strip, phase/quadrant pills, the lane stylesheet) · `rotation_pages.py` (`/dash/home/rotation?view=journeys|weather|band|clock`) · `strength_pages.py` (`/dash/home/strength?view=…` + the lane's SINGLE `APIRouter`, which also serves `/dash/home/sectors`) · `sectors_pages.py` (`?tab=standing|economics`, `?sec=` drill). Mounted by ONE additive `v2_surfaces._ROUTER_SPECS` entry `("graphite-markets", "src.web.home.strength_pages", "/dash/home/strength")`; registered in `tests/test_dash_route_registry.INTERNAL_DEV`; **NO lens/nav until cutover**. Gate: `tests/test_home_markets.py` (17 tests — routes · view degradation · marker isolation · no classic-view import · `?sym=` links · verdict-key ban · read defensiveness · demo-shape parity · PORTED-targets-actually-serve).
+- `src/web/home/w2_reads.py` · `w2_kit.py` · `w2_pages.py` · `seasonal_pages.py` · `patterns_pages.py` · `anatomy_pages.py` · `compare_pages.py` — **the Graphite Markets W2-C children (2026-07-27, cutover lane)**: 10 classic lenses consolidated into 5 declared-child routes — `/dash/home/seasonal` (views `tape`/`screen`/`divergence`/`calendar`, + `format=csv`) · `/dash/home/patterns` (views `wolfe`/`harmonic`) · `/dash/home/anatomy` · `/dash/home/own-history` (`?sym=` drill) · `/dash/home/compare` (`?sym=&cmp=&idx=&r=`). `w2_reads.py` is the bounded, defensive read layer (rows only, never HTML) over `seasonal_cells`/`seasonal_stack`/`seasonal_outlook`/`seasonal_meta`/`x_setups_signals`/`wolfe_signals`/`harmonic_signals`/`stock_signals`/`index_rows`/`bhavcopy_rows`/`corporate_actions` + research.db `features`; `w2_kit.py` is the `.w2-*` stylesheet (injected via `shell(extra_head=)`, never appended to the shared `components.py`) + the fixed-size internally-scrolling box/table/view-bar/family-strip primitives; `w2_pages.py` is the ONE aggregator router so `home/__init__.py` takes a single anchored two-line insert. **Imports NO classic view module and NO analysis engine** — in particular never `seasonal_tape.py` (its `__doc__` is hashed into `frozen_family_hash()`), never `wolfe*.py`/`stock_chart*.py` (hot lane), never the `/dash/self-history` engine (breaks `test_home_isolation`). Gate: `tests/test_home_w2_markets.py` (17 tests). Declared children in `tests/test_dash_route_registry.py::INTERNAL_DEV` + allowlisted in `scripts/nav_integrity_gate.py::INTENTIONAL_NON_NAV`; **no `lens_registry` entry until cutover**.
 - `tests/test_home_isolation.py` + `tests/test_home_tokens_aa.py` — the increment-(i) gates: both-directions marker isolation · no preview import · route-gate registered · never linked from chrome · WCAG AA on every token pair incl. the candle fill+outline. **Green** (the only red across the run = the research lane's pre-existing `test_rule_lab` BLOCKING_ROWS 11≠10, unrelated to this lane). Not yet deployed.
 - **Increment (ii) (2026-07-23):** zones 1-3 wired over the self-contained reads — **market pulse** (index cards + NIFTY close sparkline + canonical `market_mood` + breadth) · **Today/what-changed** (severity count-band + humanised alert-rail rows over `signal_alert_state`) · **FII/DII flows** (signed diverging bars over `fii_dii_flows`, category `'FII/FPI'`). New reads `severity_counts`/`index_series`; gate `tests/test_home_zones.py` (defensive empty-state · seeded render · DOM-escape · no-marker-leak). Suite 788 pass.
 - **Increment (iii) (2026-07-23):** zones 4-7 — **Going-ex corporate actions** + **Results calendar** (agenda strips over `corp_actions.upcoming` [its `(rows, as_of)` tuple-unpack FIXED in `reads.upcoming_ca`] / `results_calendar.upcoming_results`) · **News wire** (every href via `safe_url`) · a **Go-deeper Delivery drawer** (`power_dvpt_3m`, progressive-disclosure `<details>`). New builders agenda/ca_agenda/results_agenda/wire/drawer/rowbars/delivery_drawer; gates `test_home_zones.py` (calendar/news/drawer render + defensive) + new `test_home_dom_safety.py` (news `javascript:`/`data:` collapse — Codex #9). Suite **793 pass**.
@@ -2413,6 +2414,66 @@ activity (standing correction #9). **Not deployed.**
   (two INTERNAL_DEV entries) · `src/web/sideways_parity.py` (the eleven dispositions).
 - Known non-regression observed in passing: `/dash/compare` raises on the local 15 MB fixture
   because it lacks `nse_etf_list` — a fixture gap on a classic route this lane never touched.
+### Graphite cutover W2-C — 2026-07-27 — MARKETS: seasonal · patterns · anatomy · own-history · compare (10 classic lenses → 5 declared children)
+Lane W2-C of the Graphite cutover orchestration, built in the isolated worktree
+`D:\patearn.worktrees\w2-seasonal-patterns` (branch `lane/w2-seasonal-patterns`, base `f1ee223`).
+Additive + isolated; the classic site is byte-untouched and `/dash/compare` · `/dash/rrg` ·
+`/dash/ratio` keep serving exactly as before.
+
+- **Consolidation map (10 → 5 routes).** `/dash/home/seasonal` with four views absorbs the classic
+  `_subnav()` quartet (seasonal-tape · seasonal-screen · seasonal-divergence · seasonal-calendar) —
+  they always shared one sub-nav strip and one subject. `/dash/home/patterns` with two views absorbs
+  the Patterns pair (wolfe-scan · harmonic-scan) — both are a nightly snapshot of an auto-detected
+  price shape, read by side. `/dash/home/anatomy` and `/dash/home/own-history` stay separate routes
+  (genuinely different grain: one historical event study, one per-name reading today).
+  `/dash/home/compare` is a NEW route, not a move.
+- **New lane-owned modules** (no classic view imported, no analysis engine imported):
+  `src/web/home/w2_reads.py` (bounded defensive read layer + named demo constants) ·
+  `w2_kit.py` (the `.w2-*` stylesheet + fixed-size internally-scrolling `box`/`table`/`view_bar`/
+  `family_strip`) · `seasonal_pages.py` · `patterns_pages.py` · `anatomy_pages.py` ·
+  `compare_pages.py` · `w2_pages.py` (the ONE aggregator so `home/__init__.py` takes a single
+  two-line anchored insert while five sibling lanes edit it).
+- **🔴 Frozen-family discipline.** `src/automation/seasonal_tape.py`'s `__doc__` is part of
+  `frozen_family_hash()`; nothing in this lane imports or edits it. The seasonal views read the same
+  bounded snapshots (`seasonal_cells` · `seasonal_stack` · `seasonal_outlook` · `seasonal_meta` ·
+  `x_setups_signals`) the classic views read.
+- **🔴 Hot-lane discipline.** The Wolfe port is plain bounded SQL over `wolfe_signals` — no import of
+  `wolfe*.py` or `stock_chart*.py`, so the lane presents zero collision surface to the chart lane
+  committing on origin/main. Gated by `test_w2_modules_never_import_the_classic_self_history_or_the_hot_chart_lane`.
+- **🔴 Own-history stored-column route.** `/dash/home/own-history` re-derives the self-relative axis
+  from STORED `stock_signals` ratio columns (importing the classic view engine breaks
+  `test_home_isolation` — a recorded verdict), plus a per-symbol view that ranks each stored ratio
+  against that symbol's own trailing history. The difference from the classic 3-year OHLC percentile
+  is disclosed on the page and in the parity ledger.
+- **Fences carried verbatim in the render:** seasonal is largely **0-certified and that null result
+  IS the finding** (grey is the default cell state; the "N of M certified" headline; white outlook =
+  the band touches the coin-flip line) · Wolfe's **edge is in the SELECTION, not the craft** ·
+  harmonic/Wolfe are **read by side** (BULL modest selection edge, BEAR tail/regime only) ·
+  move-anatomy is a **post-selection, survivorship-biased** base rate against a 1-in-10 sample ·
+  own-history percentiles are **context, never a forecast**.
+- **early-signals → DROPPED** after actually running the named check (mechanism traced, not
+  pattern-matched): both its feeds are other surfaces' engines — `stock_rs.phase_movers()` (already
+  rendered by `/dash/rotation` and the RS section) filtered to turn-ups, and
+  `divergence_board._scan()` (which IS `/dash/divergence`) filtered to the bullish half. What
+  remains is a direction filter, i.e. a display preset, not a distinct data claim. Recorded
+  dependency for the rotation lane: stock-grain `rs_phase` flips are NOT on the signal-alerts bus
+  (`signal_events`'s `rs` lens is INDEX-grain over `rsband_signals`), so the Graphite home's
+  What-changed zone does not already carry this claim — the rotation port must.
+- **Parity honesty.** Only `seasonal-calendar` is promoted to PORTED (every evidence block present,
+  plus a server CSV). The other eight stay DEFERRED/M-Markets with an explicit SHIPPED/OUTSTANDING
+  note per surface — a page that reads well but is missing load-bearing blocks is not PORTED.
+- **Symbol links point at the NEW stock page.** Post-D148 (`/dash` → `/dash/home`, classic at
+  `/dash/classic`) and the W1 stock page landing at `/dash/home/stock`, every symbol on a W2-C page
+  resolves there via a lane-owned `w2_kit.sym_link`/`STOCK_PATH` — NOT via the shared
+  `components.sym_link`, which still points at the classic dossier on this lane's base and belongs
+  to the home/stock lanes to flip. Gated. 🔴 **OPEN (other lanes):** three shared Graphite call
+  sites still deep-link classic — `components.sym_link` (:41), `components._hm_tile` (:1142) and
+  `pat_dock`'s chip JS (:210) — so the home itself still bounces readers out of the new experience.
+- **Gates:** full suite **871 passed / 0 failed / 1 skipped** (baseline 852/0/1 + 19 new lane tests
+  in `tests/test_home_w2_markets.py`). `scripts/nav_integrity_gate.py` orphans unchanged at the
+  pre-existing 5 (the lane's own 5 children are allowlisted with reasons in `INTENTIONAL_NON_NAV`).
+  Five `INTERNAL_DEV` route-registry entries added in the same commit; **no `lens_registry` edit** —
+  registering a lens IS the cutover. NOT deployed (parent serializes deploys).
 
 ### Graphite Home — 2026-07-27 — HEATMAP ENHANCEMENTS (§5-E) — colour-by-delivery · size selector · Pro "unusual for this stock"
 Closed §5-E, the last queued Graphite home unit. Additive/isolated, 89 gates green, deployed + box-verified.
