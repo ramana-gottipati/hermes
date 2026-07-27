@@ -299,6 +299,22 @@ back + record verdicts on genuine forks.
 
 ## 4. Owner hand-offs
 
+- **2026-07-28 18:59 UTC — W6 RETIREMENT + CHART CONTRAST LIVE (Deploy-2, main `30c1f36`):**
+  - https://srv1704897.hstgr.cloud/dash/home?v=w7 · https://srv1704897.hstgr.cloud/dash/home/stock?sym=TCS&v=w7
+  - Preview retired behind 302s (all four redirect chains follow to 200; toggle 404) · six doors
+    all Graphite · internals 8/8 cross-links · classic intact (`uk-main`, rrg/ratio/compare 200)
+    · estate sweep 0 non-200 of 19 · journal clean · `.bak-w7` ×9 + all `*_v3` modules kept on
+    box (instant revert = restore 4 tuples).
+  - 🔴 Deploy-2 caught an S158 trap BEYOND its brief: `trust_pages`' new caption asserts the
+    D142 label correction, but `rule_lab.BLOCKING_ROWS` (lazily imported inside a bare except)
+    was still the old 10-row pre-correction mirror on the box — shipped together (now 11 rows,
+    relabelled). A caption asserting corrected quotes over uncorrected data, silent — avoided.
+  - ⚠ Box `scripts/nav_integrity_gate.py` is stale + NOT-IN-HISTORY (dev-only, never imported
+    by the app) — left untouched per doctrine; noted for the fix program.
+  - NOTE: the deployed candle treatment (hollow-up) is INTERIM — the owner asked for a less
+    experimental, naked-eye-obvious treatment; the sample lineup (lane/candle-variants) is in
+    flight and the owner's pick replaces it via a one-file deploy.
+
 - **2026-07-27 18:13 UTC — THE FULL GRAPHITE ESTATE (W1–W5) LIVE:**
   - https://srv1704897.hstgr.cloud/dash/home?v=w6 (200, 197KB, 0.29s)
   - https://srv1704897.hstgr.cloud/dash/home/stock?sym=TCS&v=w6 (200, 199KB, 0.10s)
