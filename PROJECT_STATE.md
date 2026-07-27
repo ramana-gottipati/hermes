@@ -2314,7 +2314,10 @@ not cosmetics. **Fix: one character — `_JS = r"""…"""`.**
   (`\n`, `\"`) and the several `\'` sites are ordinary intended escapes; `components.py:58` and
   `reads.py:652,882` are already raw. **Whole-`src/` sweep: 0 files with an invalid escape sequence.**
 - **Verification.** `tests/test_home_pat_a11y.py` + `test_home_isolation.py` + `test_home_dom_safety.py`
-  → **18 passed, warning gone**. ⚠ Reproducing the baseline needed `__pycache__` cleared first: the
+  → **18 passed, warning gone** (**21** after the D148-b convergence below added three gates; full suite
+  **868 pass / 1 fail / 1 skip**, the one failure pre-existing per the next bullet, and **zero**
+  `invalid escape sequence` occurrences anywhere in a cold full run).
+  ⚠ Reproducing the baseline needed `__pycache__` cleared first: the
   warning fires only on a genuine compile, so a warm `.pyc` silently hides it — a green run is NOT
   evidence the escape is fixed. Rendered-dock walk: `dock_html()` renders (13,134 chars), `symToken`
   present, the `/\s/` guard intact in delivered HTML, `<script>` tags balanced.
