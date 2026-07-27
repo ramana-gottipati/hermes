@@ -657,8 +657,23 @@ def band_locks(conn, limit: int = 30) -> dict:
     return {"streaks": (streaks or [])[:int(limit)], "n": len(streaks or []),
             "as_of": latest, "n_flagged": len(flags or []), "feed_birth": birth,
             "min_streak": min_streak, "n_days": ndays,
-            "up": sum(1 for s in (streaks or []) if s.get("dir") == "up"),
-            "down": sum(1 for s in (streaks or []) if s.get("dir") == "down")}
+            "up": sum(1 for s in (streaks or []) if is_upper_lock(s)),
+            "down": sum(1 for s in (streaks or []) if is_lower_lock(s))}
+
+
+# The engine emits the direction as "UP" / "DOWN" (src/automation/band_lock.py:111, :151) and the
+# classic lens compares against those exact strings (src/web/bandlock_view.py:60-61, :82-83). This
+# port compared against lowercase, so EVERY row rendered "▼ lower" and both tiles read 0 while the
+# page looked healthy — a silent correctness defect, not a display nit. Case-folded here, once, so
+# the read and the render can never disagree again.
+def is_upper_lock(streak: dict) -> bool:
+    """True when a band-lock streak row is an UPPER (buy-queue) lock. Case-insensitive by design."""
+    return str((streak or {}).get("dir") or "").strip().upper() == "UP"
+
+
+def is_lower_lock(streak: dict) -> bool:
+    """True when a band-lock streak row is a LOWER (sell-queue) lock."""
+    return str((streak or {}).get("dir") or "").strip().upper() == "DOWN"
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════

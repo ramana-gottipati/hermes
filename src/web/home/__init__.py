@@ -89,14 +89,13 @@ def stock(request: Request) -> HTMLResponse:
     strip → digest tiles → the chart → the evidence sections (each a fixed box that scrolls
     internally) → a context rail (news · results · corporate actions · peers).
 
-    URL state: `?sym=` (never `?symbol=`) · `?chart=max` deepens the chart island to the full
+    URL state: `?sym=` (never `?symbol=`). The chart island is ALWAYS the full
     archive. A shared URL reproduces the view; an unknown ticker gets the did-you-mean recovery,
     never a dead end. Read-only; never 500s (defensive)."""
     from src.core.db import get_conn
     from src.web.home import stock_page as SP
     from src.web.home import stock_reads as SR
     sym = SR.clean_symbol(request.query_params.get("sym", ""))
-    deep = str(request.query_params.get("chart", "")).lower() == "max"
     body, rail, pat = "", "", ""
     if not sym:
         body = SP.picker()
@@ -104,7 +103,7 @@ def stock(request: Request) -> HTMLResponse:
         try:
             with get_conn() as conn:
                 conn.row_factory = __import__("sqlite3").Row
-                body, rail = SP.compose(conn, sym, chart_deep=deep)
+                body, rail = SP.compose(conn, sym)
                 from src.web.home import pat_dock
                 pat = pat_dock.dock_html(conn)
         except Exception:  # noqa: BLE001 — a heavy/edge read must never 500 the page

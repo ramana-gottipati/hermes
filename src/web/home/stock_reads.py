@@ -19,9 +19,12 @@ from __future__ import annotations
 import sqlite3
 from typing import Optional
 
-# the deepest chart window we will ever assemble in one request (payload budget, spec §A)
-DEFAULT_SESSIONS = 756          # ~3 trading years
-MAX_SESSIONS = 6000             # "Max" — the whole bhav archive for the deepest name
+# ONE chart window: the whole bhav archive for the symbol, always. There used to be a shallow
+# 756-session default with the full tape hidden behind `?chart=max`, which meant the OHLC pane
+# showed ~3 years while the sub-panes were windowed differently, and "I need the 2023 data" cost a
+# page reload. Measured worst case for the deepest name (5,718 sessions): 496 KB of island, 515 KB
+# of whole page — inside the 700 KB budget, which `tests/test_home_stock_page.py` still enforces.
+MAX_SESSIONS = 6000             # the whole bhav archive for the deepest name
 
 
 # ── primitives (same discipline as reads.py) ─────────────────────────────────────
@@ -198,7 +201,7 @@ def themes(conn, sym: str, limit: int = 5) -> list:
 
 
 # ── the chart data island (bounded; corporate-action back-adjusted) ──────────────
-def chart_island(conn, sym: str, max_sessions: int = DEFAULT_SESSIONS) -> dict:
+def chart_island(conn, sym: str, max_sessions: int = MAX_SESSIONS) -> dict:
     """{"series": [...oldest-first...], "zones": [...], "adjusted": bool, "n": int}.
 
     Same assembly the classic chart uses — bhav OHLC + DVPT + delivery + traded/delivered value,
@@ -209,7 +212,7 @@ def chart_island(conn, sym: str, max_sessions: int = DEFAULT_SESSIONS) -> dict:
     """
     if not _has(conn, "bhavcopy_rows"):
         return {"series": [], "zones": [], "adjusted": False, "n": 0}
-    n = max(60, min(int(max_sessions or DEFAULT_SESSIONS), MAX_SESSIONS))
+    n = max(60, min(int(max_sessions or MAX_SESSIONS), MAX_SESSIONS))
     # The DVPT/intensity panes come from stock_signals — but a LEFT JOIN against an ABSENT table
     # raises, `_rows` swallows it, and the whole chart renders "no price tape" even though the bhav
     # tape is right there. The join is therefore conditional on the table existing; without it the
