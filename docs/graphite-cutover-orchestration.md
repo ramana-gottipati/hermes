@@ -27,12 +27,12 @@ back + record verdicts on genuine forks.
 |---|---|---|---|---|
 | W0 | Recon + briefing pack + env probes | ✅ DONE | 1 recon (Opus) | BRIEFING.md + WORKLIST.md in session scratchpad; findings §2 |
 | W0.5 | Reconcile diverged main↔origin (68 local / 33 origin, base `09052db`) | ✅ DONE | 1 reconcile (Opus) | merge `35c8a47` pushed + content-verified; suite **852/0/1**; doc gates PASS; shared checkout ff'd |
-| W1 | Graphite stock page (cutover blocker; port of `/dash/preview/stock` M4 hub) | dev ✅ → review 🔄 | 1 dev + 1 review + 1 verify | `lane/w1-stock-page` @ `f0f1926`, suite 869/0/1, clean add (0 shared-file edits) |
-| W2 | M-Markets estate (32 remaining surfaces, 3 family lanes) | 🔄 RUNNING ∥ W1 | 3 dev + wave review/verify | `lane/w2-internals` (11: internals·attention·participants·fno·divergence·actions·event-cadence·results-reactions·surveillance·band-locks·buyback-calc) · `lane/w2-rs-rotation` (11: rs/rotation/sectors families) · `lane/w2-seasonal-patterns` (10: seasonal×4·harmonic·wolfe·early-signals·move-anatomy·self-history·compare) |
-| W3 | M7 Strategies (18) + Tracker (6) | 🔄 RUNNING ∥ W1/W2 | 2 dev + wave review/verify | `lane/w3-strategies` · `lane/w3-tracker` (build work independent; integration + deploys stay serial at the parent) |
+| W1 | Graphite stock page (cutover blocker) | review ✅ → CONVERGENCE 🔄 | dev + review + converge | dev `f0f1926` → review APPROVE-W-FIXES `76c8586` (11 bugs fixed+pinned, chart browser-verified, 880/0/1). 🔴 COLLISION: a sibling session shipped its OWN stock page on main (`815c941`, `stock_view.py`) and the owner cut the landing over on top of it (D148). `lane/w1-converge` decides which engine serves `/dash/home/stock` + folds the loser's strengths |
+| W2 | M-Markets estate (32 remaining, 3 lanes) | A ✅ · B ✅ · C 🔄 | 3 dev + wave review/verify | A `lane/w2-internals` @ `586c04e` (885/0/1; 11 PORTED; 4 pages) · B `lane/w2-rs-rotation` @ `2bb2cb3` (869/0/1; 8 PORTED + 3 honest-DEFERRED w/ owed-notes; 3 pages) · C resumed post-restart (13 files WIP at base) |
+| W3 | M7 Strategies (18) + Tracker (6) | tracker ✅ · strategies 🔄 | 2 dev + wave review/verify | tracker `lane/w3-tracker` @ `e104b39` (872/0/1; 5 PORTED + 1 merge-DROP — first fully-accounted workspace; XIRR fidelity-gated, TWR headline) · strategies resumed post-restart (6 files WIP) |
 | W4 | M8 Screener (5 surfaces) | 🔄 RUNNING ∥ | 1 dev + wave review | `lane/w4-screener` — screen2 REBUILD (URL-state · server CSV · <500KB budget) + themes; screener/tags-review/workbench verdicts |
 | W5 | M6 Journey/help layer (trust 11) | 🔄 RUNNING ∥ | 1 dev + wave review | `lane/w5-journey` — trust pages + `journey.py` (nudge/help/teaching-empty per M6 spec v1.1) + Pat-dock reconciliation (no third Pat) |
-| W6 | Cutover mechanics (nav promotion · retire old preview · isolation-contract rewrite · parity 100% accounted) | queued | 1 dev | — |
+| W6 | Cutover mechanics — SCOPE SHRANK: the landing flip shipped EXTERNALLY (D148, owner call, LIVE: `/dash` → 302 `/dash/home` via new `src/web/home/cutover.py` middleware; classic byte-identical at `/dash/classic`; lens-registration mechanism (a) explicitly REJECTED — would drift classic nav). Remaining: old-preview retirement (owner OK'd) · isolation-contract rewrite (#3/#5) · Graphite in-app nav wiring (`shell.DESTS`) · `components.sym_link` retarget · parity 100% + docstring fix | queued | 1 dev | — |
 | W7 | Full-estate walk on box + docs fold + ledger close | queued | walk fleet + parent | — |
 
 ## 2. W0 findings (2026-07-27)
@@ -93,6 +93,125 @@ back + record verdicts on genuine forks.
 - **W1 dev cross-lane finding:** the M4 hub (`hub_sections_v3.load_core`) queries `wolfe_signals`
   by `symbol` but the table keys on `sym` — its Wolfe badge has NEVER fired. Not fixed (module
   retires at W6); recorded so the retirement isn't mistaken for losing a working feature.
+
+- **2026-07-27 · W1 review (Opus): APPROVE-WITH-FIXES-APPLIED, `76c8586`.** 11 bugs found+fixed,
+  each test-pinned RED→GREEN: wolfe `ORDER BY id` on an id-less legacy table (badge silently dead,
+  observed on the real fixture) · 2 unguarded `stock_signals` joins · BE-series blank chart ·
+  `json.dumps` bare-NaN killing the whole chart in a browser (`allow_nan=False` + finite guards) ·
+  `OverflowError` escape · `M&M` HTML-escaped-not-URL-quoted · `compression_pctile` fraction
+  rendered raw · nan-prints · absent-flag "no" → "—" · conviction tile over-claim (docstring said
+  "labelled a heuristic", the HTML had no such word). Schema audit 15 tables clean otherwise.
+  Chart RUNTIME-verified in a real browser (uvicorn + LWC: crosshair units, 6 ranges, fullscreen,
+  screenshot, zero console errors). Codex pass: 9 findings, 8 adopted, 1 refuted. Suite 880/0/1.
+- **2026-07-27 · EXTERNAL (sibling session + owner): D148 LANDING CUTOVER LIVE.** `815c941` (its
+  own Graphite stock page `stock_view.py`) → `4315ad7`/`3d13d97`: `/dash` → 302 `/dash/home` via
+  new `src/web/home/cutover.py` pure-ASGI middleware; `/dash/classic` internally rewrites to the
+  byte-identical classic home. Owner explicitly REJECTED lens-registry registration (mechanism a)
+  — it would drift the generated classic nav. Only the old-preview retirement remains from D148's
+  scope. CONSEQUENCE: two rival stock pages → `lane/w1-converge` decides on evidence (feature/bug
+  matrix + box md5s) and folds the loser; parent pushed the sibling's unpushed D148 pair to origin.
+- **2026-07-27 · PROCESS RESTART:** the parent CLI exited with 6 lanes in flight. Recovered:
+  W2-B and W3-B had finished+pushed (reports re-sent, worktrees verified clean, nothing outside
+  their heads); W2-C (13 files WIP) · W3-A (6) · W4 (1) · W5 (1) resumed from transcripts.
+  Parent's stalled W1 merge aborted cleanly (superseded by the convergence lane).
+- **2026-07-27 · W2-A (Opus):** 11 keys → 4 pages (`/dash/home/internals` · `flows` · `events` ·
+  `attention`), all 11 PORTED, no drops; fences travel (PEAD 0.10-vs-0.85 precedes its table;
+  F&O Phase-0; surveillance "context, never a gate"). Suite 885/0/1 (+33). `586c04e`.
+- **2026-07-27 · W2-B (Opus):** 11 keys → 3 pages (`rotation?view=` 4-in-1 · `strength` ·
+  `sectors?tab=`); engines reused, renderers never (gate-asserted, 16 modules); `band_verdict`
+  instructional keys never reach the DOM; fundamentals get NO sample data (indistinguishable-
+  from-real rule). 8 PORTED + 3 DEFERRED w/ owed-notes. Suite 869/0/1 (+17). `2bb2cb3`.
+- **2026-07-27 · W3-B (Opus):** 6 keys → 5 routes + merge (tracker = FIRST fully-accounted
+  workspace: 5 PORTED + model-books DROPPED-as-merge). XIRR is fidelity-GATED (`cashflow_fidelity`
+  on live rows; position-ledger books print the reasons, not a number; clean single-lot book
+  released +23.4%); headline = chained TWR (arriving positions never count as gains). Suite
+  872/0/1 (+20). `e104b39`. Handoff: `shell.DESTS` line conflicts with D148 (take main's);
+  `components.sym_link` retarget = one line at integration.
+
+- **2026-07-27 · W2-C (Opus):** 10 keys → 5 routes (`/dash/home/seasonal` 4-view · `patterns`
+  wolfe+harmonic · `anatomy` · `own-history` · `compare` NEW route, classic untouched).
+  `early-signals` DROPPED on a TRACED mechanism (owns no data/compute: turn-ups = phase_movers
+  already on rotation; bullish half = divergence_board._scan = /dash/divergence; residue = a
+  display preset). 1 PORTED (seasonal-calendar, every block) + 8 DEFERRED with per-block
+  SHIPPED/OUTSTANDING notes — deliberately strict: "reads well while missing load-bearing blocks
+  is not ported". Wolfe ported via plain SQL, zero collision with the hot lane. Frozen
+  `seasonal_tape.__doc__` untouched. Suite 871/0/1 (+19). `882c668`, content-verified.
+  🔴 CROSS-LANE CORRECTION (for the W2 wave review): stock-grain `rs_phase` flips are NOT on the
+  signal-alerts bus (its `rs` lens is INDEX-grain over rsband_signals) — the home's What-changed
+  does NOT carry them; the rotation port must. Also: 3 SHARED call sites still deep-link classic
+  stock (`components.sym_link`:41 · `_hm_tile`:1142 · pat_dock chip JS:210) — retarget queued as
+  an isolated integration commit.
+- **2026-07-27 · INTEGRATION-1 dispatched:** serial merge of the four finished lanes
+  (w2-internals → w2-rs-rotation → w2-seasonal-patterns → w3-tracker) onto origin/main
+  (`4f09fdc`) on branch `lane/integrate-1`; suite after every merge; sym-link retarget as a
+  separate labeled commit; parent fast-forwards main after content verification. The
+  W1-convergence branch merges main LAST (deepest conflict, decided on its own evidence).
+
+- **2026-07-27 · W3-A (Opus):** 18 keys → 11 routes under `/dash/home/strategies` — ALL FIVE
+  ratified consolidations built (library=factor-league+classics w/ 🧑/🏠/📚 filters ·
+  positioning=stocks+stealth · credibility=concalls+fingerprint · ownership=insider+ratings+
+  sast+shp · launchpad+evidence-tab). PORTED 16 · DROPPED 1 (`cpr`, rationale VERIFIED against
+  source) · DEFERRED 1 (`shp` quarter-matrix built but research-store unverifiable off-box).
+  Every fence carried (D138 above-headline · ret/vol labels — the label gate caught 2 of its own
+  lines · CCI coverage-first · MEP D62 · launchpad no-edge · Screener.in provenance). Shared
+  files insert-only +181/−0; components/reads untouched. Suite 852/0/1 held + workspace selftest
+  17/17. `e361ccf`, content-verified.
+  🔴 BRIEF CORRECTION (a briefed fact was false — recorded): `/dash/growth` does NOT run on the
+  `screener.py` fundamentals path (reads `concall_signals` only). The real primary-source
+  exposure = the concall corpus (~98.6% Screener.in-discovered links) behind growth+credibility
+  and `research.db.fundamentals_history` behind pt14-quality on conviction — disclosed on all
+  three, correctly attributed.
+  🔴 WAVE-REVIEW DIRECTIVE (from its swallowed-error hazard): read layers that return `[]` on
+  SQL error render PLAUSIBLE EMPTY pages that pass 200-smoke tests — every lane's review must
+  hand-check fixture-absent tables against engine DDL (this pattern caught a dead
+  `launchpad_signals.trade_date` key). W6 additionally owes: nav orphans now 5→16 (allowlist or
+  link) · `shell.DESTS["Strategies"]` repoint · Pat registration + glossary keys at cutover.
+
+- **2026-07-27 · W1-CONVERGENCE (Opus): VERDICT — Lineage B serves `/dash/home/stock`.**
+  `lane/w1-converge` @ `1816d9f` (true merge, parents `3d13d97`+`76c8586`), suite **899/0/1**
+  (main's own baseline 866; zero regressions; all 28 W1 tests green). Evidence: B was
+  adversarially reviewed + browser-walked (A never reviewed — and two of B's fixed bug classes
+  were CONFIRMED PRESENT in A by observation: the `M&M` &-escaping bug is LIVE-REACHABLE today
+  (box has ARE&M · GET&D · AXIS-IT&T…) and `_fmt(nan)`→'nan'); B is the only lineage replacing
+  what `/dash/preview/stock` uniquely served (setups·structure·credibility·quality·F&O·rail —
+  THE cutover blocker); 28 gates vs 10. FOLDED from A: the 5-metric 3-year CA-adjusted
+  Own-history panel + its adjustment gate · the Ownership & disclosures block (SEBI
+  PIT/SAST/Reg-29 — A's only no-counterpart block) · watchlist write + classic hatch (URL-quoted
+  in the fold, fixing M&M). `stock_view.py` retired (history preserved at `815c941`; a gate
+  blocks its return). Box read-only check: Lineage A live (all 9 home/*.py md5==origin), full
+  F&O schema + 4,614 x_setups rows present → Setups/F&O render real data on deploy. Registry
+  auto-merge produced a SILENT duplicate dict key (last-wins) — deduped + pinned by a
+  source-line-counting gate. Deploy notes banked in the lane report (hasattr: stock_page.compose
+  /head_assets/picker · stock_reads.clean_symbol; unpkg CDN dependency w/ honest offline
+  degrade; page changes visibly for the owner: 4 blocks → 10 sections + rail + real chart).
+
+- **2026-07-27 · W4 (Opus):** screen2 REBUILT at `/dash/home/screen` + themes at
+  `/dash/home/themes`. The 3 recorded debts fixed BY CONSTRUCTION: payload 2.3MB → 103KB default
+  / 261KB worst (a cell budget scales rows to column width, disclosed in the pager — and the
+  lane caught that a fixture-passing live check was NOT sufficient evidence, so the gate PROJECTS
+  full pages at every size×column-set); server CSV honoring active filter/sort/columns
+  (test-pinned); URL-state round-trip proven over 11 combinations. 72-column pool / 14 families /
+  6 named views per §J; saved screens are now URLs. Verdicts: screen2+themes PORTED · screener
+  DROPPED (dup, classic stays for bookmarks) · tags-review NA (owner write-desk) · workbench
+  DROPPED–ABSORBED after a REAL examination — it DID own a distinct claim (the key-price family),
+  which now ships as the "Key-price read" view; the evidence travelled. PARENT RATIFIES: the
+  fundamentals family (~15 §J cols) deliberately NOT built — sourced from the `screener.py`
+  vendor path under Guardrail #8 remediation ("do not extend"); the guardrail outranks the §J
+  listing. M8 stays PLANNED until the box walk. Suite 876/0/1 (+24). `25a6c6f`, content-verified.
+
+- **2026-07-27 · INTEGRATION-1 (Opus) → main `5115eee`:** four lanes merged serially, suite
+  866 → 899 → 916 → 935 → **955/0/1** (+89, zero regressions); AST-checked merged dicts
+  (SURFACE_PARITY 40/40 unique · INTERNAL_DEV 26/26 · _ROUTER_SPECS 63, zero dup routes).
+  Parity official: **PORTED 27 · DEFERRED 45 · DROPPED 2 (rationaled) · 0 UNSCOPED**; metrics
+  265. All 25 smoke routes 200 incl. /dash 302→home and /dash/classic. Justified doctrine
+  deviation (ratified): W3-B's DESTS Tracker retarget KEPT — main never touched that line, no
+  conflict existed, dropping it would have silently lost a shipped change. Sym-link retarget
+  commit `5115eee`: 2 of 3 briefed sites were ALREADY done on main (kickstart-pick-verify);
+  the real remainder was pat_dock chip JS + tracker movers chips. Parent ff'd main + pushed
+  (content-verified 0/0). SMELL for W6: `nav_integrity_gate.py` and `INTERNAL_DEV` have drifted
+  into two disagreeing allowlists (script exit 1 with 6 orphans ALREADY on pristine main; 17
+  post-integration) — one cleanup owed before nav wiring. Pre-existing: `_ROUTER_SPECS` carries
+  `seasonal_screen_view` at two paths (not a merge artifact).
 
 ### Banked findings (not cutover work, tracked so they aren't lost)
 - `tests/test_home_featured.py::test_conviction_now_caches_by_date` silently passes/fails on

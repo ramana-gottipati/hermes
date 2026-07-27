@@ -105,6 +105,10 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Hit-rate by strategy.** Of the *closed* positions in a strategy, the % that exited above entry. Read alongside avg return. *(Populates as you close trades.)*
 - **Excess vs Nifty 500.** A closed position's return minus the Nifty 500's return over the same hold window — the benchmark gap (am I beating the index?).
 - **Avg hold.** Mean calendar days from add to close, over closed positions.
+- **Time-weighted return (TWR).** The book's return with the timing of your deposits removed. Each session's move is measured over the names held on **both** sides of that session, and the sessions are chained — so a position arriving never reads as a gain. It answers *how did the selection do*. Needs prices only, so it is computable from the position ledger. *Source:* `home/tracker_reads.twr_curve`.
+- **XIRR (money-weighted return).** The annual rate that makes your dated cash flows net to zero — it answers *how did my money do*, so a big position bought late moves it more than TWR. It requires a complete **cash-flow** ledger (every rupee in/out, on its date, adjusted for splits and bonuses). *Source:* `home/tracker_reads.xirr` — released only when the fidelity check below passes.
+- **Cash-flow fidelity check.** The measured pre-condition for XIRR (ratified plan §K.4): are all positions dated and quantified, does any symbol appear as several lots (so averaging in/out cannot be reconstructed), and does any split/bonus/dividend fall inside a holding period (so stored quantity and received cash are wrong)? Any failure means the tracker **withholds** XIRR and prints the reason instead. *Source:* `home/tracker_reads.cashflow_fidelity`.
+- **Deepest fall (max drawdown).** The largest peak-to-trough decline of the time-weighted curve, with the dates of that peak and trough. Descriptive of the window shown; not a risk forecast.
 
 ## RS depth — RRG (relative-strength ratio + momentum)
 

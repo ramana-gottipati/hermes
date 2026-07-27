@@ -111,6 +111,97 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                              "fixed ~10-dot tails) — a declared child of the Graphite "
                                              "home, reached via 'See the full rotation →' from the Today "
                                              "RRG; direct-URL, no lens/nav until cutover"),
+    # Graphite Markets estate (2026-07-27, cutover lane W2-A) — four consolidated declared children
+    # carrying eleven classic Markets lenses into the Graphite identity. Cross-linked to each other
+    # (and to /dash/home/rotation) by the on-page "Markets depth" strip; the Today/nav entry point
+    # lands at the W6 cutover, when these become lens_registry entries. Direct-URL until then.
+    "/dash/home/internals": ("graphite-home", "Market internals — absolute market health back to "
+                                              "2004 (breadth · the tape · delivery · dispersion · "
+                                              "coil) + the RS-divergence watch; consolidates classic "
+                                              "market-internals + divergence. Declared child of the "
+                                              "Graphite home, reached from the Markets-depth strip; "
+                                              "no lens/nav until cutover"),
+    "/dash/home/flows": ("graphite-home", "Flows & positioning — FII/DII cash, NSE participant-wise "
+                                          "open interest, and every F&O name ranked against its own "
+                                          "history; consolidates classic participants + fno. Declared "
+                                          "child of the Graphite home, reached from the Markets-depth "
+                                          "strip; no lens/nav until cutover"),
+    "/dash/home/events": ("graphite-home", "Events & restrictions — corporate-actions calendar, "
+                                           "results reactions, event cadence, buyback tender "
+                                           "calculator, surveillance transitions and band locks; "
+                                           "consolidates six classic Markets lenses. Declared child "
+                                           "of the Graphite home, reached from the Markets-depth "
+                                           "strip; no lens/nav until cutover"),
+    "/dash/home/attention": ("graphite-home", "What changed — the full magnitude-ranked attention "
+                                              "queue + the curated alert rail, the depth behind the "
+                                              "home's 'What changed today' band; ports classic "
+                                              "attention. Declared child of the Graphite home, "
+                                              "reached from the Markets-depth strip and from that "
+                                              "band; no lens/nav until cutover"),
+    # Graphite Markets estate (cutover wave W2-B, 2026-07-27) — the two consolidated Markets pages.
+    # Declared children of the Graphite home, each reached from a visible control: the Strength page
+    # from the 'Four ways to read one question' cards and the Today RS zone; the Sectors page from
+    # the Strength overview cards and the rotation switcher. Direct-URL, no lens/nav until cutover.
+    "/dash/home/strength": ("graphite-home", "Relative strength — the RS hub, leaders/laggards, "
+                                             "risk-adjusted momentum and the all-weather capture "
+                                             "map as four URL-addressable views (?view=) of one "
+                                             "page; reached from the Graphite home and the Sectors "
+                                             "/ Rotation pages; direct-URL, no lens/nav until "
+                                             "cutover"),
+    "/dash/home/sectors": ("graphite-home", "Sectors — the standing board with constituent breadth "
+                                            "and a per-sector drill-down (?sec=), plus an economics "
+                                            "tab (?tab=economics) carrying a decade of sector "
+                                            "fundamentals and what the strength cost in risk; "
+                                            "reached from the Strength overview cards; direct-URL, "
+                                            "no lens/nav until cutover"),
+    # Graphite Markets children, lane W2-C (2026-07-27) — the seasonal · patterns · anatomy ·
+    # self-relative · compare family, consolidated from 10 classic lenses into 5 declared-child
+    # routes. Direct-URL + reached from each other's view selectors; no lens/nav until cutover.
+    "/dash/home/seasonal": ("graphite-home", "Seasonal — ONE page consolidating the classic "
+                                             "seasonal-tape / this-month screen / index-divergence / "
+                                             "expiry-and-holidays quartet behind a view selector; "
+                                             "declared child of the Graphite home, direct-URL, no "
+                                             "lens/nav until cutover"),
+    "/dash/home/patterns": ("graphite-home", "Patterns — ONE page consolidating the classic Wolfe "
+                                             "scanner and harmonic scanner behind a view selector "
+                                             "(read-only over the nightly snapshots); declared child "
+                                             "of the Graphite home, no lens/nav until cutover"),
+    "/dash/home/anatomy": ("graphite-home", "Move anatomy — the labelled explosive-move research "
+                                            "panel's precursor fingerprint + excursion envelope; "
+                                            "declared child of the Graphite home, reached from the "
+                                            "own-history page, no lens/nav until cutover"),
+    "/dash/home/own-history": ("graphite-home", "Own history — the self-relative map (how unusual "
+                                                "today is FOR THIS NAME) rebuilt from stored "
+                                                "stock_signals ratio columns; declared child of the "
+                                                "Graphite home, no lens/nav until cutover"),
+    "/dash/home/compare": ("graphite-home", "Compare — rebased side-by-side overlay of up to six "
+                                            "stocks/indices (?sym=&cmp=&idx=); the NEW Graphite twin "
+                                            "of the sacred classic /dash/compare, which stays "
+                                            "untouched; declared child, no lens/nav until cutover"),
+    # Graphite Tracker (2026-07-27, lane w3-tracker / milestone M7) — the classic Tracker's six
+    # surfaces rebuilt as declared children of the Graphite home. Reached from the "Tracker"
+    # destination in the Graphite top bar and from the Today page's watchlist/portfolio card;
+    # direct-URL, no lens/nav until cutover (registering a lens IS the cutover).
+    "/dash/home/tracker": ("graphite-tracker", "Tracker overview — book totals, what's worth a look, "
+                                               "allocation, your named books, and the 'follow a model "
+                                               "book' door; declared child of the Graphite home, "
+                                               "reached from the 'Tracker' destination in its top bar"),
+    "/dash/home/tracker/portfolios": ("graphite-tracker", "Positions — the open book marked to the last "
+                                                          "close in Kite-norm columns (Avg. cost · LTP · "
+                                                          "Cur. val · P&L · Day chg.); reached from the "
+                                                          "Tracker overview's view switcher"),
+    "/dash/home/tracker/watchlists": ("graphite-tracker", "Watchlist — the canonical stocks_in_play watch "
+                                                          "tier, adding through the home's existing "
+                                                          "POST /dash/home/watch/add (no second write "
+                                                          "path); reached from the Tracker view switcher"),
+    "/dash/home/tracker/performance": ("graphite-tracker", "Scoreboard — realised/unrealised P&L, hit-rate, "
+                                                           "excess vs Nifty 500, the chained time-weighted "
+                                                           "return curve, and the measured cash-flow "
+                                                           "fidelity verdict behind XIRR (ratified §K.4)"),
+    "/dash/home/tracker/import": ("graphite-tracker", "Import — file-or-paste holdings onboarding "
+                                                      "(parse → validate against bhavcopy_rows → preview "
+                                                      "→ confirm); reached from the Tracker view switcher "
+                                                      "and every empty state"),
     # ONE entry for this route (W1-CONVERGENCE, 2026-07-27). Two lineages independently built and
     # registered `/dash/home/stock`; the merge auto-resolved into a DUPLICATE dict key, which Python
     # silently collapses last-wins — a registry that looks reviewed but is not. The surviving page is

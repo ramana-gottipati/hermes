@@ -299,6 +299,13 @@ def test_every_column_the_page_reads_exists_in_the_canonical_schema(tmp_path, mo
     mem.executescript(CA_SCHEMA)
     _ensure_scan_table(mem)                      # wolfe_signals lives in its own module DDL
     from src.automation import rs_phase          # rs_phase/rsi_of_rs are additive rotation columns
+    # `ensure_columns` guards itself with a module-level `_ensured` flag — "once per PROCESS", not
+    # once per connection. So if ANY earlier test in the run already called it (the W2 markets/
+    # strength lanes do), it returns immediately here and this probe DB never gets `rs_phase` — the
+    # gate then fails on a column the canonical schema really does have. Reset the flag for the
+    # duration so the probe reflects production migration, not pytest collection order. Found by the
+    # W1-CONVERGENCE integration merge: green alone, red in the full suite.
+    monkeypatch.setattr(rs_phase, "_ensured", False, raising=False)
     rs_phase.ensure_columns(mem)
 
     def cols(table):

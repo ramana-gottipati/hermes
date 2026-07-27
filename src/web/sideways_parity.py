@@ -90,6 +90,248 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                 "M5 Today IS the migrated markets overview / orientation home"),
     "wire":    ("PORTED", "/dash/preview",
                 "M3 news/flow dock (?ch=news) is the migrated News/Wire"),
+
+    # ── M-Markets · lane W2-A (2026-07-27): eleven classic Markets lenses consolidated into FOUR
+    # Graphite pages. Consolidation, not transliteration — each page answers ONE question with its
+    # evidence stacked under it. Every note below states what travelled AND what deliberately did
+    # not, so a "PORTED" here can never over-claim (the classic lens stays live either way).
+    "market-internals": ("PORTED", "/dash/home/internals",
+                         "Graphite Market internals: the five vital signs with Pro percentile "
+                         "references vs the full 2004-> history, the price-breadth-vs-tape hero, the "
+                         "delivery/dispersion/coil regimes, the crisis-fingerprint anchors and a "
+                         "session drill. NOT carried: the 1200-cell daily heat ribbon (the drill is "
+                         "reached from a 20-session strip instead) — classic keeps it"),
+    "divergence": ("PORTED", "/dash/home/internals",
+                   "the RSI-of-RS divergence watch (bullish/bearish columns + the momentum-extremes "
+                   "strip) is the Divergence-watch zone of the Graphite internals page; the home's "
+                   "own breadth-vs-delivery two-gauge stays the Today-level seed"),
+    "participants": ("PORTED", "/dash/home/flows",
+                     "Graphite Flows & positioning: the FII index-futures stance with its own-history "
+                     "percentile, the FII-vs-retail mirror, the four-participant matrix (index fut "
+                     "net · long:short · stock fut net · index option lean) and the recent-session "
+                     "history (Pro). Sits beside the home's existing FII/DII cash reads rather than "
+                     "duplicating them"),
+    "fno": ("PORTED", "/dash/home/flows",
+            "the own-history F&O board (OI · PCR · max-pain percentiles + build-up streak) with the "
+            "auto reality-check callouts and a server CSV; the Phase-0 fence travels ON the block "
+            "(PCR selects weakly, forward-test-only; max-pain/basis/OI-change failed). The "
+            "PER-SYMBOL F&O read (OI · change · quadrant · PCR · basis · max-pain · put/call walls "
+            "from fno_oi_signals) is the F&O section of /dash/home/stock (W1)"),
+    "actions": ("PORTED", "/dash/home/events",
+                "the forward corporate-actions calendar grouped by ex-date with type counts, the "
+                "recent-past + security-events context (Pro) and a server CSV; reuses the home's "
+                "reads.upcoming_ca (same corp_actions.upcoming single source). E-11/E-12 logistics "
+                "fence carried"),
+    "results-reactions": ("PORTED", "/dash/home/events",
+                          "the results-reaction board (surprise · delivery multiple · realized 22/60-"
+                          "day abnormal move) + who-reports-next, with the falsification fence stated "
+                          "ABOVE the table (tradeable book net ret/vol 0.10 vs bench 0.85). NOT "
+                          "carried: the CAR fan SVG and the published-brief cards — classic keeps them"),
+    "event-cadence": ("PORTED", "/dash/home/events",
+                      "overdue-vs-own-rhythm + expected-by-cadence tables with the event-type filter "
+                      "and the dormant count, off the same bounded seasonal_events snapshot; TIME-only "
+                      "fence carried verbatim. Index-membership filter not carried (event-type only)"),
+    "buyback-calc": ("PORTED", "/dash/home/events",
+                     "the tender-quota calculator (accepted · tender P&L · residual · net · breakeven "
+                     "exit) with the live ₹2L small-shareholder eligibility read-out, anchored by the "
+                     "buyback rows on the corporate-actions feed; the acceptance-ratio-is-YOUR-"
+                     "assumption fence carried"),
+    "surveillance": ("PORTED", "/dash/home/events",
+                     "the ASM/GSM/price-band transition tape + current-state counts, single-sourced "
+                     "through surveillance.transitions/current_state so page == card == pillar; "
+                     "'context, never a gate' fence carried"),
+    "band-locks": ("PORTED", "/dash/home/events",
+                   "the close-at-band streak board single-sourced through band_lock.active_streaks, "
+                   "with the honest-window note (bands reconstructable only back to the feed's first "
+                   "captured day) and the no-study-exists fence"),
+    "attention": ("PORTED", "/dash/home/attention",
+                  "the full magnitude-ranked queue with lens filters, per-batch counts, ?as_of= "
+                  "last-batch-on-or-before replay and the curated alert rail; the depth behind the "
+                  "home's 'What changed today' band (which keeps owning severity_counts/what_changed). "
+                  "NOT carried: the acknowledge WRITE and the cookie 'since you last looked' brief — "
+                  "owner actions that stay on the classic page"),
+    # ── Graphite cutover wave W2-B (2026-07-27): the RS · rotation · sectors families ──
+    # Eleven classic Markets lenses consolidated into THREE Graphite pages. The rule applied:
+    # PORTED = the question the lens exists to answer is fully served at the new route.
+    # DEFERRED = the headline block landed but a materially separate block is still owed — the
+    # note names exactly what travelled and what did not, so nothing is silently missed.
+    "rrg":       ("PORTED", "/dash/home/rotation",
+                  "sector rotation map — the 6/12/24-month RRG journeys reuse the canonical JdK "
+                  "engine (automation/rrg._rs_ratio_momentum + quadrant). Per-symbol drills "
+                  "(?idx= constituents, ?sym= single stock) belong to the Graphite stock hub, not "
+                  "this page"),
+    "rotation":  ("PORTED", "/dash/home/rotation?view=weather",
+                  "RS weather — sector phase table (phases classified by the canonical "
+                  "rs_phase engine, not the additive column), the 2x2 lifecycle grid with the "
+                  "strict-diagonal shortlists, and the just-turned strip"),
+    "cycle-clock": ("PORTED", "/dash/home/rotation?view=clock",
+                    "the lifecycle dial — every sector's RS-Ratio x RS-Momentum on one radial "
+                    "plot plus the same dial as a table, from the same rs_extras snapshot"),
+    "rs-hub":    ("PORTED", "/dash/home/strength",
+                  "the RS hub — universe-wide standing counts, the four-reading card set, and "
+                  "today's strongest names with their phase and trend state. The PER-SYMBOL half "
+                  "(rank · trend state · phase · 1/3/6/12-month slopes · vs its own sector) is the "
+                  "Strength section of /dash/home/stock (W1), so the pair is complete: board here, "
+                  "dossier there"),
+    "leaders":   ("PORTED", "/dash/home/strength?view=leaders",
+                  "strong-in-strong / weak-in-weak, straight from the canonical "
+                  "stock_rs.leaders_laggards screen with all three trend states shown in Pro"),
+    "capture-map": ("PORTED", "/dash/home/strength?view=capture",
+                    "up-capture / down-capture / spread per sector at 3, 6 and 12 months, from "
+                    "the canonical automation/capture engine, with the four-way behaviour read"),
+    "sectors":   ("PORTED", "/dash/home/sectors",
+                  "the sector standing board — weather, 1/3/12-month RS, member breadth (the "
+                  "cross-check the classic board lacked) and the Pro return columns"),
+    "sector-momentum": ("PORTED", "/dash/home/sectors?sec=",
+                        "the constituent drill-down, promoted from a deep-link-only orphan to a "
+                        "URL-addressable view of the sector board it belongs to"),
+
+    "rsband":    ("DEFERRED", "M-Markets",
+                  "LANDED at /dash/home/rotation?view=band: the per-sector RS-band position 0-100 "
+                  "with band label, regime honesty gate and (Pro) the trend-removed position, from "
+                  "the canonical automation/rsband engine; the engine's verdict KEY is never "
+                  "rendered, only its descriptive state label. STILL OWED: the per-index channel "
+                  "chart (support/median/resistance rails, POC, value area), the per-stock channel, "
+                  "the constituent lanes and the journey scrubber"),
+    "momentum-scan": ("DEFERRED", "M-Markets",
+                      "LANDED at /dash/home/strength?view=momentum: the risk-adjusted momentum "
+                      "table read from the same canonical momentum_scan rows, carrying the "
+                      "beta-not-skill fence. NOT CARRIED BY DECISION: the C-blend overlay "
+                      "(flat-cost-only, not fundable, and Screener-derived under primary-source "
+                      "remediation). STILL OWED: the insider/credit veto flag column, the "
+                      "equal-weight ensemble sort and the /dash/momentum-scan/slow child"),
+    "sector-economics": ("DEFERRED", "M-Markets",
+                         "LANDED at /dash/home/sectors?tab=economics: the sector x financial-year "
+                         "median ROCE/OPM heat grid with the survivorship, thin-N, financials-blank "
+                         "and Screener-provenance fences intact, plus a new risk-economics table. "
+                         "UNVERIFIED ON DATA — the research fundamentals archive is absent from "
+                         "the local fixture, so only structure is proven. STILL OWED: the per-cell "
+                         "company breakdown and the biggest-swings panel"),
+    # ── lane W2-C (2026-07-27): seasonal · patterns · anatomy · self-relative · compare ──
+    # 10 classic lenses -> 5 Graphite declared-child routes. Parity is judged PER EVIDENCE BLOCK,
+    # so a page that renders and reads well but is missing load-bearing blocks stays DEFERRED with
+    # an explicit shipped/outstanding note — it is not promoted to PORTED on look alone.
+    "seasonal-calendar": ("PORTED", "/dash/home/seasonal?view=calendar",
+                          "Expiry/holiday conditioning, all four window deltas in bps + both counts "
+                          "+ sort control + sym links + as-of + server CSV + the 0-certified null "
+                          "prior fence; reads the same bounded x_setups_signals snapshot"),
+    "seasonal-tape": ("DEFERRED", "M-Markets",
+                      "SHIPPED /dash/home/seasonal?view=tape — month/weekday/ISO-week script grids "
+                      "(grey by default, coloured only on full certification), the 'N of M cells "
+                      "certified' winnowing headline, per-cell year-by-year stack, Pro forward-"
+                      "outlook band with the white=noise read, frozen-family sha256 provenance, "
+                      "0-certified fence. OUTSTANDING: monthly/weekly consolidation panels, the "
+                      "per-cell placebo-null detail block, scope=stock + symbol search"),
+    "seasonal-screen": ("DEFERRED", "M-Markets",
+                        "SHIPPED /dash/home/seasonal?view=screen — Wilson-lower-bound ranking (not "
+                        "raw hit-%), the 95% band on every row, an explicit indistinguishable-from-"
+                        "chance flag, month + hot/cold selectors, server CSV. OUTSTANDING: the "
+                        "'Strength t' sort dimension, the per-name month-rank column, and the "
+                        "index=<Name> constituent filter"),
+    "seasonal-divergence": ("DEFERRED", "M-Markets",
+                            "SHIPPED /dash/home/seasonal?view=divergence — month-by-month cells for "
+                            "two entities side by side + the gap + per-side year counts. "
+                            "OUTSTANDING: the current-elapsed-year overlay read from seasonal_stack"),
+    "harmonic-scan": ("DEFERRED", "M-Markets",
+                      "SHIPPED /dash/home/patterns?view=harmonic — the full nine-column snapshot "
+                      "table (shape · side · state · in-zone · age · price · zone/PRZ · fit), "
+                      "as-of, read-by-side fence. OUTSTANDING: the weekly/monthly live multi-TF "
+                      "scan and the ?refresh=1 live recompute (both are on-demand compute the "
+                      "Graphite page deliberately does not do)"),
+    "wolfe-scan": ("DEFERRED", "M-Markets",
+                   "SHIPPED /dash/home/patterns?view=wolfe — snapshot table (side · in-zone · age · "
+                   "price · zone · stop · first target · room), as-of, and the 'edge is in the "
+                   "SELECTION, not the craft' fence. Ported READ-ONLY over wolfe_signals with no "
+                   "import of wolfe*.py / stock_chart*.py (that lane is hot on origin/main). "
+                   "OUTSTANDING: the §B quality components A-I/D + Q column, the three sort "
+                   "dimensions, and the Fresh-setups / Open-trades toggle"),
+    "move-anatomy": ("DEFERRED", "M-Markets",
+                     "SHIPPED /dash/home/anatomy — the precursor fingerprint as standardised gaps "
+                     "from the quiet baseline + the 6-month excursion envelope + the post-selection "
+                     "/ survivorship / 1-in-10-baseline fence + the momentum-not-accumulation "
+                     "finding. OUTSTANDING: the full ~20-precursor family breakdown and the "
+                     "big-move rate column"),
+    "self-history": ("DEFERRED", "M-Markets",
+                     "SHIPPED /dash/home/own-history — the self-relative map rebuilt from STORED "
+                     "stock_signals ratio columns (turnover vs own 1m/1y norm, delivery 1m vs 6m, "
+                     "delivery size vs own 30-day and own best month, distance from own 52w high), "
+                     "plus a per-symbol view ranking each ratio against that symbol's own trailing "
+                     "history. DISCLOSED DIFFERENCE, NARROWED BY W1-CONVERGENCE (2026-07-27): the "
+                     "3-year percentile over CORPORATE-ACTION-ADJUSTED OHLC now DOES exist, "
+                     "per-symbol, as the Own-history section of /dash/home/stock — "
+                     "reads.stock_selfref replicates the method (price · 3-month momentum · "
+                     "delivery · turnover · coil) without importing the banned web-view engine, and "
+                     "the adjustment is gate-pinned (a 1:1 bonus must not invert the percentile). "
+                     "What is still not reproduced is that percentile as an ESTATE-WIDE MAP here. "
+                     "OUTSTANDING: the "
+                     "cross-sectional second lens (peer percentile + the both-extreme gold ring) "
+                     "and the five-universe selector"),
+    "compare": ("DEFERRED", "M-Markets",
+                "SHIPPED /dash/home/compare — a NEW route; the sacred classic /dash/compare stays "
+                "byte-untouched. Rebased-to-100 overlay of up to six stocks/indices, split/bonus "
+                "adjusted from corporate_actions, URL-as-state with ?sym=&cmp=&idx=&r=. "
+                "OUTSTANDING: the ratio-vs-denominator mode (mode=ratio&den=), the base=0 mode, and "
+                "the searchable symbol picker"),
+    "early-signals": ("DROPPED", "",
+                      "NAMED CHECK RUN 2026-07-27 (lane W2-C), mechanism traced not pattern-matched: "
+                      "the page owns NO data and NO compute of its own. Feed 1 is "
+                      "stock_rs.phase_movers() filtered to turn-ups into Recovery/Tailwind — the "
+                      "same rows /dash/rotation already renders (limit 40, both directions) and "
+                      "/dash/rs-hub's RS section shows; feed 2 is divergence_board._scan() filtered "
+                      "to the bullish half — that IS /dash/divergence's own scan. Its own docstring "
+                      "states 'reads only precomputed tables, no new compute/storage'. What is left "
+                      "after removing the duplication is a direction FILTER, i.e. a display preset, "
+                      "not a distinct data claim -> DROPPED as a lens. NOT LOST: the classic route "
+                      "stays live for bookmarks, and the claim must be re-homed as a 'just turned "
+                      "up' filter on the Graphite rotation + divergence ports (a recorded dependency "
+                      "on the W2 rotation/RS lane). NOTE for that lane: stock-grain rs_phase flips "
+                      "are NOT on the signal-alerts bus — signal_events' 'rs' lens is INDEX-grain "
+                      "(rsband_signals vs Nifty 500) — so the Graphite home's What-changed zone does "
+                      "NOT already carry this; the rotation port must"),
+    # ── Tracker (milestone M7, lane w3-tracker, 2026-07-27) ────────────────────────────
+    # Five surfaces rebuilt as declared children of the Graphite home; the sixth is the
+    # admitted duplicate and is DROPPED as a merge. Notes name the RESIDUAL honestly —
+    # a port claim that hides what did not travel is worth nothing to the next session.
+    "dashboard": ("PORTED", "/dash/home/tracker",
+                  "Graphite Tracker overview: book totals · worth-a-look flags · movers · allocation "
+                  "+ concentration + Pro contribution · books table · the model-book door. RESIDUAL: "
+                  "alerts-firing, news-for-your-names and upcoming-corporate-actions blocks are NOT "
+                  "rebuilt here — the Graphite home already renders news (reads.recent_news) and "
+                  "going-ex (reads.upcoming_ca) for the whole market; filtering those to holdings is "
+                  "the open follow-up rather than a second rendering"),
+    "portfolios": ("PORTED", "/dash/home/tracker/portfolios",
+                   "Positions in the Part III §J tracker column set, Kite-norm labels (Avg. cost · LTP · "
+                   "Cur. val · P&L · Day chg.), frozen identity spine, Pro column layer, book chips with "
+                   "URL state, server CSV. RESIDUAL: per-row WRITES (edit / close / single-position add) "
+                   "and the dividends-since column stay on the classic page and are linked, not forked — "
+                   "the lane adds exactly one write (the importer)"),
+    "watchlists": ("PORTED", "/dash/home/tracker/watchlists",
+                   "The canonical stocks_in_play watch tier, added through the home's EXISTING "
+                   "POST /dash/home/watch/add (one write path, native date_added). RESIDUAL: per-row "
+                   "alerts, promote and remove stay on the classic page and are linked; the shared add "
+                   "POST still redirects to Today, so the confirmation lands there"),
+    "performance": ("PORTED", "/dash/home/tracker/performance",
+                    "Scoreboard: realised/unrealised ₹ P&L, hit-rate by strategy and book, average excess "
+                    "vs Nifty 500, average hold, a CHAINED TIME-WEIGHTED return curve vs the benchmark + "
+                    "its deepest fall. XIRR is rendered only when tracker_reads.cashflow_fidelity() passes "
+                    "on the live rows (ratified §K.4 pre-condition); otherwise the page prints the "
+                    "measurement and withholds the number. RESIDUAL: the classic page's CAGR and "
+                    "book-value equity curve are deliberately NOT carried — both inherit the same "
+                    "cash-flow defect (a deposit reads as a gain); the time-weighted chain replaces "
+                    "them. Dividends received are still absent from every return figure"),
+    "import": ("PORTED", "/dash/home/tracker/import",
+               "File-or-paste onboarding: any column order, keyword header detection, symbols validated "
+               "against bhavcopy_rows EQ/BE exactly as reads.watch_add does, unsaved preview with a "
+               "per-row verdict, then a confirm that RE-VALIDATES before writing. RESIDUAL: .xlsx is not "
+               "parsed (CSV/TSV/paste only) — the classic importer's openpyxl path did not travel"),
+    "model-books": ("DROPPED", "",
+                    "MERGE, not a deletion. model-books and model-portfolios rendered the SAME engine "
+                    "books — the Tracker copy's own nav rationale admitted the numbers were 'already "
+                    "covered by the model_portfolios data flow'. In the new experience there is one data "
+                    "source and two doors: the books live in Strategies, and the Tracker carries the "
+                    "'follow a book' view (a named book seeded with today's date and today's close, never "
+                    "the backtest's history) as a section of /dash/home/tracker. The classic route stays "
+                    "live and linked so existing bookmarks and the Adopt write keep working"),
     # ── W1, the Graphite stock page (2026-07-27) ──────────────────────────────────────
     # HONESTY NOTE, recorded deliberately: the classic stock DOSSIER (`/dash/stock`) is an
     # integration hub, not a registry lens, so it has no row of its own here — and NONE of the
@@ -111,11 +353,6 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
     "conviction":  ("DEFERRED", "M7", "per-symbol conviction read carried as a digest tile on "
                                       "/dash/home/stock (W1), labelled a sorting heuristic; the "
                                       "shortlist board is not"),
-    "rs-hub":      ("DEFERRED", "M-Markets", "per-symbol Strength tab (rank · trend · slopes · vs "
-                                             "sector) carried by /dash/home/stock (W1); the hub is not"),
-    "participants": ("DEFERRED", "M-Markets", "the per-symbol F&O tab it declares is carried by "
-                                              "/dash/home/stock (W1) from fno_oi_signals; the "
-                                              "participant-flow board is not"),
 }
 
 _VALID_STATUS = {"PORTED", "DEFERRED", "DROPPED", "NA"}
