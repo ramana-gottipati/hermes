@@ -81,10 +81,19 @@ back + record verdicts on genuine forks.
   `sibling-backup-w05/`), deleted them, `merge --ff-only` → `D:\patearn` at `35c8a47`.
 
 ### Banked findings (not cutover work, tracked so they aren't lost)
-- `tests/test_home_featured.py::test_conviction_now_caches_by_date` silently passes/fails on
-  AMBIENT DB presence (`data/hermes.db` is CWD-relative; empty schema-only DB → cache skipped
-  by design → test red in any fresh clone/worktree). Latent CI landmine — spun off as a
-  separate task chip.
+- ~~`tests/test_home_featured.py::test_conviction_now_caches_by_date` silently passes/fails on
+  AMBIENT DB presence~~ → **CLOSED 2026-07-27, test-only + additive.** The test now seeds its own
+  `stock_signals` date into a `tmp_path` DB and monkeypatches `src.core.db.DB_PATH` (the real
+  `get_conn()` resolves that global per call), plus `reads._CONV_CACHE` → `{}` so module state
+  leaks in neither direction. Mechanism correction for the record: `DB_PATH` is **not**
+  CWD-relative — `src/core/db.py:18` resolves it module-relative
+  (`Path(__file__).resolve().parents[2]/"data"/"hermes.db"`), i.e. per **repo/worktree root**, and
+  `_init()` at import auto-creates it schema-only. So `MAX(trade_date)` was NULL, `conviction_now`
+  skipped the cache BY DESIGN, and the second call recomputed. Proof: passes with the ambient DB
+  moved aside entirely (true fresh-clone), and a falsification probe confirms the assertions still
+  bite (empty `stock_signals` → `calls=2`, empty cache). Coverage was *strengthened*, not weakened —
+  it now also pins that the key IS `MAX(trade_date)` and that a nightly date roll evicts the stale
+  entry. Suite: **852 passed / 1 skipped**.
 - `scripts/nav_integrity_gate.py` (NOT in the pytest suite) fails with 5 pre-existing orphans:
   `/dash/home` · `/dash/home/_kit` · `/dash/home/rotation` · `/dash/sideways-parity` ·
   `/dash/wolfe/learnings` — intentionally unlinked until cutover. **W6 must** either add

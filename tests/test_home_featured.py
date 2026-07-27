@@ -155,12 +155,29 @@ def test_today_additions_escape_untrusted():
         assert "<script>" not in h and "<i>" not in h and "<b>x" not in h
 
 
-def test_conviction_now_caches_by_date(monkeypatch):
+def test_conviction_now_caches_by_date(monkeypatch, tmp_path):
     """The canonical conviction query is ~3.9s (it joins 5.9M-row stock_signals); it's nightly data,
-    so conviction_now caches by the latest stock_signals date — the second call must NOT recompute."""
+    so conviction_now caches by the latest stock_signals date — the second call must NOT recompute.
+
+    HERMETIC (2026-07-27): the test seeds its OWN trade_date into a temp DB. It used to read whichever
+    `data/hermes.db` sat at the repo root, which made it pass only on a box with populated data: in a
+    fresh clone or worktree that file is auto-created schema-only, so MAX(trade_date) is NULL,
+    conviction_now skips the cache BY DESIGN, and the test failed for a reason that had nothing to do
+    with caching. The cache key must come from the fixture, never from the ambient tree.
+    """
+    import sqlite3
     from src.web.home import reads
     import src.automation.stock_rs as sr
-    reads._CONV_CACHE.clear()
+    import src.core.db as db
+
+    dbf = tmp_path / "hermes.db"
+    seed = sqlite3.connect(dbf)
+    seed.execute("CREATE TABLE stock_signals(symbol TEXT, trade_date TEXT)")
+    seed.execute("INSERT INTO stock_signals VALUES('TCS','2026-07-23')")
+    seed.commit()
+    seed.close()
+    monkeypatch.setattr(db, "DB_PATH", dbf)         # get_conn() resolves this global per call
+    monkeypatch.setattr(reads, "_CONV_CACHE", {})   # module state — restored on teardown, no leak either way
     calls = {"n": 0}
 
     def fake(limit=40, trade_date=None):
@@ -172,6 +189,14 @@ def test_conviction_now_caches_by_date(monkeypatch):
     b = reads.conviction_now()
     assert a and b and a[0]["symbol"] == "TCS"
     assert calls["n"] == 1, ("second call must hit the cache, not recompute", calls["n"])
+    assert list(reads._CONV_CACHE) == ["2026-07-23"], ("the key IS MAX(trade_date)", reads._CONV_CACHE)
+    # ...and the nightly date roll must INVALIDATE it — that is what "cached BY DATE" has to mean
+    roll = sqlite3.connect(dbf)
+    roll.execute("INSERT INTO stock_signals VALUES('TCS','2026-07-24')")
+    roll.commit()
+    roll.close()
+    assert reads.conviction_now() and calls["n"] == 2, ("a new trade_date must recompute", calls["n"])
+    assert list(reads._CONV_CACHE) == ["2026-07-24"], ("the stale date must be evicted", reads._CONV_CACHE)
 
 
 def test_regime_band_rrg_and_breadth_render_safely():
