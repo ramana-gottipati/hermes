@@ -1,38 +1,12 @@
 > **Lifecycle: LIVING.** the rolling session carry-forward queue + takeover prompt (per SESSION-PROTOCOL) — pruned each session, not retired. Registered in `docs/DOC_INDEX.md`.
 
-## 🎨 REDESIGN LANE — TAKEOVER PROMPT (S213-close, 2026-07-23; supersedes earlier redesign blocks)
+## 🎨 REDESIGN / GRAPHITE LANE (cutover CLOSED 2026-07-28 — supersedes the S213 takeover prompt)
 
-> Paste-ready for the next redesign session:
-
-**You are resuming the Patearn v3 redesign program.** Boot: CLAUDE.md → `docs/redesign-coordination.md`
-(THE approval record) + `docs/redesign-plan-2026-07-17.md` Parts I–V (ratified contracts).
-State: M0–M5 DEPLOYED as the opt-in preview (`/dash/preview` = Today · `/dash/preview/stock` =
-the evidence-scroll hub · dock · chips · chart fork w/ the blue-up/gray-down outlined candles);
-suite ~775 green; M6 spec v1.1 review-clean but NOT built; M7 (clusters + the ratified portfolio
-column architecture) and M8 (screener) unapproved.
-
-**THE BINDING OWNER CORRECTIONS — violate none of these:**
-1. **The classic site is a FROZEN REFERENCE.** Zero modifications, ever — no visual change, no
-   content change; only the already-sanctioned machine-append points (`_ROUTER_SPECS`, gate
-   tables) may gain rows, and default rendered bytes must stay identical (test-proven).
-2. **The new experience owes the old site NOTHING visually.** Do NOT reuse the legacy palette,
-   accents (#4d9dff), ink ladder, or token values as the basis of the new identity — that was
-   rejected twice as "the same kind of inspiration." Design the v3 identity FROM SCRATCH
-   (palette · typography · geometry · motion), present it as SAMPLES for owner choice BEFORE
-   building (the four-direction lineup worked; repeat that method with genuinely fresh
-   directions). Carry over ONLY the doctrine: descriptive fences · evidence links on every
-   number · one regime vocabulary · AA legibility · signed-value semantics as a concept (fresh
-   hues) · the proprietary chart identity (rising=brand hue, falling=vibrant gray, outlines).
-3. **Plan-first, always:** owner approval of direction ≠ license to build; spec → Codex loop →
-   explicit owner go → build → post-build Codex loop → deploy (writer-safe recipe) → box walk.
-   Deep-link fabric: every view URL-addressable, `?sym=` never `?symbol=`, audited (97/97 held).
-4. Gemini reviewer channel DOWN (owner key/migration) — Codex substitutes, recorded per pass.
-
-**Next actions in order:** (1) fresh-identity design samples → owner picks; (2) re-skin the
-preview in the chosen identity (skin layer swap — the architecture supports it; the bold skin
-demonstrates the mechanism but its PALETTE is rejected); (3) then M6 build on owner go; then M7
-(the big one: portfolio pages per Part III §J) · M8. Lane: `D:/Hermes.worktrees/v3-preview`
-(rebase-on-origin before every push; verify pushes BY CONTENT).
+- **The cutover is DONE + LIVE.** `/dash` 302s to the Graphite home (D148); the old preview is retired behind 302s (D149); three writer-safe deploys landed it (`0f296cf` record · `30c1f36` · `cf7431d`, tail fix `9290ba7`). Arc + every anchor: `PROJECT_STATE.md` § Session log → *"Graphite cutover mega-orchestration — 2026-07-27/28"*.
+- **The classic site is FROZEN byte-identical at `/dash/classic`** — zero modifications, ever; every classic lens keeps its own URL and exact output.
+- **The remaining work is a NAMED program, not an open cutover:** `docs/graphite-gap-register.md` (§1–§11 = 464 rows / 160 MAJOR + the 29-row information-contract audit) worked by **`docs/graphite-fix-program-brief.md`** — the owner runs **S-P1…S-P7 as scheduled Opus-5 sessions**; its Appendix A carries the binding lane rules, standing owner corrections, Free/Pro grammar and the verified deploy recipe (the two cutover docs were retired into it).
+- **Honest board (D150): PORTED 17 · DEFERRED 50 · DROPPED 5 · NA 2** over 74 surfaces; M6/M7/M8 + M-Markets are **PLANNED**, and a milestone flips back to DONE only when its register rows close.
+- **Open chips:** the `/dash/home/events` silent-fallback defect is FIXED in code (`9290ba7`, Row→dict at the reads boundary) but its **Deploy-3 verification line is still owed** · the classic `strategies_view._public` sanitizer **LEAKS on live `/dash/strategy-ref`** (`S164BB`/`S155-e`/`S1234` escape the regex — classic is byte-frozen, so recorded not patched; the Graphite port widens it).
 
 ## 🔬 STRATEGY / RESEARCH LANE — TAKEOVER PROMPT (S214-cont close, 2026-07-23)
 

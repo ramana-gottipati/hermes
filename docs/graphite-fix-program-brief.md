@@ -10,11 +10,15 @@ found **464 gaps (160 MAJOR)** where the Graphite twin lacks classic capability,
 improvements. Your mission: close the register, restore-don't-replace, nothing removed.
 
 ## Boot (in order, lazy-load beyond it)
-1. `docs/graphite-gap-register.md` — THE work-list (660 rows, per-workspace tables, file:line
-   evidence both sides). You tick rows off IN this file as they close (same commit as the fix).
-2. `docs/graphite-cutover-orchestration.md` — program history, binding rules §0, deploy links.
-3. `docs/graphite-home-carryforward.md` §3 (Free/Pro grammar) · §4 (standing corrections) ·
-   §6 (the verified deploy recipe).
+1. `docs/graphite-gap-register.md` — THE work-list (§1–§11: 464 rows + the 29-row §11
+   information-contract audit; per-workspace tables, file:line evidence both sides). You tick rows
+   off IN this file as they close (same commit as the fix).
+2. **Appendix A of this brief** — the binding lane rules, the standing owner corrections, the
+   Free/Pro grammar and the verified deploy recipe. (It absorbed
+   `docs/graphite-cutover-orchestration.md` + `docs/graphite-home-carryforward.md`, both retired
+   2026-07-28 per their Lifecycle banners.)
+3. `PROJECT_STATE.md` § Session log → **"Graphite cutover mega-orchestration — 2026-07-27/28"** for
+   the program history + every commit/deploy anchor (W0→W7, D148/D149/D150).
 4. `CLAUDE.md` (repo guardrails — primary sources, cost discipline, state-doc same-commit gate).
 
 ## Binding policy rulings (parent-session ratified; owner may override in-session)
@@ -113,8 +117,88 @@ exercise, and where."
   evidence. Fences travel (D138 above-headline · CCI/MEP descriptive · ret/vol labels ·
   0-certified seasonal · PEAD net-fail).
 - Push branch, verify BY CONTENT, merge to main serially (one lane at a time), then deploy per
-  carryforward §6: md5-sweep · `.bak-p<N>` backups · `tr -d '\r'` · py_compile · prod-venv
+  **Appendix A.3**: md5-sweep · `.bak-p<N>` backups · `tr -d '\r'` · py_compile · prod-venv
   import+hasattr sweep · `fuser` writer-safe · NEVER restart ~14:01 UTC · curl-walk with real
   data + journalctl clean · hand the owner a fresh `?v=` link per phase.
 - Argue back on any register row you believe is wrong — with file:line evidence; record the
   verdict in the register rather than silently skipping.
+
+---
+
+# Appendix A — grafted from the retired cutover docs (BINDING; do not re-derive)
+
+> Absorbed 2026-07-28 (lane `lane/w7-close`) from `docs/graphite-cutover-orchestration.md` §0 and
+> `docs/graphite-home-carryforward.md` §2/§3/§4/§6 when both were `git rm`'d per their Lifecycle
+> banners. This appendix, plus the `PROJECT_STATE.md` session-log entry named in Boot §3, is the
+> complete surviving record. Nothing here is optional.
+
+## A.1 — Binding rules for EVERY lane (cutover charter §0)
+
+Classic site byte-FROZEN · additive + isolated (`.g-*`, no legacy/`*_v3`/preview imports) ·
+fixed-size internally-scrolling boxes, never a flat endless page · demo/sample honesty (generate a
+demo when a live read is empty, but the real-vs-demo line stays HONEST via the sample badge) ·
+descriptive-only fences + evidence links travel with the data · **Free is never crippled** ·
+primary sources only (Guardrail #8) · worktree isolation, atomic `add`→`commit`, stage only your
+own hunks · **verify pushes by CONTENT, never exit code** · deploys serialized by the parent per
+A.3 (writer-safe, never ~14:01 UTC) · argue back and record the verdict on genuine forks.
+
+Environment facts that cost a session each to rediscover: the in-repo `.venv` is a **stale py3.13
+env with no numpy — NEVER use it** (plain `python` = the hermes-agent venv); the local
+`data/hermes.db` is a small fixture, so structure is verifiable locally and **data only on the
+box**; the in-app Browser pane is DOWN — verify HTML/gates/data on the box and hand the owner a
+`?v=N` link for pixels.
+
+## A.2 — Standing owner corrections (carry-forward §4) — violate none
+
+1. **Classic site FROZEN (byte-identical).** The new experience is FROM SCRATCH — no legacy
+   palette; carry only doctrine + the blue-up/grey-down candle identity. [[ramana-working-principles]]
+2. **Plan-first; study reference products; present; build on go.** On a genuine fork, run the
+   counter-option and give the VERDICT before building — especially on "any better way?".
+3. **Fixed-size boxes that scroll INTERNALLY** — never a flat endless page.
+4. **Generate demo when a live read is empty, but keep the real-vs-demo line HONEST** (sample badge).
+5. **Crisp by default; detail on demand;** calibrate format to the question.
+6. **Plain-English, clickable symbols, every number links to its source, descriptive-only fences.**
+7. **Argue back, no sycophancy** — the owner wants the spine and the honest verdict.
+8. **A number in isolation is useless — the reference point is the premium.** Free gives the number;
+   Pro says whether it MATTERS (normal/unusual, which way, better/worse than before).
+9. **Verify on the box** (HTML/gates/data); pixels via the owner (`?v=N` link).
+
+**The Free/Pro grammar (carry-forward §2/§3), which Rule 1 of this brief constrains:** FREE = a
+complete, honest glance — every number, the map, the watchlist, today's reads; never a teaser. PRO =
+the REFERENCE LAYER + depth, expressed as ONE chip grammar everywhere — `components.ref_chip`,
+`Npct · band · typ X · ↑/↓` — plus drill-downs, full history/universe, portfolio-aware analytics.
+PRO-ADS = `components.pro_teaser`, the third `.g-proad` state: a blurred real Pro block + an
+"Unlock with Pro" CTA shown to Free users. **A reference chip is only ever rendered where an honest
+reference EXISTS** (no stored history → no fabricated percentile; a 24-point store is a "range
+position", not a percentile) — the precedent that keeps Rule 1's un-gating sweep honest.
+
+## A.3 — The deploy recipe (verified across the whole cutover; see [[vps-deploy-reality]])
+
+`scp src/web/home/*.py hermes:/opt/hermes/src/web/home/` (NEW modules — a full scp is fine; a
+CO-EDITED file such as `v2_surfaces.py` is **anchored-insert patched, NEVER full-scp'd**) → on box
+`tr -d '\r'` each (NEVER `sed`) → `.venv/bin/python -m py_compile src/web/home/*.py` →
+**import + `hasattr` check of every new CALLEE under the prod venv** (S158: patch-deploying a caller
+without its callee is silent, because the imports are lazy) → **writer-safe restart**
+(`fuser /opt/hermes/data/hermes.db` must show no FOREIGN writer; hermes-api startup is read-only;
+**never restart ~14:01 UTC**, the bhavcopy window) `systemctl restart hermes-api` → `curl …/dash/home`
+200 + structure grep + a REAL-DATA walk (the verify-curl also warms the conviction cache) →
+`journalctl` clean → hand the owner a fresh `?v=N` link. Keep a `.bak-<phase>` set on the box: the
+rollback is restoring those files (+ the four `_ROUTER_SPECS` tuples) and restarting. Chat/Telegram
+prompt changes live in `src/assistant/chat.py` → restart `hermes-api` AND `hermes-telegram`.
+
+**Live estate as handed over:** `/dash` **302s** to `/dash/home` (D148, middleware
+`src/web/home/cutover.py`); classic is byte-frozen and preserved at `/dash/classic`; the old preview
+302s into Graphite (D149, `src/web/home/preview_retired.py`). Owner links:
+`https://srv1704897.hstgr.cloud/dash/home?v=w7` · `…/dash/home/stock?sym=TCS&v=w7`.
+
+## A.4 — Open chips inherited from the ledger (not cutover work; do not lose them)
+
+- The classic `strategies_view._public` sanitizer **LEAKS on live `/dash/strategy-ref`** today
+  (`S164BB` / `S155-e` / `S1234` escape the regex). Classic is byte-frozen → RECORDED, not patched;
+  the Graphite port widens it and adds a line-drop backstop.
+- `rule_lab.BLOCKING_ROWS` mirrors the failure ledger **byte-verbatim under a machine gate** — the
+  ledger and its mirror must move in the SAME commit, or the pair desyncs.
+- Box `scripts/nav_integrity_gate.py` is stale and NOT-IN-HISTORY (dev-only, never imported by the
+  app) — left untouched by doctrine; run the gate from the repo, not the box.
+- `hub_sections_v3.load_core` queried `wolfe_signals` by `symbol` while the table keys on `sym`, so
+  that badge NEVER fired — recorded so the module's retirement is not mistaken for a lost feature.

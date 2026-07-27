@@ -39,17 +39,29 @@ Rules (binding for every redesign module):
 
 ## 2. Approval log
 
-> 🚩 **2026-07-27 — THE LANDING CUTOVER IS DONE (D148).** `/dash` now **302s to `/dash/home`** (the
-> Graphite home is the site's default landing); the classic home is preserved byte-identically at
-> **`/dash/classic`**, and every classic lens keeps its own URL + exact output. Owner chose mechanism
-> **(b)** (demote classic into the "Classic site" directory) over (a) registering Graphite pages as
-> lenses — (a) would have drifted the classic nav, since `lens_registry` generates it. Shipped as an
-> additive, unpluggable middleware `src/web/home/cutover.py` (**zero classic files edited**); the
-> redirect is **302 not 301** so rollback stays possible, and deleting the one
-> `_install_landing_cutover(app)` line in `v2_surfaces.wire` is the complete revert.
-> **Still open (needs owner OK):** retiring `/dash/preview` + `/dash/preview/stock` and their `*_v3`
-> modules — that deletes another lane's work, so it is surfaced, not assumed. Its Graphite twin
-> `/dash/home/stock` shipped in `815c941`, so nothing blocks that retirement but the decision.
+> 🏁 **2026-07-28 — THE CUTOVER IS COMPLETE AND LIVE; the redesign program's remaining work is a
+> named PARITY-FIX program, not an open cutover.** `/dash` **302s to `/dash/home`** (D148); the
+> classic site is **byte-frozen at `/dash/classic`**, every classic lens keeping its own URL and
+> exact output; the old preview + its `*_v3` modules are **RETIRED behind 302s** (D149 — de-routed,
+> not deleted, on the owner OK recorded in `3d13d97`). Three writer-safe deploys landed the estate
+> (`0f296cf` record · **`30c1f36`** · **`cf7431d`**, tail fix `9290ba7`).
+> **What replaced "still open":** a per-block audit — `docs/graphite-gap-register.md` (§1–§11: 464
+> gap rows / 160 MAJOR + the 29-row §11 information-contract audit over 113 visuals) — proved the
+> parity board was over-claiming, so **D150** re-derived it by one written rule: **PORTED 17 ·
+> DEFERRED 50 · DROPPED 5 · NA 2** over 74 surfaces, and **M6/M7/M8 went DONE → PLANNED** with
+> M-Markets PLANNED (§5 below reflects this). The gaps are worked by the register + the scheduled
+> Opus-5 sessions S-P1…S-P7 in **`docs/graphite-fix-program-brief.md`** (whose Appendix A now
+> carries the binding lane rules, the standing owner corrections, the Free/Pro grammar and the
+> verified deploy recipe, grafted from the two cutover docs retired the same day).
+> Full arc with every commit anchor: `PROJECT_STATE.md` § Session log → *"Graphite cutover
+> mega-orchestration — 2026-07-27/28"*.
+>
+> *(Original D148 record, kept:* owner chose mechanism **(b)** — demote classic into the "Classic
+> site" directory — over (a) registering Graphite pages as lenses, which would have drifted the
+> classic nav since `lens_registry` generates it. Shipped as the additive, unpluggable middleware
+> `src/web/home/cutover.py` with **zero classic files edited**; the redirect is **302 not 301** so
+> rollback stays possible, and deleting the one `_install_landing_cutover(app)` line in
+> `v2_surfaces.wire` is the complete revert.*)*
 
 | Date | Actor | Decision |
 |---|---|---|
@@ -117,7 +129,7 @@ Rules (binding for every redesign module):
 | 2026-07-23 | Ramana | **build the read-contract gate**. |
 | 2026-07-23 | Claude | **✅ READ-CONTRACT GATE landed — the bidirectional-isolation question is now fully closed.** `tests/test_home_read_contract.py` (13 tests) turns the home's ONE deliberate coupling (its read-only DATA layer) into a HARD contract: it pins every column the home reads against the CANONICAL schemas (`db.SCHEMA_BASE` · `market_internals._SCHEMA` · `deals._DDL` · `results_calendar.SCHEMA` · `signal_alerts.ensure_schema`) + the shared-helper signatures/shapes (`corp_actions.upcoming`→`(rows, as_of)` · `results_calendar.upcoming_results(days)` · `whatchanged_flow.changes(conn,within_days,limit)` · `market_mood(breadth, nifty_above_200dma)`→dict) + the `'FII/FPI'` category literal · and runs every read end-to-end against the real schemas. **So an old-lane column-rename / signature-change now goes RED early (in their run) instead of the home silently losing a zone's data.** NEW→OLD stays structurally impossible (read-only, no imports, no writes). Suite **817 pass** (only the other lane's pre-existing `test_rule_lab` red — their fix is running in a separate session). |
 | 2026-07-23 | Ramana | **Design-feedback loop + session wrap.** Restore the semicircle gauge; **generate data when a live read is empty**; the home read as flat full-width empty bars → **fixed-size boxes that scroll internally, never a flat page**; **plan properly — study MoneyControl-style portals before arranging** (stop hasty placement); crisp replies + detail-on-demand + calibrate format to the question; honest self-review. Then: rearrange/organize the sections · **Market Pulse: add more entries, fill the empty space, make it interactive/engaging** · think about the best first-page insights · watchlist/portfolio · real-vs-demo honesty. "Record everything + a clean carry-forward prompt." |
-| 2026-07-23 | Claude | **✅ Graphite Home DEPLOYED + iterated to the owner-approved 2-region dashboard; session recorded.** LIVE `/dash/home` (`https://srv1704897.hstgr.cloud/dash/home?v=N`): market ribbon · MAIN (Nifty pulse + news hero) · SIDEBAR of fixed-size internally-scrolling widgets (what-changed · FII/DII · corp-actions · results · +reserved watchlist) · alive Pat · Beginner⇄Pro. Iterations this session: restored semicircle gauge (mood via 200-DMA breadth, distinct from today's adv/dec) · `demo.py` fallback · tile-grid → **2-region rebuild** (plan `scratchpad/home-layout-plan.html`, artifact `ac8410d3`, MoneyControl-informed, owner-approved) · bounded-scroll boxes · clickable symbols · plain-English sources · nav on its own bar · density tightened · **index-redundancy killed** (pulse = Nifty chart, not a ribbon repeat) · **news dedup**. Isolation + read-contract still green; suite 817. ⚠ **In-app browser DOWN all session — reviewed HTML, not pixels.** Full record + binding corrections + open feedback + deploy recipe + **takeover prompt** in `docs/graphite-home-carryforward.md`; standing rules → [[ramana-working-principles]] §3/§6/§7. **OPEN (plan-first, next session):** rearrange/organize sections · Market-Pulse more entries/insights · watchlist/portfolio · real-vs-demo honesty · response calibration · cutover (PARKED until the Graphite stock page exists). |
+| 2026-07-23 | Claude | **✅ Graphite Home DEPLOYED + iterated to the owner-approved 2-region dashboard; session recorded.** LIVE `/dash/home` (`https://srv1704897.hstgr.cloud/dash/home?v=N`): market ribbon · MAIN (Nifty pulse + news hero) · SIDEBAR of fixed-size internally-scrolling widgets (what-changed · FII/DII · corp-actions · results · +reserved watchlist) · alive Pat · Beginner⇄Pro. Iterations this session: restored semicircle gauge (mood via 200-DMA breadth, distinct from today's adv/dec) · `demo.py` fallback · tile-grid → **2-region rebuild** (plan `scratchpad/home-layout-plan.html`, artifact `ac8410d3`, MoneyControl-informed, owner-approved) · bounded-scroll boxes · clickable symbols · plain-English sources · nav on its own bar · density tightened · **index-redundancy killed** (pulse = Nifty chart, not a ribbon repeat) · **news dedup**. Isolation + read-contract still green; suite 817. ⚠ **In-app browser DOWN all session — reviewed HTML, not pixels.** Full record + binding corrections + open feedback + deploy recipe + **takeover prompt** in `docs/graphite-home-carryforward.md` *(retired 2026-07-28 → `docs/graphite-fix-program-brief.md` Appendix A)*; standing rules → [[ramana-working-principles]] §3/§6/§7. **OPEN (plan-first, next session):** rearrange/organize sections · Market-Pulse more entries/insights · watchlist/portfolio · real-vs-demo honesty · response calibration · cutover (PARKED until the Graphite stock page exists). |
 
 ## 3. Codex findings → dispositions (all 5 BLOCKING accepted)
 
@@ -178,7 +190,24 @@ proceed Codex-only, or find an alternative independent reviewer).
 | M4 — increment 2c (fullscreen fill) | **DEPLOYED (VPS, 2026-07-22 ~12:03 UTC)** | `stock_chart_v3.py` `layoutFs()` now lifts the `62vh` height clamp in fullscreen (`height:auto !important` while `.cfs` on; restores the clamp on exit) → the hub chart fullscreen fills the FULL window below the rail. Verified live: fork `fillsBottom=true` (host 917/950px) vs legacy unchanged (62vh). Fork-only; owner-requested (S211). |
 | M4 — increment 2b (base re-pin) | **DEPLOYED (VPS, 2026-07-22 ~10:04 UTC)** | `stock_chart_v3.py` re-pinned `BASE_MD5 f4608185 → 20b28161` to carry the Wolfe-lane legacy additions the hub chart was missing: fullscreen drawing DRAWER (control rail = fixed collapsible top bar in fullscreen, auto-collapsed on enter) + one-click branded 'patearn' PNG screenshot (candles + overlays + "SYM · Company / price" header + badge). Two fork-context adaptations (cbar "Controls"; screenshot name via `.hub-id`). Codex APPROVE · suite 762/1-skip · 29/29 v3 gates · node-clean · walk TCS 301KB drawer+screenshot live, identity resolved, isolation 0-leak. Backup `.bak-s210-20260722-100344`. Owner-delegated decision (S210). |
 | M5 · Today v3 | **DEPLOYED (VPS, 2026-07-23)** | the 2026-07-23 approval-log row above is the landing record |
-| M6–M8 | NOT APPROVED | await owner (M6 journey · M7 clusters/portfolios · M8 screener) |
+
+**Milestone status after the cutover (2026-07-28) — mirrors `src/web/sideways_parity.MILESTONES`,
+which is the machine source of truth; this table is the human copy.**
+
+| Milestone | Status | Evidence / why |
+|---|---|---|
+| M3 news / flow dock | **DONE** | capability moved ADDRESS at the W6 retirement, not milestone — M3's wire is the home's Market-news zone. ⚠ no routed lens, so `test_done_milestones_are_fully_ported` passes over it vacuously |
+| M4 stock hub (dossier) | **DONE** | the hub SHIPPED at `/dash/home/stock` (W1-CONVERGENCE lineage). ⚠ DONE means "the hub shipped", **never** "the dossier is at parity" — register §9 holds 20 fresh MAJOR rows the gate cannot see |
+| M5 Today / orientation home | **DONE** | the Graphite home IS the default landing (D148) |
+| M6 journey / guided + help layer | **PLANNED** (was DONE) | RE-OPENED by D150 — 7 of its surfaces hold open MAJOR register rows |
+| M7 clusters & portfolios (Strategies + Tracker) | **PLANNED** (was DONE) | RE-OPENED by D150 — 13 surfaces |
+| M8 screener | **PLANNED** (was DONE) | RE-OPENED by D150 — 2 surfaces; the fundamentals column family is deliberately NOT built (Guardrail #8 outranks the §J listing) |
+| M-Markets (markets analytical estate) | **PLANNED** | the owner-added milestone (2026-07-24) that closed the M6–M8 scope gap; 17 surfaces re-opened into it by D150 |
+
+Board as re-derived by **D150**: **PORTED 17 · DEFERRED 50 · DROPPED 5 · NA 2** over 74 surfaces ·
+265 metrics · 0 UNSCOPED. Work-list = `docs/graphite-gap-register.md`; execution plan + binding
+policy = `docs/graphite-fix-program-brief.md` (S-P1…S-P7, owner-run as Opus-5 sessions). A milestone
+flips back to DONE only when every register row inside it closes.
 
 Deploy record (S189-b): callees pushed BEFORE the caller patch (S158 rule), all 7 files md5-matched
 both sides, writer-check empty, restart at ~04:12 UTC (far from the 14:01 bhavcopy window),
