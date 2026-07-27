@@ -116,6 +116,33 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                              "fixed ~10-dot tails) — a declared child of the Graphite "
                                              "home, reached via 'See the full rotation →' from the Today "
                                              "RRG; direct-URL, no lens/nav until cutover"),
+    # Graphite Markets estate (2026-07-27, cutover lane W2-A) — four consolidated declared children
+    # carrying eleven classic Markets lenses into the Graphite identity. Cross-linked to each other
+    # (and to /dash/home/rotation) by the on-page "Markets depth" strip; the Today/nav entry point
+    # lands at the W6 cutover, when these become lens_registry entries. Direct-URL until then.
+    "/dash/home/internals": ("graphite-home", "Market internals — absolute market health back to "
+                                              "2004 (breadth · the tape · delivery · dispersion · "
+                                              "coil) + the RS-divergence watch; consolidates classic "
+                                              "market-internals + divergence. Declared child of the "
+                                              "Graphite home, reached from the Markets-depth strip; "
+                                              "no lens/nav until cutover"),
+    "/dash/home/flows": ("graphite-home", "Flows & positioning — FII/DII cash, NSE participant-wise "
+                                          "open interest, and every F&O name ranked against its own "
+                                          "history; consolidates classic participants + fno. Declared "
+                                          "child of the Graphite home, reached from the Markets-depth "
+                                          "strip; no lens/nav until cutover"),
+    "/dash/home/events": ("graphite-home", "Events & restrictions — corporate-actions calendar, "
+                                           "results reactions, event cadence, buyback tender "
+                                           "calculator, surveillance transitions and band locks; "
+                                           "consolidates six classic Markets lenses. Declared child "
+                                           "of the Graphite home, reached from the Markets-depth "
+                                           "strip; no lens/nav until cutover"),
+    "/dash/home/attention": ("graphite-home", "What changed — the full magnitude-ranked attention "
+                                              "queue + the curated alert rail, the depth behind the "
+                                              "home's 'What changed today' band; ports classic "
+                                              "attention. Declared child of the Graphite home, "
+                                              "reached from the Markets-depth strip and from that "
+                                              "band; no lens/nav until cutover"),
     # Sideways migration-parity board (2026-07-24) — the internal governance dashboard proving no
     # classic element is silently missed in the modern-app rebuild (gate: tests/test_sideways_parity.py).
     # An owner/ops tool, deliberately unlinked; NOT a customer lens, so no lens_registry entry.

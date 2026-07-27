@@ -90,6 +90,64 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                 "M5 Today IS the migrated markets overview / orientation home"),
     "wire":    ("PORTED", "/dash/preview",
                 "M3 news/flow dock (?ch=news) is the migrated News/Wire"),
+
+    # ── M-Markets · lane W2-A (2026-07-27): eleven classic Markets lenses consolidated into FOUR
+    # Graphite pages. Consolidation, not transliteration — each page answers ONE question with its
+    # evidence stacked under it. Every note below states what travelled AND what deliberately did
+    # not, so a "PORTED" here can never over-claim (the classic lens stays live either way).
+    "market-internals": ("PORTED", "/dash/home/internals",
+                         "Graphite Market internals: the five vital signs with Pro percentile "
+                         "references vs the full 2004-> history, the price-breadth-vs-tape hero, the "
+                         "delivery/dispersion/coil regimes, the crisis-fingerprint anchors and a "
+                         "session drill. NOT carried: the 1200-cell daily heat ribbon (the drill is "
+                         "reached from a 20-session strip instead) — classic keeps it"),
+    "divergence": ("PORTED", "/dash/home/internals",
+                   "the RSI-of-RS divergence watch (bullish/bearish columns + the momentum-extremes "
+                   "strip) is the Divergence-watch zone of the Graphite internals page; the home's "
+                   "own breadth-vs-delivery two-gauge stays the Today-level seed"),
+    "participants": ("PORTED", "/dash/home/flows",
+                     "Graphite Flows & positioning: the FII index-futures stance with its own-history "
+                     "percentile, the FII-vs-retail mirror, the four-participant matrix (index fut "
+                     "net · long:short · stock fut net · index option lean) and the recent-session "
+                     "history (Pro). Sits beside the home's existing FII/DII cash reads rather than "
+                     "duplicating them"),
+    "fno": ("PORTED", "/dash/home/flows",
+            "the own-history F&O board (OI · PCR · max-pain percentiles + build-up streak) with the "
+            "auto reality-check callouts and a server CSV; the Phase-0 fence travels ON the block "
+            "(PCR selects weakly, forward-test-only; max-pain/basis/OI-change failed)"),
+    "actions": ("PORTED", "/dash/home/events",
+                "the forward corporate-actions calendar grouped by ex-date with type counts, the "
+                "recent-past + security-events context (Pro) and a server CSV; reuses the home's "
+                "reads.upcoming_ca (same corp_actions.upcoming single source). E-11/E-12 logistics "
+                "fence carried"),
+    "results-reactions": ("PORTED", "/dash/home/events",
+                          "the results-reaction board (surprise · delivery multiple · realized 22/60-"
+                          "day abnormal move) + who-reports-next, with the falsification fence stated "
+                          "ABOVE the table (tradeable book net ret/vol 0.10 vs bench 0.85). NOT "
+                          "carried: the CAR fan SVG and the published-brief cards — classic keeps them"),
+    "event-cadence": ("PORTED", "/dash/home/events",
+                      "overdue-vs-own-rhythm + expected-by-cadence tables with the event-type filter "
+                      "and the dormant count, off the same bounded seasonal_events snapshot; TIME-only "
+                      "fence carried verbatim. Index-membership filter not carried (event-type only)"),
+    "buyback-calc": ("PORTED", "/dash/home/events",
+                     "the tender-quota calculator (accepted · tender P&L · residual · net · breakeven "
+                     "exit) with the live ₹2L small-shareholder eligibility read-out, anchored by the "
+                     "buyback rows on the corporate-actions feed; the acceptance-ratio-is-YOUR-"
+                     "assumption fence carried"),
+    "surveillance": ("PORTED", "/dash/home/events",
+                     "the ASM/GSM/price-band transition tape + current-state counts, single-sourced "
+                     "through surveillance.transitions/current_state so page == card == pillar; "
+                     "'context, never a gate' fence carried"),
+    "band-locks": ("PORTED", "/dash/home/events",
+                   "the close-at-band streak board single-sourced through band_lock.active_streaks, "
+                   "with the honest-window note (bands reconstructable only back to the feed's first "
+                   "captured day) and the no-study-exists fence"),
+    "attention": ("PORTED", "/dash/home/attention",
+                  "the full magnitude-ranked queue with lens filters, per-batch counts, ?as_of= "
+                  "last-batch-on-or-before replay and the curated alert rail; the depth behind the "
+                  "home's 'What changed today' band (which keeps owning severity_counts/what_changed). "
+                  "NOT carried: the acknowledge WRITE and the cookie 'since you last looked' brief — "
+                  "owner actions that stay on the classic page"),
 }
 
 _VALID_STATUS = {"PORTED", "DEFERRED", "DROPPED", "NA"}

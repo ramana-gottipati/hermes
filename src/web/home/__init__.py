@@ -268,3 +268,9 @@ def _compose(conn, on: bool, map_size: int = 150) -> str:
     regime = C.regime_band(C.rrg_map(rrg_data), C.breadth_gauges(bd_data), rrg_demo, bd_demo)
 
     return ribbon + C.hidden_tray() + '<div class="g-dash">' + main + side + "</div>" + regime
+
+
+# --- w2-internals additions: the Graphite Markets estate (internals · flows · events · attention)
+# owns its OWN APIRouter in src/web/home/internals_pages.py; one additive include, no route here.
+from src.web.home import internals_pages as _w2_markets  # noqa: E402
+router.include_router(_w2_markets.router)

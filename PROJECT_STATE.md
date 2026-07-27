@@ -207,6 +207,8 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 - **Increment (iv) (2026-07-23) — the section is now FEATURE-COMPLETE:** the alive floating **Pat** (`src/web/home/pat_dock.py` — breathing/blink/look avatar · proactive **data-bound** bubbles + suggestion answers built from the real reads (FII/DII, what-changed, results) · a11y: `role="dialog"` + `aria-modal` + `inert`-when-closed + Escape + focus-in-on-open/return-to-trigger · DOM-safe hidden-block answers) + the **Beginner⇄Pro** persona toggle (`data-persona`, persisted `pvgmode`; beginner explainers via `C.learn` gated `.new-only`). Three new gates `test_home_pat_a11y`/`_reduced_motion`/`_persona` — all **six** spec gates now green. Suite **804 pass**. **DEPLOYED to the VPS 2026-07-23 ~12:02 UTC — LIVE, isolation proven both directions on the box** (public `https://srv1704897.hstgr.cloud/dash/home` 200 · `/dash/home/_kit` 200 · `/dash` classic 200 with 0 `data-ui-g` · `/dash/preview` 200 with 0 `data-ui-g` · `/dash/home` 0 `pv3`/`data-ui-v3` · 0 journal errors). Deploy craft: callees-first `scp` of the new package + `import` verify → **anchored in-place patch** of the co-edited `v2_surfaces.py` (D80: never full-scp; one `_ROUTER_SPECS` line after the coverage anchor; backup in `/tmp`) → writer-safe restart (no foreign writer; read-only startup; clear of the 14:01 bhavcopy). Then, on the owner's confirmation it's done, the gated **cutover** (§12: register lens/nav + retire the old preview). **Bidirectional-isolation follow-up (owner Q) — CLOSED:** every layer is insulated both ways (proven: NEW→OLD is structurally impossible — the home imports nothing from + writes nothing to the old, so `/dash` renders byte-identical). The ONE deliberate coupling (the shared READ-ONLY data layer) is now a HARD contract — `tests/test_home_read_contract.py` (13 tests) pins every column + shared-helper signature the home reads against the CANONICAL schemas (`db.SCHEMA_BASE`, `market_internals._SCHEMA`, `deals._DDL`, `results_calendar.SCHEMA`, `signal_alerts.ensure_schema`) + the `corp_actions.upcoming`→`(rows, as_of)` / `market_mood(breadth, nifty_above_200dma)` signatures + the `'FII/FPI'` category literal. An old-lane rename/signature-change now goes red EARLY instead of the home silently losing a zone. Suite **817 pass**.
 - **Home polish (owner feedback on a large screen, 2026-07-23):** the live home read as full-width empty bars with dead horizontal space. Reworked to the approved tile-grid: **restored the semicircle mood gauge** (`components.gauge`, breadth-driven 0-100, mood word as label) · market pulse is now a 2-col tile block (index cards + sparkline | gauge + breadth) · **2-col rows** (Today|Flows · Going-ex|Results) kill the dead space · agenda rows are inline (detail beside the symbol, not a far-right chip; date-column dedup so repeats collapse; cap 6; no `[:18]` truncation; no redundant action/details) · empty zones fall back to `src/web/home/demo.py` representative preview data (owner directive: "generate the data"). 43 home gates green.
 - **Rebuilt to the owner-approved 2-region dashboard + review passes (2026-07-23):** market ribbon · MAIN column (Nifty pulse + news hero) · SIDEBAR of fixed-size internally-scrolling widgets (what-changed · FII/DII · corp-actions · results · +reserved watchlist) · restored semicircle gauge (mood via 200-DMA breadth, distinct from today's adv/dec) · clickable symbols · plain-English source labels · nav on its own bar · index-redundancy killed · news dedup · density tightened. Plan `scratchpad/home-layout-plan.html` (artifact `ac8410d3`, MoneyControl-informed). **Carry-forward + takeover prompt + binding corrections + OPEN feedback (rearrange/organize · Market-Pulse more entries/insights · watchlist/portfolio · real-vs-demo honesty · response calibration · cutover PARKED) = `docs/graphite-home-carryforward.md`.** ⚠ In-app browser was DOWN — reviewed HTML, not pixels.
+- `src/web/home/internals_pages.py` + `src/web/home/internals_reads.py` — **the Graphite MARKETS ESTATE (cutover lane W2-A, 2026-07-27).** Four consolidated declared children of the Graphite home carrying ELEVEN classic Markets lenses: **`/dash/home/internals`** (market-internals + divergence) · **`/dash/home/flows`** (participants + fno, beside the home's own FII/DII cash reads) · **`/dash/home/events`** (actions + results-reactions + event-cadence + buyback-calc + surveillance + band-locks) · **`/dash/home/attention`** (attention). `internals_reads.py` is the data half (plain rows only, bounded + defensive, reuses `reads.upcoming_ca`/`upcoming_results`/`fii_dii_*`/`severity_counts` and the canonical `surveillance.transitions`/`band_lock.active_streaks`/`signal_alerts.active_alerts` engines rather than re-querying); `internals_pages.py` is the render half (own `APIRouter`, own `.gw2-*` stylesheet passed via `shell(extra_head=)`, zero edits to `components.py`/`reads.py`). Every view is URL-addressable with a **server CSV** (`?format=csv`); symbols deep-link `/dash/home/stock?sym=`. Mounted by ONE additive `router.include_router` line at the foot of `src/web/home/__init__.py`. **NO `lens_registry` entry** — nav lands at the W6 cutover; until then the four are each other's front door via the on-page "Markets depth" strip. Gate: `tests/test_home_markets_pages.py` (33 tests — per-BLOCK parity, fence-travel incl. fence-above-the-table ordering, CSV, URL state, honest-empty read layer, hostile query params).
+
 **Orthogonal-data exploration (S214-cont, 2026-07-23) — descriptive lever tests, all NON-price/volume:**
 - `research/explosive_moves/regime_overlay.py` — de-risk overlay (index-200DMA / India VIX regime, PIT) on the low-vol + momentum books; a DRAWDOWN lever not alpha (trend cuts momentum DD −63→−42 at flat CAGR; VIX loses to trend; hurts defensive low-vol).
 - `research/explosive_moves/inst_flow.py` (seal `d582445`) — institutional accumulation Δ(DII+FII) event-study from `shareholding_history` (PIT); `inst_flow_ls.py` = the long-short; `lowvol_flow_tilt.py` = the low-vol × accumulation tilt. Signal real-but-weak (δ+0.07), NOT fundable in any form.
@@ -2318,6 +2320,50 @@ Built the per-symbol evidence scroll — **the one thing that was blocking cutov
   link retarget). Fixed a chip defect found in the RENDERED output: the reference "typical" now renders
   in the same unit as the value above it (`ref_chip(scale=, rupee=)`) — it was showing a raw
   `8102541000` under "₹921.63Cr" and `-0.0%` under "−4.2%".
+
+### Graphite cutover W2-A — 2026-07-27 — THE MARKETS ESTATE: 11 classic lenses → 4 consolidated Graphite pages
+Cutover wave W2, lane A (Markets: internals · flows · events). Built in the isolated worktree
+`lane/w2-internals`; additive, classic byte-untouched, **not deployed** (the parent serialises deploys).
+- **The consolidation verdict (recorded, not transliterated).** Eleven classic lenses answered the
+  same few questions through many doors. They land as FOUR pages, each ONE question with its
+  evidence stacked under it: **`/dash/home/internals`** ← market-internals + divergence ·
+  **`/dash/home/flows`** ← participants + fno · **`/dash/home/events`** ← actions +
+  results-reactions + event-cadence + buyback-calc + surveillance + band-locks ·
+  **`/dash/home/attention`** ← attention. Two forks decided explicitly: (a) **attention gets its own
+  page**, not a block on events — it is a different question (state-changes, not the calendar) and it
+  is the natural depth behind the home's "What changed today" band; (b) **surveillance + band-locks
+  pair on the events page** — both are exchange-imposed-friction tapes, single-sourced through the
+  same `flagged_symbols` engines, and splitting them would break that pairing.
+- **Sister-data reuse, not rebuild.** The read layer CALLS the home's own reads wherever one exists
+  (`upcoming_ca` · `upcoming_results` · `fii_dii_recent`/`fii_dii_deep` · `severity_counts`) and the
+  canonical automation engines (`surveillance.transitions`/`current_state` ·
+  `band_lock.active_streaks` · `signal_alerts.active_alerts`), so ranking/flag logic stays
+  single-sourced and page == card == pillar still holds. New SQL exists only where no shared read
+  did. The internals series is loaded ONCE per request and both the display window and the
+  percentile reference come off that single load — the shown number and its reference cannot disagree.
+- **Fences travel WITH their block, in both data states.** The first test run caught the real defect:
+  fences and whole sections vanished when a read came back empty. Fixed in the code, not the test —
+  every zone now renders in both states, and PEAD ("net return/vol 0.10 vs bench 0.85"), F&O Phase-0
+  ("PCR selects weakly, forward-test-only; max-pain/basis/OI-change failed"), surveillance
+  ("context, never a gate"), band-lock (the honest window + "no study exists"), corporate-actions
+  ("logistics, not a strategy") and attention ("never a recommendation") are asserted present, with
+  the PEAD disclosure asserted to precede its table rather than follow it.
+- **Parity ledger: 11 × PORTED, each note naming its GAPS.** `sideways_parity.SURFACE_PARITY` gains
+  the eleven keys (parity 2 → 13 PORTED, 72 → 61 DEFERRED). Three notes disclose a deliberate
+  omission — market-internals' 1200-cell daily heat ribbon (a 20-session strip reaches the drill
+  instead), results-reactions' CAR fan + published-brief cards, and attention's acknowledge WRITE +
+  cookie "since you last looked" brief (owner actions that stay on the classic page). A gate asserts
+  those three notes contain "NOT carried" so a PORTED claim can never quietly mean byte parity.
+- **Shared-file discipline.** Outside the two lane-owned modules the diff is: **1 include line** at
+  the foot of `src/web/home/__init__.py`, **4 `INTERNAL_DEV` entries**, **11 `SURFACE_PARITY`
+  entries**, and the PROJECT_STATE rows. `components.py`/`reads.py`/`lens_registry.py`/`v2_surfaces.py`
+  and every classic view module untouched.
+- **Gates: full suite 885 passed / 0 failed / 1 skipped** (baseline 852 + the 33 new). Graphite +
+  governance cluster 141/141 incl. `test_home_isolation` (the new modules are inside the scanned
+  package and import no banned module) and `test_sideways_parity`.
+- **Open for the review lane:** the four pages are reachable only by direct URL + their own
+  Markets-depth strip — no Today-page or `shell.DESTS` entry, because six lanes are in flight and nav
+  belongs to W6. `scripts/nav_integrity_gate.py` therefore gains 4 more expected orphans.
 
 ### Graphite Home — 2026-07-27 — HEATMAP ENHANCEMENTS (§5-E) — colour-by-delivery · size selector · Pro "unusual for this stock"
 Closed §5-E, the last queued Graphite home unit. Additive/isolated, 89 gates green, deployed + box-verified.
