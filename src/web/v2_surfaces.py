@@ -553,6 +553,18 @@ def _install_left_rail(app) -> None:
         log.warning("v2 left-rail skipped: %s", e)
 
 
+def _install_landing_cutover(app) -> None:
+    """LANDING CUTOVER (owner decision 2026-07-27): the Graphite home is the default landing;
+    `/dash` 302s to `/dash/home` and the classic home keeps a preserved URL at `/dash/classic`.
+    An additive, unpluggable middleware — no classic file is edited, and deleting this call is the
+    complete rollback. Defensive: a failure just leaves the previous landing in place."""
+    try:
+        from src.web.home import cutover
+        cutover.install(app)
+    except Exception as e:  # noqa: BLE001 — never break wiring over the landing
+        log.warning("v2 landing-cutover skipped: %s", e)
+
+
 def wire(app):
     """Mount the v2 routes + install the canonical nav + reskin the legacy pages.
     Idempotent + defensive."""
@@ -572,6 +584,7 @@ def wire(app):
     _install_table_controls()
     _install_dq_banner()
     _install_left_rail(app)   # LAST: post-processes the assembled page into the left rail
+    _install_landing_cutover(app)   # the default landing → the Graphite home (classic at /dash/classic)
     return app
 
 

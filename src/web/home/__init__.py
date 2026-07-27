@@ -253,12 +253,14 @@ def _compose(conn, on: bool, map_size: int = 150) -> str:
     res = C.zone("Results calendar", "Board meetings · daily", C.results_agenda(res_rows),
                  sub="who reports next", sample=res_demo)
     drawer = C.delivery_drawer(reads.delivery_leaders(conn) or demo.DELIVERY)
-    toggle = "Leave the preview" if on else "Enter the Graphite preview"
-    toggle_card = C.card("The Graphite preview",
-                         '<p style="font-size:12px;color:var(--ink-3);margin:0 0 8px">Opt-in · isolated from the '
-                         "classic site.</p><form method=\"post\" action=\"/dash/home/toggle\">"
-                         "<button class=\"g-btn\" type=\"submit\">" + toggle + "</button></form>")
-    side = '<div class="g-side">' + flows + filings + ca + res + drawer + toggle_card + "</div>"
+    # POST-CUTOVER (2026-07-27): this IS the default landing, so the old "enter/leave the preview"
+    # opt-in card is meaningless (the `pvg` cookie gated nothing functional). What a visitor actually
+    # needs here is the way BACK to the classic site — every page of it, one click away.
+    classic_card = C.card("Looking for the classic site?",
+                          '<p style="font-size:12px;color:var(--ink-3);margin:0 0 8px">Every classic page is '
+                          'still here, unchanged — open the <b>Classic site</b> directory in the top bar, or go '
+                          'straight to the <a href="/dash/classic">classic home →</a></p>')
+    side = '<div class="g-side">' + flows + filings + ca + res + drawer + classic_card + "</div>"
 
     # ── the REGIME band (below the today-core, owner call): multi-week rotation + multi-day breadth ──
     rrg_data, rrg_demo = _pick(reads.rrg_sectors(conn), demo.RRG)

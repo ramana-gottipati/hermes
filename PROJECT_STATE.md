@@ -632,6 +632,33 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D148 — THE LANDING CUTOVER: the Graphite home is the default landing; classic is demoted to a directory, not retired (2026-07-27, owner call)
+**Decision (Ramana, asked and answered):** mechanism **(b)** — make `/dash/home` the default landing and
+demote the classic dashboard into the "Classic site" directory the Graphite chrome already carries.
+The alternative (a) — registering the Graphite pages as `lens_registry` lenses — was **rejected**: the
+registry GENERATES the classic nav, so adding entries would drift the classic nav, the exact thing the
+byte-identity guardrail exists to prevent. (b) achieves the promotion while touching zero classic files.
+**WHY it is a middleware, not a `dashboard.py` edit:** the standing rule is that classic source is never
+edited and every change ships as a NEW unpluggable module (the S177 revert). `src/web/home/cutover.py`
+intercepts two paths at the ASGI layer, ahead of routing:
+  * `GET /dash` → **302** `/dash/home` (the new landing)
+  * `GET /dash/classic` → internally rewritten to `/dash`, so the classic home still renders
+    **byte-identically** at a preserved, linkable URL.
+Everything else passes through untouched — every classic lens keeps its URL and its exact output.
+**Reversibility is designed in:** the redirect is **302, never 301** (a permanent redirect would be
+browser-cached and make rollback effectively impossible), and deleting the single
+`_install_landing_cutover(app)` call in `v2_surfaces.wire` is the COMPLETE rollback. A gate
+(`test_cutover_is_unpluggable`) proves classic serves `/dash` again without the middleware.
+**Consequences accepted:** classic pages' own `href="/dash"` brand/back links now land on the new home —
+correct post-cutover behaviour, and it required no classic edit. The Graphite chrome dropped the
+"PREVIEW" badge (misleading on a live front door → "NEW") and replaced the meaningless opt-in card with a
+"Looking for the classic site?" pointer. The `pvg` cookie gated nothing functional and is now vestigial.
+**Anti-drift contract SURVIVES, narrowed honestly:** classic LENS pages still carry zero Graphite links
+(`test_classic_pages_never_link_the_home`, now asserting on `/dash/classic`) — no classic page was edited
+to know the new home exists. Only the landing moved.
+**Still open (NOT done here, needs an owner OK):** retiring `/dash/preview` + `/dash/preview/stock` and
+their `*_v3` modules — that is DELETING another lane's work, so it is surfaced, not assumed.
+
 ### D147 — Orthogonal-data base rate: every signal selects weakly but NONE is fundable; low-vol is the sole fundable product (2026-07-23, session 214-cont)
 After the EMA-crossover verdict (D146), a systematic push tested whether NON-price/volume data lifts the
 book — REGIME (index-200DMA / India VIX), INSTITUTIONAL FLOW (long-only / low-vol tilt / long-short),
@@ -2242,6 +2269,20 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Graphite Home — 2026-07-27 — 🚩 THE LANDING CUTOVER (D148) — `/dash` now lands on the Graphite home
+The owner chose mechanism **(b)**; executed. **`/dash` 302s to `/dash/home`; the classic home is
+preserved byte-identically at `/dash/classic`.** Full decision + rationale + rollback: **§Decision log
+D148**. Shipped as `src/web/home/cutover.py` (a new pure-ASGI middleware — zero classic files edited),
+installed by one line in `v2_surfaces.wire`. Chrome made honest for a live front door: "PREVIEW" badge →
+"NEW"; the vestigial opt-in card → a "Looking for the classic site?" pointer. 3 new gates
+(`test_landing_cutover_redirects_dash_and_preserves_the_classic_home` ·
+`test_cutover_is_unpluggable` · `test_classic_pages_never_link_the_home`).
+**Full suite 842 pass, 0 fail.** Deploy note: `v2_surfaces.py` fork-checked before touching — the box
+copy differs from HEAD in COMMENT WORDING ONLY (a parallel lane ASCII-ified the em-dashes); every
+`_ROUTER_SPECS` tuple identical, so the change went on by ANCHORED INSERT, never a full-scp.
+**NOT done, deliberately surfaced:** retiring `/dash/preview*` + its `*_v3` modules = deleting another
+lane's work → needs the owner's OK (Guardrail #0).
 
 ### Graphite Home — 2026-07-27 — THE GRAPHITE STOCK PAGE (§5-F unblocker) — `/dash/home/stock`
 Built the per-symbol evidence scroll — **the one thing that was blocking cutover** (the old

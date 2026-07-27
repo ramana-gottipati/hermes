@@ -98,7 +98,11 @@ try{localStorage.setItem(k,l?"dark":"light");}catch(e){}};})();</script>"""
 _ALT_LABELS = (("markets", "Markets"), ("screener", "Screener"),
                ("strategies", "Strategies"), ("tracker", "Tracker"), ("trust", "Trust & help"))
 
-_CLASSIC_FALLBACK = '<a class="g-btn" style="margin:0" href="/dash">Classic site</a>'
+# POST-CUTOVER: the classic home lives at /dash/classic (the cutover middleware 302s bare /dash to
+# this Graphite home, so linking /dash here would bounce the user straight back — a loop).
+_CLASSIC_HOME = "/dash/classic"
+
+_CLASSIC_FALLBACK = '<a class="g-btn" style="margin:0" href="' + _CLASSIC_HOME + '">Classic site</a>'
 
 
 def _classic_directory() -> str:
@@ -134,7 +138,7 @@ def _classic_directory() -> str:
         'aria-label="Open the classic-site directory">Classic site <span aria-hidden="true">▾</span></summary>'
         '<div class="g-classic-menu" role="group" aria-label="Classic site — all pages">'
         '<div class="g-cl-head"><b>The classic site — every page.</b> Opens in the classic experience; '
-        'this preview stays separate. <a class="g-cl-home" href="/dash">Classic home →</a></div>'
+        'this one stays separate. <a class="g-cl-home" href="' + _CLASSIC_HOME + '">Classic home →</a></div>'
         '<div class="g-cl-cols">' + cols + "</div></div></details>"
     )
 
@@ -165,7 +169,10 @@ def shell(title: str, body_html: str, rail_html: str = "", extra_head: str = "",
         "<title>" + t + " — patearn</title>"
         + tokens_css() + C.css() + _SHELL_CSS + extra_head + "</head><body>"
         '<header class="g-top"><span class="g-brand">patearn<small>Indian-equity evidence</small></span>'
-        '<span class="g-badge">PREVIEW</span><span class="g-sp"></span>'
+        # POST-CUTOVER: this is the site's default landing, so the old "PREVIEW" badge would be
+        # misleading chrome on a live front door. "NEW" is the honest label while the experience
+        # is still fresh; the classic site stays one click away in the directory to its right.
+        '<span class="g-badge">NEW</span><span class="g-sp"></span>'
         '<span class="g-seg" role="group" aria-label="Plan">'
         '<button id="g-tfree" type="button" aria-pressed="true">✦ Free</button>'
         '<button id="g-tpro" type="button" aria-pressed="false">⚡ Pro</button></span>'

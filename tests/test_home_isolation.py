@@ -43,7 +43,10 @@ def test_home_page_carries_graphite_marker_and_no_preview_legacy_markers():
     client = TestClient(_app())
     r = client.get("/dash/home", follow_redirects=True)
     assert r.status_code == 200, r.status_code
-    assert "data-ui-g" in r.text and "PREVIEW" in r.text
+    # `data-ui-g` is the real Graphite marker. (The badge said "PREVIEW" until the 2026-07-27 landing
+    # cutover made this the default landing — a "PREVIEW" badge on a live front door is misleading
+    # chrome, so it now reads "NEW". The marker, not the badge copy, is what this gate protects.)
+    assert "data-ui-g" in r.text
     for m in PREVIEW_LEGACY_MARKERS:
         assert m not in r.text, ("home leaked a preview/legacy marker", m)
 
@@ -66,11 +69,40 @@ def test_home_routes_are_route_gate_registered():
         assert owner and rationale
 
 
-def test_default_chrome_never_links_the_home():
+def test_classic_pages_never_link_the_home():
+    """The anti-drift contract, post-cutover. Classic LENS pages still carry zero Graphite links —
+    no classic page was edited to know the new home exists. What changed on 2026-07-27 is only the
+    LANDING: bare `/dash` now 302s to `/dash/home` (owner decision, mechanism (b)), and the classic
+    home keeps its own preserved URL at `/dash/classic` — which must itself stay Graphite-free."""
     client = TestClient(_app())
-    for path in ("/dash", "/dash/glossary", "/dash/coverage"):
+    for path in ("/dash/classic", "/dash/glossary", "/dash/coverage"):
         r = client.get(path, follow_redirects=True)
+        assert r.status_code == 200, (path, r.status_code)
         assert "/dash/home" not in r.text, path
+
+
+def test_landing_cutover_redirects_dash_and_preserves_the_classic_home():
+    """The cutover itself: `/dash` → the Graphite home (302, never a cacheable 301 — the rollback
+    must stay possible), while `/dash/classic` still renders the untouched classic home."""
+    client = TestClient(_app())
+    r = client.get("/dash", follow_redirects=False)
+    assert r.status_code == 302, r.status_code
+    assert r.headers["location"] == "/dash/home"
+    c = client.get("/dash/classic")
+    assert c.status_code == 200 and 'id="uk-main"' in c.text, "classic home must survive at /dash/classic"
+    landed = client.get("/dash", follow_redirects=True)
+    assert "data-ui-g" in landed.text, "following /dash must land on the Graphite home"
+
+
+def test_cutover_is_unpluggable():
+    """Removing the single install() call restores the previous landing — no other change. Proven by
+    building an app WITHOUT the middleware and seeing classic serve /dash again."""
+    from fastapi import FastAPI
+    from src.web import dashboard
+    bare = FastAPI()
+    bare.include_router(dashboard.router)
+    r = TestClient(bare).get("/dash", follow_redirects=False)
+    assert r.status_code == 200, "without the cutover middleware, /dash must serve classic directly"
 
 
 def test_classic_site_directory_bundles_the_whole_registry_one_way():
