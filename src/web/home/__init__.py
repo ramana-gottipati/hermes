@@ -20,6 +20,12 @@ from src.web.home import reads, shell
 
 router = APIRouter()
 
+# W5 / M6 — the Trust & Proof estate (`src/web/home/trust_pages.py`) owns its own APIRouter and is
+# mounted here with ONE line, so its eight declared children live under the already-mounted
+# `/dash/home*` prefix without a second `_ROUTER_SPECS` entry.
+from src.web.home import trust_pages as _trust  # noqa: E402  (after `router` exists, by design)
+router.include_router(_trust.router)
+
 _COOKIE = "pvg"
 
 

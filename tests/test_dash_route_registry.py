@@ -274,6 +274,40 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                            "companies actually do' from the screener, and hands off "
                                            "to /dash/home/screen?scope=theme:<tag>; direct-URL, no "
                                            "lens/nav until cutover"),
+    # W5 / M6 — the Graphite Trust & Proof estate: eight declared children of the Graphite home
+    # (src/web/home/trust_pages.py), each reached from the Proof directory strip that every one of
+    # them carries and from the standing "New here? How to read →" help control. Direct-URL, no
+    # lens/nav until cutover — registering a lens IS the cutover.
+    "/dash/home/proof": ("graphite-home", "Proof hub — the honest boundary + the live coverage / "
+                                          "settlement snapshot (the Graphite port of /dash/coverage); "
+                                          "reached from the help control and every Proof page's "
+                                          "directory strip"),
+    "/dash/home/validation": ("graphite-home", "The published falsification record — every strategy's "
+                                               "net result vs the index plus the blocking ledger (port "
+                                               "of /dash/testing); ?pack=1 renders the print/procurement "
+                                               "assembly that /dash/evidence-pack used to be"),
+    "/dash/home/prereg": ("graphite-home", "Pre-registered study ledger with the gate written before "
+                                           "the run + its SHA-256 (port of /dash/spec-sheets); linked "
+                                           "from the Proof directory strip"),
+    "/dash/home/rule-lab": ("graphite-home", "Rule lab — compose a rule from the closed vocabulary and "
+                                             "get the ledger's answer; ALL state round-trips through "
+                                             "?u=&rank=&n=&hold=&where=&veto= so a verdict is a "
+                                             "shareable URL (ratified Part III §K.4)"),
+    "/dash/home/replay": ("graphite-home", "Replay any date — asks the real /v1 API what was knowable "
+                                           "on a past morning (port of /dash/replay-any-date); ?sym= + "
+                                           "?as_of=, reached from the Proof strip and the Today card"),
+    "/dash/home/glossary": ("graphite-home", "The metric dictionary rendered from the SAME "
+                                             "docs/metrics-glossary.md the ? popovers use; ?q= "
+                                             "pre-fills the filter so a term link is shareable"),
+    "/dash/home/strategy-ref": ("graphite-home", "One canonical page per strategy, served from "
+                                                 "docs/strategies/ through the public sanitizer; ?p=slug"),
+    "/dash/home/guide": ("graphite-home", "How to read this site — the newcomer exit and the standing "
+                                          "destination of the persistent help control (port of "
+                                          "/dash/reading-guide); carries the M6 five-step arc"),
+    "/dash/home/pat/ask": ("graphite-home", "The Pat dock's deterministic answer endpoint — returns an "
+                                            "HTML fragment for one question, resolved from the glossary "
+                                            "+ lens registry with no model call; not a page, reached "
+                                            "only by the dock's own input"),
     # Sideways migration-parity board (2026-07-24) — the internal governance dashboard proving no
     # classic element is silently missed in the modern-app rebuild (gate: tests/test_sideways_parity.py).
     # An owner/ops tool, deliberately unlinked; NOT a customer lens, so no lens_registry entry.
