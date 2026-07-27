@@ -76,10 +76,30 @@ def _spoke(href: str, label: str, sym: str) -> str:
             + esc(label) + " for " + esc(sym) + " →</a>")
 
 
-def _rupee(v) -> str:
+def _finite(v):
+    """float(v) when it is a real, FINITE number — else None.
+
+    NaN is genuinely reachable on this page: the X-setups payloads store it deliberately
+    (`vol_surge` is `float('nan')` when the base turnover is 0, `on_share` when the move nets 0),
+    and `json.loads` hands it back as a float. `float()` accepts it and `%`-formatting prints a
+    literal "nan", so every numeric formatter here has to reject it explicitly — the same guard
+    the canonical dashboard helper carries (`dashboard._nonfinite`)."""
     try:
         f = float(v)
     except (TypeError, ValueError):
+        return None
+    return None if (f != f or f in (float("inf"), float("-inf"))) else f
+
+
+def _n(v, dp: int = 2) -> str:
+    """`components._num` with the non-finite guard — never renders "nan" / "inf"."""
+    f = _finite(v)
+    return "—" if f is None else C._num(f, dp)
+
+
+def _rupee(v) -> str:
+    f = _finite(v)
+    if f is None:
         return "—"
     for cut, suf in ((1e7, " cr"), (1e5, " L")):
         if abs(f) >= cut:
@@ -88,11 +108,16 @@ def _rupee(v) -> str:
 
 
 def _pct(v, dp: int = 1, signed: bool = False) -> str:
-    try:
-        f = float(v)
-    except (TypeError, ValueError):
+    f = _finite(v)
+    if f is None:
         return "—"
     return ("%+." + str(dp) + "f%%") % f if signed else ("%." + str(dp) + "f%%") % f
+
+
+def _yn(v) -> str:
+    """yes / no — but "—" when the field is ABSENT. A missing column is not a "no": conflating
+    them would quietly assert a fact the database never recorded (standing correction #4/#6)."""
+    return "—" if v is None else ("yes" if v else "no")
 
 
 def _kv(rows) -> str:
@@ -122,7 +147,7 @@ def identity(core: dict, selfref: dict) -> str:
             except (TypeError, ValueError, ZeroDivisionError):
                 day = None
         txt, cls = C._signed_pct(day)
-        cmp_html = ('<span class="g-sprice g-num">₹' + C._num(close, 2) + "</span>"
+        cmp_html = ('<span class="g-sprice g-num">₹' + _n(close, 2) + "</span>"
                     '<span class="g-sday ' + cls + '">' + esc(txt) + "</span>")
     chips = []
     if _g(sig, "primary_sector"):
@@ -181,7 +206,7 @@ def digest(core: dict) -> str:
                            + str(_g(sig, "rs_rank", "—")) + "/99"))
         xp = _g(sig, "ratio_today_vs_power_1m")
         tiles.append(_tile(str(_g(sig, "trigger_rank", "—")), "Delivery trigger", "pos",
-                           (C._num(xp, 2) + "× its 1-month power day") if xp is not None else "no spike"))
+                           (_n(xp, 2) + "× its 1-month power day") if xp is not None else "no spike"))
         rs = _g(sig, "rs_rank")
         tiles.append(_tile(("#" + str(rs)) if rs is not None else "—", "Relative strength", "rs",
                            "of 99 · " + str(_g(sig, "rs_vs_broad_trend_state", "—")).replace("_", " ").lower()))
@@ -300,7 +325,7 @@ def sec_positioning(core: dict, selfref: dict) -> str:
     rows = [("Delivery size today (DVPT)", _rupee(dv) if dv is not None else "—",
              '<span class="g-sub">rupees delivered per trade</span>'),
             ("Intensity vs its own 1-month power days",
-             (C._num(_g(sig, "ratio_today_vs_power_1m"), 2) + "×")
+             (_n(_g(sig, "ratio_today_vs_power_1m"), 2) + "×")
              if _g(sig, "ratio_today_vs_power_1m") is not None else "—", ""),
             ("Baselines beaten today (p / r)",
              str(_g(sig, "p_score", "—")) + " / " + str(_g(sig, "r_score", "—")),
@@ -309,7 +334,7 @@ def sec_positioning(core: dict, selfref: dict) -> str:
             ("Accumulation character",
              str(_g(sig, "accum_character", "—")).replace("_", " ").lower(), ""),
             ("Turnover surge vs 1 month",
-             (C._num(_g(sig, "turnover_surge_1m"), 2) + "×")
+             (_n(_g(sig, "turnover_surge_1m"), 2) + "×")
              if _g(sig, "turnover_surge_1m") is not None else "—", "")]
     out = _kv(rows)
 
@@ -322,7 +347,7 @@ def sec_positioning(core: dict, selfref: dict) -> str:
         price, gap = _g(sig, kc), _g(sig, gc)
         if price is None and gap is None:
             continue
-        kp.append((lab + " key price", "₹" + C._num(price, 1) if price is not None else "—",
+        kp.append((lab + " key price", "₹" + _n(price, 1) if price is not None else "—",
                    '<span class="g-sub">close is ' + esc(_pct(gap, 1, signed=True))
                    + " vs that cost line</span>" if gap is not None else ""))
     if kp:
@@ -330,7 +355,7 @@ def sec_positioning(core: dict, selfref: dict) -> str:
                 "on the delivery-heavy days</span></div>" + _kv(kp))
 
     # institutional price zones (P-tier = where institutions transacted; R = flat baseline)
-    zones = [(lab + " zone", "₹" + C._num(_g(sig, col), 1), "")
+    zones = [(lab + " zone", "₹" + _n(_g(sig, col), 1), "")
              for lab, col in (("P1M", "avg_close_p1m"), ("P3M", "avg_close_p3m"),
                               ("P6M", "avg_close_p6m"), ("P12M", "avg_close_p12m"),
                               ("R12M", "avg_close_r12m")) if _g(sig, col) is not None]
@@ -362,12 +387,12 @@ def sec_accumulation(core: dict) -> str:
         return C.empty("No accumulation/distribution reading for this symbol yet.")
     st = _g(mep, "mep_state_smooth", "—")
     rows = [("State (smoothed)", str(st).replace("_", " ").lower(), ""),
-            ("Score (smoothed)", C._num(_g(mep, "mep_score_smooth"), 2), ""),
+            ("Score (smoothed)", _n(_g(mep, "mep_score_smooth"), 2), ""),
             ("Raw state", str(_g(mep, "mep_state", "—")).replace("_", " ").lower(), ""),
-            ("Pressure", C._num(_g(mep, "pressure"), 3), ""),
-            ("Close location in the day's range", C._num(_g(mep, "clv"), 3), ""),
-            ("22-day drift", C._num(_g(mep, "drift_22d"), 3), ""),
-            ("Up/down volume, 22 days", C._num(_g(mep, "updown_vol_22d"), 2), ""),
+            ("Pressure", _n(_g(mep, "pressure"), 3), ""),
+            ("Close location in the day's range", _n(_g(mep, "clv"), 3), ""),
+            ("22-day drift", _n(_g(mep, "drift_22d"), 3), ""),
+            ("Up/down volume, 22 days", _n(_g(mep, "updown_vol_22d"), 2), ""),
             ("As of", str(_g(mep, "trade_date", "—"))[:10], "")]
     return _kv(rows) + C.learn(
         "Delivery is side-blind, so this fuses price location, drift and up/down volume into one "
@@ -383,10 +408,10 @@ def sec_strength(core: dict) -> str:
             ("Trend state vs the broad market",
              str(_g(sig, "rs_vs_broad_trend_state", "—")).replace("_", " ").lower(), ""),
             ("Phase", str(_g(sig, "rs_phase", "—")).replace("_", " ").lower(), ""),
-            ("Above its 50-day RS average", "yes" if _g(sig, "rs_vs_broad_above_50ma") else "no", ""),
-            ("Above its 200-day RS average", "yes" if _g(sig, "rs_vs_broad_above_200ma") else "no", ""),
-            ("New 52-week RS high", "yes" if _g(sig, "rs_vs_broad_new_52w_high") else "no", "")]
-    slopes = [(h.upper() + " slope vs broad", C._num(_g(sig, "rs_vs_broad_slope_" + h), 4), "")
+            ("Above its 50-day RS average", _yn(_g(sig, "rs_vs_broad_above_50ma")), ""),
+            ("Above its 200-day RS average", _yn(_g(sig, "rs_vs_broad_above_200ma")), ""),
+            ("New 52-week RS high", _yn(_g(sig, "rs_vs_broad_new_52w_high")), "")]
+    slopes = [(h.upper() + " slope vs broad", _n(_g(sig, "rs_vs_broad_slope_" + h), 4), "")
               for h in ("1m", "3m", "6m", "12m") if _g(sig, "rs_vs_broad_slope_" + h) is not None]
     sect = [("Trend vs its own sector",
              str(_g(sig, "rs_vs_sector_trend_state", "—")).replace("_", " ").lower(), ""),
@@ -409,11 +434,11 @@ def sec_quality(core: dict) -> str:
     out = ""
     if pt:
         checks = [(bool(_g(pt, "qg_pass")), "Quality gate",
-                   "score vs threshold " + C._num(thr, 1) + " / " + str(mx)),
+                   "score vs threshold " + _n(thr, 1) + " / " + str(mx)),
                   (not bool(_g(pt, "hard_disqualified")), "No hard disqualifier",
                    str(_g(pt, "disqualifier_reasons") or "none recorded"))]
         out += _checks("Quality gates — the scorer's real thresholds; an unverified pattern carries "
-                       "a ×" + C._num(haircut, 2) + " haircut", checks)
+                       "a ×" + _n(haircut, 2) + " haircut", checks)
         out += _kv([("Naked score", str(_g(pt, "ns_base", "—")) + " / 100", ""),
                     ("Pessimistic / optimistic",
                      str(_g(pt, "ns_pessimistic", "—")) + " / " + str(_g(pt, "ns_optimistic", "—")), ""),
@@ -422,7 +447,7 @@ def sec_quality(core: dict) -> str:
     if ca:
         out += ('<div class="g-subhd">Capital allocation</div>'
                 + _kv([("Tier", str(_g(ca, "ca_tier", "—")), ""),
-                       ("Score", C._num(_g(ca, "ca_score"), 1), "")]))
+                       ("Score", _n(_g(ca, "ca_score"), 1), "")]))
     return out + C.learn("The 14-pattern read scores a business against the patearn pattern set. It "
                          "describes what the filings show; it never sizes or times anything.")
 
@@ -449,10 +474,16 @@ def sec_structure(core: dict) -> str:
             continue
         out.append('<div class="g-subhd">' + esc(names.get(tf, tf)) + "</div>" + _kv([
             ("Pattern", str(_g(r, "pattern", "—")).replace("_", " ").lower(), ""),
-            ("Central pivot", C._num(_g(r, "p"), 2), ""),
-            ("Band (bottom / top)", C._num(_g(r, "bc"), 2) + " / " + C._num(_g(r, "tc"), 2), ""),
+            ("Central pivot", _n(_g(r, "p"), 2), ""),
+            ("Band (bottom / top)", _n(_g(r, "bc"), 2) + " / " + _n(_g(r, "tc"), 2), ""),
             ("Width", _pct(_g(r, "width_pct"), 2), ""),
-            ("Compression percentile", C._num(_g(r, "compression_pctile"), 1), ""),
+            # compression_pctile is stored as a 0-1 FRACTION ("fraction of trailing N widths wider
+            # than now", db.py) — rendering it raw printed "0.8" under a label that says
+            # percentile. Scale it once, here, the same way the classic view does.
+            ("Compression percentile",
+             _pct(_finite(_g(r, "compression_pctile")) * 100.0
+                  if _finite(_g(r, "compression_pctile")) is not None else None, 0),
+             '<span class="g-sub">how coiled this band is vs its own history</span>'),
             ("Regime", str(_g(r, "regime", "—")).replace("_", " ").lower(), ""),
             ("Period ending", str(_g(r, "period_end_date", "—"))[:10], ""),
         ]))
@@ -467,11 +498,11 @@ def sec_credibility(core: dict) -> str:
         return C.empty("No concall credibility record for this symbol yet — the pilot covers a "
                        "subset of names.")
     return _kv([("Tier", str(_g(cci, "tier", "—")), ""),
-                ("Composite score", C._num(_g(cci, "composite_score"), 1), " / 100"),
-                ("Credibility", C._num(_g(cci, "credibility_score"), 1), ""),
-                ("Guidance accuracy", C._num(_g(cci, "guidance_accuracy_score"), 1),
+                ("Composite score", _n(_g(cci, "composite_score"), 1), " / 100"),
+                ("Credibility", _n(_g(cci, "credibility_score"), 1), ""),
+                ("Guidance accuracy", _n(_g(cci, "guidance_accuracy_score"), 1),
                  '<span class="g-sub">hit-rate of the promises that have resolved</span>'),
-                ("Transparency", C._num(_g(cci, "transparency_score"), 1), ""),
+                ("Transparency", _n(_g(cci, "transparency_score"), 1), ""),
                 ("Trend", str(_g(cci, "credibility_trend", "—")).lower(), ""),
                 ("Concalls read", str(_g(cci, "n_concalls", "—")), ""),
                 ("Promises resolved", str(_g(cci, "n_promises_resolved", "—")), ""),
@@ -490,14 +521,14 @@ def sec_setups(core: dict, xs: dict) -> str:
     if bb:
         hits += 1
         blocks.append('<div class="g-subhd">Base &amp; breakout <span class="g-sub">X-09</span></div>'
-                      + _kv([("Score", C._num(bb.get("x09_score"), 2),
+                      + _kv([("Score", _n(bb.get("x09_score"), 2),
                               '<span class="g-sub">base length × thrust</span>'),
                              ("Base length", str(bb.get("base_length", "—")) + " sessions", ""),
                              ("Base depth", _frac_pct(bb.get("base_depth"), 1),
                               '<span class="g-sub">how far it corrected off the pivot</span>'),
                              ("Breakout thrust", _frac_pct(bb.get("breakout_velocity"), 2),
                               '<span class="g-sub">realised gain above the pivot, per day</span>'),
-                             ("Volume surge", C._num(bb.get("vol_surge"), 2) + "×", ""),
+                             ("Volume surge", _n(bb.get("vol_surge"), 2) + "×", ""),
                              ("Breakout date", str(bb.get("breakout_date", "—"))[:10],
                               '<span class="g-sub">'
                               + esc(str(bb.get("days_since_breakout", "—")) + " sessions ago")
@@ -508,15 +539,15 @@ def sec_setups(core: dict, xs: dict) -> str:
     if vs:
         hits += 1
         blocks.append('<div class="g-subhd">Volume shelves <span class="g-sub">X-07</span></div>'
-                      + _kv([("Point of control", "₹" + C._num(vs.get("poc"), 2),
+                      + _kv([("Point of control", "₹" + _n(vs.get("poc"), 2),
                               '<span class="g-sub">the price that traded the most value</span>'),
-                             ("Value area", "₹" + C._num(vs.get("va_low"), 2) + " – ₹"
-                              + C._num(vs.get("va_high"), 2), ""),
+                             ("Value area", "₹" + _n(vs.get("va_low"), 2) + " – ₹"
+                              + _n(vs.get("va_high"), 2), ""),
                              ("Shelves found", str(vs.get("n_shelves", "—")), ""),
                              ("Price vs the value area", _VA_WORDS.get(
                                  str(vs.get("price_vs_va", "")),
                                  str(vs.get("price_vs_va", "—")).replace("_", " ").lower()), ""),
-                             ("Last close", "₹" + C._num(vs.get("last_close"), 2), "")]))
+                             ("Last close", "₹" + _n(vs.get("last_close"), 2), "")]))
     os_ = (xs or {}).get("overnight_split")
     if os_:
         hits += 1
@@ -556,11 +587,8 @@ def _frac_pct(v, dp: int = 1) -> str:
     i.e. 0.44 means +44%. Multiplying unconditionally is deliberate: a magnitude heuristic would
     silently under-report exactly the explosive movers this scan selects for (a +200% window is
     2.0, not 2%). NaN / None render as an em dash rather than a fabricated zero."""
-    try:
-        f = float(v)
-    except (TypeError, ValueError):
-        return "—"
-    if f != f:                                   # NaN — on_share is undefined when the move nets 0
+    f = _finite(v)                # NaN (on_share when the move nets 0) / inf -> em dash, never 0
+    if f is None:
         return "—"
     return ("%." + str(dp) + "f%%") % (f * 100.0)
 
@@ -573,17 +601,17 @@ def sec_fno(core: dict) -> str:
         return C.empty("No single-stock futures for this symbol.")
     rows = [("Quadrant", str(_g(f, "quadrant", "—")).replace("_", " ").lower(),
              '<span class="g-sub">today\'s price move paired with the OI move</span>'),
-            ("Futures open interest", C._num(_g(f, "fut_oi"), 0), ""),
-            ("Change in open interest", C._num(_g(f, "fut_oi_chg"), 0),
+            ("Futures open interest", _n(_g(f, "fut_oi"), 0), ""),
+            ("Change in open interest", _n(_g(f, "fut_oi_chg"), 0),
              ('<span class="g-sub">' + esc(_pct(_g(f, "fut_oi_chg_pct"), 1, signed=True))
               + " on the day</span>") if _g(f, "fut_oi_chg_pct") is not None else ""),
-            ("Put / call open-interest ratio", C._num(_g(f, "pcr"), 2), ""),
+            ("Put / call open-interest ratio", _n(_g(f, "pcr"), 2), ""),
             ("Basis (futures vs cash)", _pct(_g(f, "basis_pct"), 2, signed=True),
              '<span class="g-sub">premium if positive, discount if negative</span>'),
-            ("Max pain", C._num(_g(f, "max_pain"), 1),
+            ("Max pain", _n(_g(f, "max_pain"), 1),
              '<span class="g-sub">the expiry price that pays option writers least</span>'),
-            ("Put wall / call wall", C._num(_g(f, "sup_strike"), 1) + " / "
-             + C._num(_g(f, "res_strike"), 1),
+            ("Put wall / call wall", _n(_g(f, "sup_strike"), 1) + " / "
+             + _n(_g(f, "res_strike"), 1),
              '<span class="g-sub">strikes holding the most put / call open interest</span>'),
             ("As of", str(_g(f, "trade_date", "—"))[:10], "")]
     return _kv(rows) + C.learn(

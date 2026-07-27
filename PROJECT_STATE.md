@@ -2315,6 +2315,42 @@ isolated worktree `lane/w1-stock-page`. Additive only; classic site and the old 
 - **Not done here, by design:** no nav link from the parent (the cutover wires nav — W6), so
   `scripts/nav_integrity_gate.py` still reports this route among its expected pre-cutover orphans; no
   deploy (the parent serialises deploys); real-data verification is a box activity.
+- **W1-R adversarial review pass (same day, same lane) — 8 further defects found and fixed, each
+  pinned by a test that was RED before its fix.** The dev's own "I invent column names" warning
+  proved well-founded twice more, and the runtime-untested chart carried two silent-death paths.
+  (1) **`wolfe_signals` ordered by `id`** — the table is created by `CREATE TABLE IF NOT EXISTS`, so a
+  box whose table predates the `id` column keeps the older shape for ever; `id` then raises `no such
+  column`, `_row` swallows it, and the Wolfe badge silently never fires — **the same bug class the
+  `symbol`→`sym` fix was meant to end, and OBSERVED live on this repo's own `data/hermes.db` fixture.**
+  Now `rowid`, which resolves on both shapes. (2)+(3) `chart_island` and `self_reference` **LEFT
+  JOINed `stock_signals` unconditionally**: on a DB with tape but no signals table the SELECT raises,
+  is swallowed, and the page claims "no price tape" while the tape sits right there — the join is now
+  conditional on the table existing. (4) the chart query filtered **`series='EQ'` only** while
+  `exists`/`core`/`self_reference` accept `EQ`+`BE`, so a trade-to-trade name opened the page, showed a
+  price in the identity strip, and got a blank chart. (5) **`json.dumps` emits bare `NaN`/`Infinity`**,
+  which are not valid JSON — the browser's `JSON.parse` throws, the client `catch` returns, and the
+  ENTIRE chart silently disappears; Python's `json.loads` *accepts* them, which is exactly why local
+  testing never saw it. Every payload value now passes a finite guard, with `allow_nan=False` as the
+  backstop. (6) **`_i()` did not catch `OverflowError`** — `int(round(float('inf')))` raises, escapes
+  `_payload` and `compose`, and turns the whole page into the failure fence. (7) the **"Full history"
+  link HTML-escaped the symbol instead of URL-quoting it**, so `M&M` became `?sym=M&amp;M` → the server
+  read `sym=M`; `&` is legal in NSE tickers (M&M, M&MFIN, J&KBANK) and `clean_symbol` preserves it.
+  (8) **`cpr_signals.compression_pctile` is a 0-1 fraction** ("fraction of trailing N widths wider than
+  now", `db.py`) and was rendered raw — "0.8" under a label reading *percentile*. Two honesty
+  tightenings alongside: non-finite values can no longer print as the literal "nan" (the X-setups
+  scans store `float('nan')` deliberately and `json` round-trips it back), and an absent RS flag now
+  reads "—" rather than asserting "no". **Verified units, not assumed:** `base_depth`, `on_share`,
+  `cum_total_pct` and `breakout_velocity` were each traced to their writer in
+  `research/explosive_moves/` and are all genuinely FRACTIONS — the unconditional ×100 is correct;
+  `basis_pct` / `fut_oi_chg_pct` / `width_pct` are already percents and are correctly not rescaled.
+- **W1-R runtime verification (the gap the dev could not close).** A uvicorn instance served the
+  worktree and a real browser drove the page: LightweightCharts loaded, the island parsed strictly,
+  200 rows across 7 canvases, crosshair readout correct **including units** (`turnover 52 cr` from
+  ₹519,990,000), all 6 range buttons, fullscreen via button + Shift-F + Escape, `takeScreenshot`
+  producing `ALPHA-patearn.png`, zero console errors, zero animations (reduced-motion safe), the
+  520 px internally-scrolling boxes, the sticky index, and the Free⇄Pro switch hiding/showing
+  `.pro-more`. Pixels remain an owner check (standing correction #9). Full suite after the pass:
+  **879 passed / 0 failed / 1 skipped**; gate cluster 117 green.
 
 ### Graphite Home — 2026-07-27 — HEATMAP ENHANCEMENTS (§5-E) — colour-by-delivery · size selector · Pro "unusual for this stock"
 Closed §5-E, the last queued Graphite home unit. Additive/isolated, 89 gates green, deployed + box-verified.

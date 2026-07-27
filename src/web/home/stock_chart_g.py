@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import html as _html
 import json as _json
+import urllib.parse as _uq
 
 _LWC_CDN = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"
 
@@ -41,19 +42,45 @@ def _payload(island: dict) -> str:
     """
     rows = []
     for s in (island or {}).get("series") or []:
-        rows.append([s.get("t"), s.get("o"), s.get("h"), s.get("l"), s.get("c"),
-                     _i(s.get("dvpt")), s.get("dp"), s.get("r1m"),
+        rows.append([s.get("t"), _f(s.get("o")), _f(s.get("h")), _f(s.get("l")), _f(s.get("c")),
+                     _i(s.get("dvpt")), _f(s.get("dp")), _f(s.get("r1m")),
                      _i(s.get("tv")), _i(s.get("dv"))])
-    txt = _json.dumps({"cols": list(COLS), "rows": rows,
-                       "zones": (island or {}).get("zones") or []},
-                      separators=(",", ":"), default=str)
+    zones = [{"label": z.get("label"), "price": _f(z.get("price"))}
+             for z in ((island or {}).get("zones") or []) if _f(z.get("price")) is not None]
+    body = {"cols": list(COLS), "rows": rows, "zones": zones}
+    # `allow_nan=False` is the BACKSTOP, not the guard: Python emits bare `NaN`/`Infinity` by
+    # default, which are NOT valid JSON, so the browser's `JSON.parse` throws and the ENTIRE chart
+    # silently disappears (the client catch returns). `_f`/`_i` already coerce every non-finite to
+    # null; if one ever slips past, fail to an empty island (an honest blank pane) rather than a
+    # dead canvas. Non-finite values are real here: the corporate-action back-adjustment divides.
+    try:
+        txt = _json.dumps(body, separators=(",", ":"), default=str, allow_nan=False)
+    except (ValueError, TypeError):
+        txt = _json.dumps({"cols": list(COLS), "rows": [], "zones": []}, separators=(",", ":"))
     return txt.replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
 
 
-def _i(v):
+def _finite(v):
+    """float(v) when it is a real, finite number — else None. NaN/±inf must never reach the
+    payload: they are invalid JSON and would blank the whole chart."""
     try:
-        return int(round(float(v)))
+        f = float(v)
     except (TypeError, ValueError):
+        return None
+    return None if (f != f or f in (float("inf"), float("-inf"))) else f
+
+
+def _f(v):
+    return _finite(v)
+
+
+def _i(v):
+    f = _finite(v)
+    if f is None:
+        return None
+    try:
+        return int(round(f))
+    except (OverflowError, ValueError):     # belt-and-braces: round() on a huge float
         return None
 
 
@@ -70,8 +97,12 @@ def chart_html(sym: str, name: str, island: dict, deep: bool = False) -> str:
     hdr = (str(last.get("t") or "")[:10] + " · close " + ("%s" % last.get("c")))
     adj_note = ("" if not (island or {}).get("adjusted") else
                 '<span class="g-cnote">split / bonus back-adjusted</span>')
+    # URL-QUOTE the symbol, do not merely HTML-escape it: `&` is legal in NSE tickers (M&M,
+    # M&MFIN, J&KBANK) and `clean_symbol` preserves it, so `?sym=M&amp;M` decodes to `sym=M`
+    # plus a stray `M` param — the "Full history" link would silently open the wrong stock.
     deeper = ("" if deep else
-              '<a class="g-cbtn" href="?sym=' + s_sym + '&amp;chart=max">Full history</a>')
+              '<a class="g-cbtn" href="?sym=' + _html.escape(_uq.quote(str(sym or "")))
+              + '&amp;chart=max">Full history</a>')
     btns = "".join('<button type="button" class="g-cbtn' + (" on" if lab == "1Y" else "") +
                    '" data-r="' + str(n) + '">' + lab + "</button>" for lab, n in RANGES)
     return (

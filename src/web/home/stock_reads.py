@@ -155,8 +155,13 @@ def core(conn, sym: str) -> dict:
     # NOTE: wolfe_signals keys on `sym`, NOT `symbol` (see wolfe._ensure_scan_table). Querying
     # `symbol` raises, gets swallowed, and the Wolfe badge silently never fires — the exact bug
     # the M4 hub shipped with. Pinned by tests/test_home_stock_page.
+    # The tie-break is `rowid`, NOT `id`: `wolfe_signals` is created by CREATE TABLE IF NOT EXISTS,
+    # so a box whose table predates the `id` column keeps the older shape for ever — and `id` then
+    # raises `no such column`, which `_row` swallows, silently disabling the badge again (OBSERVED
+    # on this repo's own fixture DB). `rowid` resolves on BOTH shapes (it is the alias for an
+    # INTEGER PRIMARY KEY when one exists). Pinned by tests/test_home_stock_page.
     c["wolfe"] = _row(conn, "SELECT * FROM wolfe_signals WHERE sym=? "
-                            "ORDER BY scan_date DESC, id DESC LIMIT 1", (sym,)) \
+                            "ORDER BY scan_date DESC, rowid DESC LIMIT 1", (sym,)) \
         if _has(conn, "wolfe_signals") else None
     c["fno"] = _row(conn, "SELECT * FROM fno_oi_signals WHERE symbol=? ORDER BY trade_date DESC "
                           "LIMIT 1", (sym,)) if _has(conn, "fno_oi_signals") else None
@@ -205,14 +210,22 @@ def chart_island(conn, sym: str, max_sessions: int = DEFAULT_SESSIONS) -> dict:
     if not _has(conn, "bhavcopy_rows"):
         return {"series": [], "zones": [], "adjusted": False, "n": 0}
     n = max(60, min(int(max_sessions or DEFAULT_SESSIONS), MAX_SESSIONS))
+    # The DVPT/intensity panes come from stock_signals — but a LEFT JOIN against an ABSENT table
+    # raises, `_rows` swallows it, and the whole chart renders "no price tape" even though the bhav
+    # tape is right there. The join is therefore conditional on the table existing; without it the
+    # price/delivery panes still draw. Series is `IN ('EQ','BE')` to match exists()/core()/
+    # self_reference() — a trade-to-trade (BE) name could otherwise open the page with a blank chart.
+    _sig = _has(conn, "stock_signals")
     raw = _rows(conn,
                 "SELECT b.trade_date, b.open, b.high, b.low, b.close, b.prev_close, b.deliv_per, "
-                "       b.value, b.deliv_qty, s.delivery_value_per_trade AS dvpt, "
-                "       s.ratio_today_vs_power_1m AS r1m "
-                "FROM bhavcopy_rows b LEFT JOIN stock_signals s "
-                "  ON s.symbol=b.symbol AND s.trade_date=b.trade_date "
-                "WHERE b.symbol=? AND b.series='EQ' AND (b.segment='CM' OR b.segment IS NULL) "
-                "ORDER BY b.trade_date DESC LIMIT ?", (sym, n))
+                "       b.value, b.deliv_qty, "
+                + ("s.delivery_value_per_trade AS dvpt, s.ratio_today_vs_power_1m AS r1m "
+                   "FROM bhavcopy_rows b LEFT JOIN stock_signals s "
+                   "  ON s.symbol=b.symbol AND s.trade_date=b.trade_date "
+                   if _sig else "NULL AS dvpt, NULL AS r1m FROM bhavcopy_rows b ")
+                + "WHERE b.symbol=? AND b.series IN ('EQ','BE') "
+                  "AND (b.segment='CM' OR b.segment IS NULL) "
+                  "ORDER BY b.trade_date DESC LIMIT ?", (sym, n))
     series = []
     for r in reversed(raw):
         close = r.get("close")
@@ -288,11 +301,16 @@ def self_reference(conn, sym: str, n: int = 252) -> dict:
     out: dict = {"deliv": {}, "turnover": {}, "dvpt": {}}
     if not _has(conn, "bhavcopy_rows"):
         return out
-    rows = _rows(conn, "SELECT b.deliv_per, b.value, s.delivery_value_per_trade AS dvpt "
-                       "FROM bhavcopy_rows b LEFT JOIN stock_signals s "
-                       "  ON s.symbol=b.symbol AND s.trade_date=b.trade_date "
-                       "WHERE b.symbol=? AND b.series IN ('EQ','BE') "
-                       "ORDER BY b.trade_date DESC LIMIT ?", (sym, int(n)))
+    # same conditional join as chart_island: an absent stock_signals must cost only the dvpt
+    # reference, never the delivery/turnover ones the bhav tape alone can answer.
+    _sig = _has(conn, "stock_signals")
+    rows = _rows(conn, "SELECT b.deliv_per, b.value, "
+                 + ("s.delivery_value_per_trade AS dvpt "
+                    "FROM bhavcopy_rows b LEFT JOIN stock_signals s "
+                    "  ON s.symbol=b.symbol AND s.trade_date=b.trade_date "
+                    if _sig else "NULL AS dvpt FROM bhavcopy_rows b ")
+                 + "WHERE b.symbol=? AND b.series IN ('EQ','BE') "
+                   "ORDER BY b.trade_date DESC LIMIT ?", (sym, int(n)))
     if not rows:
         return out
     today, hist = rows[0], rows[1:]

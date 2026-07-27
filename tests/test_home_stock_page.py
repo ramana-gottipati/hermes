@@ -377,3 +377,168 @@ def test_module_selftests_pass():
     assert SR._selftest() == 0
     assert CH._selftest() == 0
     assert SP._selftest() == 0
+
+
+# ══════════════════════════════════════════════════════════════════════════════════
+# ADVERSARIAL REVIEW (W1-R) — one pinning test per bug the review found and fixed.
+# Each was RED before its fix and is the reason the fix cannot regress.
+# ══════════════════════════════════════════════════════════════════════════════════
+
+# the wolfe_signals shape that predates the `id` column. `_ensure_scan_table` is
+# CREATE TABLE IF NOT EXISTS, so a box created on this shape keeps it for ever.
+_LEGACY_WOLFE = """
+CREATE TABLE wolfe_signals (
+    universe TEXT NOT NULL, sym TEXT NOT NULL, dir TEXT NOT NULL, cmp REAL, zlo REAL, zhi REAL,
+    zprice REAL, sl REAL, t1 REAL, epa REAL, up REAL, age INTEGER, q INTEGER, in_zone INTEGER,
+    p5date TEXT, p4date TEXT, fresh INTEGER, scan_date TEXT, computed_at TEXT,
+    PRIMARY KEY (universe, sym, dir, p5date))"""
+
+
+def test_wolfe_read_survives_a_wolfe_signals_table_that_predates_the_id_column():
+    """REGRESSION: the read ordered by `id`, which does not exist on the older table shape.
+    sqlite raises `no such column: id`, the defensive `_row` swallows it, and the Wolfe badge
+    silently never fires — the exact failure class the `symbol`/`sym` fix was meant to end.
+    `rowid` resolves on BOTH shapes. Observed live on this repo's own data/hermes.db fixture."""
+    con = sqlite3.connect(":memory:")
+    con.row_factory = sqlite3.Row
+    con.executescript(_LEGACY_WOLFE)
+    con.execute("INSERT INTO wolfe_signals (universe, sym, dir, in_zone, scan_date, p5date) "
+                "VALUES ('nifty500','TESTX','BULL',1,'2026-06-29','2026-05-01')")
+    core = SR.core(con, "TESTX")
+    assert core.get("wolfe") is not None, "the Wolfe read silently returned nothing"
+    assert core["wolfe"]["in_zone"] == 1
+    assert "Wolfe wave in zone" in SP.badges(core)
+
+
+def _bhav_only(sym="TESTX", series="EQ", n=30):
+    """A DB with price tape and NO stock_signals table at all."""
+    con = sqlite3.connect(":memory:")
+    con.row_factory = sqlite3.Row
+    con.executescript(
+        "CREATE TABLE bhavcopy_rows (symbol TEXT, trade_date TEXT, series TEXT, segment TEXT,"
+        " open REAL, high REAL, low REAL, close REAL, prev_close REAL, value REAL,"
+        " volume INTEGER, deliv_qty INTEGER, deliv_per REAL)")
+    for i in range(1, n + 1):
+        con.execute("INSERT INTO bhavcopy_rows VALUES (?,?,?,'CM',?,?,?,?,?,?,?,?,?)",
+                    (sym, "2026-06-%02d" % i, series, 100 + i, 101 + i, 99 + i, 100 + i,
+                     99 + i, 1e7 + i, 10000, 6000, 50.0 + i * 0.1))
+    return con
+
+
+def test_chart_island_still_draws_when_stock_signals_is_absent():
+    """REGRESSION: the island LEFT JOINed stock_signals unconditionally. On a DB with tape but no
+    signals table the SELECT raises, `_rows` swallows it, and the page claims 'no price tape'
+    while the tape is sitting right there."""
+    con = _bhav_only()
+    isl = SR.chart_island(con, "TESTX")
+    assert isl["n"] == 30 and len(isl["series"]) == 30, isl["n"]
+    assert all(r["dvpt"] is None for r in isl["series"]), "dvpt must degrade to None, not vanish"
+    assert "No price tape" not in SP.sec_chart({"sym": "TESTX", "name": ""}, isl, False)
+
+
+def test_self_reference_still_computes_when_stock_signals_is_absent():
+    """Same conditional-join bug in the Pro reference layer: losing the dvpt table must not also
+    cost the delivery/turnover references the bhav tape alone can answer."""
+    con = _bhav_only(n=60)
+    ref = SR.self_reference(con, "TESTX")
+    assert ref["deliv"].get("pctile") is not None and ref["turnover"].get("pctile") is not None
+    assert not ref["dvpt"], "dvpt has no source here and must stay honestly empty"
+
+
+def test_a_trade_to_trade_be_symbol_gets_a_chart_not_a_blank_pane():
+    """REGRESSION: exists()/core()/self_reference() accept series EQ *and* BE, but the chart query
+    filtered EQ only — so a BE name opened the page, showed a price in the identity strip, and
+    got 'No price tape' in the chart."""
+    con = _bhav_only(series="BE")
+    assert SR.exists(con, "TESTX") is True
+    assert SR.chart_island(con, "TESTX")["n"] == 30
+
+
+def _strict_loads(txt):
+    """Parse the way a BROWSER does: JSON.parse rejects NaN/Infinity. Python's json.loads accepts
+    them by default, which is precisely why this class of bug survived local testing."""
+    def boom(const):
+        raise ValueError("non-finite literal in payload: " + const)
+    return json.loads(txt, parse_constant=boom)
+
+
+def test_chart_payload_stays_strict_json_when_a_value_is_non_finite():
+    """REGRESSION: json.dumps emits bare NaN/Infinity, which JSON.parse throws on — the client
+    catch then returns and the ENTIRE chart silently disappears. Non-finite values are reachable:
+    the corporate-action back-adjustment divides."""
+    isl = {"series": [{"t": "2026-01-01", "o": float("nan"), "h": float("inf"), "l": 9.0,
+                       "c": 10.0, "dvpt": float("nan"), "dp": float("inf"), "r1m": 1.2,
+                       "tv": 5.0, "dv": 3.0}],
+           "zones": [{"label": "P3M", "price": float("nan")}]}
+    payload = CH._payload(isl)
+    assert "NaN" not in payload and "Infinity" not in payload, payload
+    parsed = _strict_loads(payload)                     # must not raise
+    row = parsed["rows"][0]
+    assert row[1] is None and row[2] is None, "non-finite OHLC must become null"
+    assert row[4] == 10.0, "finite values must survive untouched"
+    assert parsed["zones"] == [], "a non-finite zone price must be dropped, never drawn"
+    ok = {"series": [{"t": "2026-01-02", "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5, "dvpt": 10.0,
+                      "dp": 55.5, "r1m": 1.1, "tv": 1e7, "dv": 5e6}], "zones": []}
+    assert _strict_loads(CH._payload(ok))["rows"][0][6] == 55.5
+
+
+def test_payload_integer_coercion_never_raises_on_infinity():
+    """REGRESSION: `_i` caught TypeError/ValueError but not OverflowError, and
+    int(round(float('inf'))) raises OverflowError — which escapes _payload, escapes compose, and
+    turns the whole page into the failure fence."""
+    assert CH._i(float("inf")) is None
+    assert CH._i(float("nan")) is None
+    assert CH._i("not a number") is None
+    assert CH._i(3.6) == 4
+
+
+def test_full_history_link_url_quotes_symbols_containing_an_ampersand():
+    """REGRESSION: the link HTML-escaped the symbol instead of URL-quoting it, so `M&M` became
+    `?sym=M&amp;M&amp;chart=max` — which decodes to sym=M. `&` is legal in NSE tickers (M&M,
+    M&MFIN, J&KBANK) and clean_symbol deliberately preserves it."""
+    isl = {"series": [{"t": "2026-01-01", "o": 1, "h": 1, "l": 1, "c": 1}], "zones": []}
+    html = CH.chart_html("M&M", "Mahindra & Mahindra", isl, deep=False)
+    assert "?sym=M%26M&amp;chart=max" in html
+    assert SR.clean_symbol("M&M") == "M&M", "the sanitiser keeps & — the link must too"
+
+
+def test_non_finite_payload_values_never_render_as_the_word_nan():
+    """REGRESSION: the X-setups scans store float('nan') deliberately (vol_surge when base
+    turnover is 0), json round-trips it back as a float, and `_num` printed a literal 'nan'."""
+    core = {"sym": "TESTX", "sig": None, "bar": None, "prev": None, "mep": None, "pt": None,
+            "ca": None, "cci": None, "wolfe": None, "fno": None, "cpr": {}, "name": "",
+            "themes": []}
+    html = SP.sec_setups(core, {
+        "base_breakout": {"x09_score": float("nan"), "base_length": 40,
+                          "base_depth": 0.2, "breakout_velocity": 0.01,
+                          "vol_surge": float("nan"), "days_since_breakout": 3,
+                          "still_above_pivot": True, "breakout_date": "2026-07-20"},
+        "volume_shelves": None, "overnight_split": None, "asof": "2026-07-24"})
+    assert "nan" not in html.lower(), "a NaN leaked into the rendered page"
+    assert SP._pct(float("nan")) == "—" and SP._pct(float("inf")) == "—"
+    assert SP._n(float("nan")) == "—" and SP._rupee(float("inf")) == "—"
+    assert SP._frac_pct(float("inf")) == "—"
+
+
+def test_compression_percentile_renders_as_a_percentile_not_a_raw_fraction():
+    """REGRESSION: cpr_signals.compression_pctile is stored 0-1 ('fraction of trailing N widths
+    wider than now', db.py), so a raw render printed '0.8' under a label reading percentile."""
+    core = {"sym": "TESTX", "cpr": {"D": {"timeframe": "D", "pattern": "BULL_U", "p": 100.0,
+                                          "bc": 99.0, "tc": 101.0, "width_pct": 2.0,
+                                          "compression_pctile": 0.82, "regime": 1,
+                                          "period_end_date": "2026-07-24"}}}
+    html = SP.sec_structure(core)
+    assert "82%" in html, html
+    assert ">0.8<" not in html
+
+
+def test_absent_relative_strength_flags_read_as_unknown_not_as_no():
+    """A NULL column is not a 'no' — rendering it as one asserts a fact the DB never recorded."""
+    core = {"sym": "TESTX", "sig": {"symbol": "TESTX", "rs_rank": 55,
+                                    "rs_vs_broad_above_50ma": None,
+                                    "rs_vs_broad_above_200ma": 1,
+                                    "rs_vs_broad_new_52w_high": 0}}
+    html = SP.sec_strength(core)
+    assert SP._yn(None) == "—" and SP._yn(1) == "yes" and SP._yn(0) == "no"
+    rows = [r for r in html.split("<tr>") if "50-day RS average" in r]
+    assert rows and "—" in rows[0], rows
