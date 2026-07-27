@@ -263,4 +263,15 @@ back + record verdicts on genuine forks.
 
 ## 4. Owner hand-offs
 
-_(a `?v=N` link per deployed wave lands here)_
+- **2026-07-27 18:13 UTC — THE FULL GRAPHITE ESTATE (W1–W5) LIVE:**
+  - https://srv1704897.hstgr.cloud/dash/home?v=w6 (200, 197KB, 0.29s)
+  - https://srv1704897.hstgr.cloud/dash/home/stock?sym=TCS&v=w6 (200, 199KB, 0.10s)
+  - Deploy record: 30 home modules shipped (md5-proven == repo), `stock_view.py` retired,
+    v2_surfaces anchored-insert only (67-line residual diff = 100% comment prose, zero code),
+    31/31 prod-venv imports OK, writer-safe restart 18:13:31Z, **45/45 routes green**, real
+    data confirmed (TCS ₹2,295.6 same-day · Setups POC ₹2,316.10 vs 4,614 box rows exact ·
+    F&O OI/PCR/max-pain live · `ARE&M` &-ticker fix verified live), journal clean, conviction
+    cache 4.37s→0.27s, sacred classic routes intact, rollback set `.bak-w6` banked.
+  - Pre-flight caught the right thing: box files had sibling edits 15:46–17:33 UTC — every
+    overwritten file was proven IN-HISTORY (stale deploys, not live hand-edits) before
+    overwrite; `v2_surfaces` was NOT in history → patched, never scp'd.
