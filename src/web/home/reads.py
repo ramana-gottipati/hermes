@@ -398,9 +398,12 @@ def upcoming_ca(conn, days: int = 21) -> list:
 
 
 def upcoming_results(days: int = 30) -> list:
+    """`results_calendar.upcoming_results` returns raw sqlite3.Row objects (its CLI tuple-unpacks
+    them, so it must stay that way). Row has no `.get()` — normalise to dicts HERE, once, so every
+    home consumer can treat the rows as dicts (2026-07-27 events-page defect)."""
     try:
         from src.automation.results_calendar import upcoming_results as _u
-        return list(_u(days=days)) or []
+        return [dict(r) for r in _u(days=days) or []]
     except Exception:  # noqa: BLE001
         return []
 

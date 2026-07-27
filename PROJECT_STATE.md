@@ -2434,6 +2434,41 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### The events page was silently dead — 2026-07-28 — sqlite3.Row at the results boundary, fixed + swept + the fallbacks now log
+Worktree `nifty-montalcini-6a1bd5`, off `origin/main` `cf7431d`. PRE-EXISTING defect found during
+the DEPLOY-3 walk (present in the deployed code AND the `.bak-w8` rollback set): on the box,
+`/dash/home/events` answered **200 while rendering ZERO of its six zones** — with real
+`board_meetings` rows, `reads.upcoming_results` handed raw `sqlite3.Row` objects to
+`internals_pages._results_block`, whose `.get()` threw `AttributeError`, and the page's catch-all
+served "the events estate hasn't landed on this host yet" with a **completely clean journal**. A
+status-code sweep is structurally blind to this; the local gate was blind because the fixture DB
+has no upcoming board meetings, so the Row path never ran.
+- **Fix at the boundary, not the call site:** `reads.upcoming_results` now returns
+  `[dict(r) for r in _u(days=days) or []]` — the single Row→dict normalisation point, so every home
+  consumer may `.get()`. `results_calendar.upcoming_results` itself is untouched (its own CLI
+  tuple-unpacks rows and dicts would silently unpack to KEY NAMES).
+- **Sweep verdict — this was the ONLY raw-Row leak into `.get()` consumers in the home estate.**
+  Checked every `src.automation`/`src.pat` delegation: `corp_actions.upcoming` (builds dicts),
+  `whatchanged_flow.changes` / `signal_alerts.active_alerts` (dicts), `results_board` (explicit
+  dict zip), `surveillance.transitions` (dict events), `band_lock.active_streaks` (dicts),
+  `event_cadence`/`ca_calendar`/`ca_recent`/`buyback_rows` (via `_rows` = dict conversion). The
+  other direct callers of the automation fn handle Rows correctly (news_dock bracket-indexes,
+  stock_reads wraps `dict(r)`, today_v3 `len()`s, stock_hub_v3 bracket-indexes).
+- **Regression pinned RED-then-GREEN** (`tests/test_home_markets_pages.py` §7): monkeypatch injects
+  real Row-shaped rows, so the boundary is exercised on ANY DB; asserts the six `g-zone` sections
+  render, the "estate hasn" fallback is absent, and the injected symbol reaches the render. On the
+  pre-fix tree both tests fail with the EXACT box traceback. A 200 is explicitly not the bar.
+- **The fallbacks are no longer silent:** all four `internals_pages` page handlers + the pat dock
+  keep their never-500 catch-all but now `log.warning(..., exc_info=True)` — a code defect shows a
+  traceback in the journal instead of masquerading as missing data (the narrowing alternative was
+  rejected: the "which exceptions mean data-missing" split is unknowable, the contract is never-500).
+- **Gates:** home battery + registry + pat coverage **167 passed** · doc/label gates 13 passed ·
+  RED-then-GREEN verified by stash-cycle.
+- **Deploy:** this session via the §6 recipe (`docs/graphite-home-carryforward.md`) — verification
+  line appended post-walk.
+- Files: `src/web/home/reads.py` · `src/web/home/internals_pages.py` ·
+  `tests/test_home_markets_pages.py`.
+
 ### The parity board stops over-claiming (D150) — 2026-07-28 — 34 surfaces re-opened, M6/M7/M8 back to PLANNED, two silent correctness defects killed
 Lane `lane/parity-truth`, off `origin/main` `6fa87d3`. The 2026-07-28 gap audit found the Graphite
 cutover's own scoreboard was the least honest artifact in the estate: 464 gap rows / 160 MAJOR

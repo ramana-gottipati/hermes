@@ -268,3 +268,46 @@ def test_view_state_lives_in_the_url(client):
         for path in ROUTES:
             r = client.get(path + bad)
             assert r.status_code == 200, (path, bad, r.status_code)
+
+
+# ── 7. the sqlite3.Row boundary (the 2026-07-27 silent events-page defect) ─────────────
+# `results_calendar.upcoming_results` returns raw sqlite3.Row objects (Row has no `.get()`).
+# With real rows on the box, `_results_block` crashed, the page's catch-all served the
+# "data hasn't landed" fallback behind a 200, and every zone vanished — invisible to a
+# status-code sweep, and invisible HERE because the fixture DB has no board_meetings rows.
+# These tests inject Row-shaped data so the boundary is exercised on any DB.
+def _board_meeting_rows():
+    """Real sqlite3.Row objects with the exact SELECT shape upcoming_results returns."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("CREATE TABLE board_meetings (symbol TEXT, company TEXT, "
+                 "meeting_date TEXT, purpose TEXT)")
+    conn.execute("INSERT INTO board_meetings VALUES ('TCS', 'Tata Consultancy Services', "
+                 "'2099-01-05', 'Financial Results')")
+    conn.execute("INSERT INTO board_meetings VALUES ('INFY', 'Infosys', "
+                 "'2099-01-07', 'Financial Results')")
+    return conn.execute(
+        "SELECT symbol, company, meeting_date, purpose FROM board_meetings").fetchall()
+
+
+def test_reads_upcoming_results_normalises_rows_to_dicts(monkeypatch):
+    """The boundary contract: reads.upcoming_results is the single Row→dict normalisation
+    point, so every home consumer may call .get() on what it returns."""
+    from src.automation import results_calendar as RC
+    from src.web.home import reads
+    monkeypatch.setattr(RC, "upcoming_results", lambda days=14: _board_meeting_rows())
+    out = reads.upcoming_results(days=30)
+    assert len(out) == 2
+    assert all(isinstance(r, dict) for r in out)
+    assert out[0].get("meeting_date") == "2099-01-05"
+
+
+def test_events_page_renders_its_zones_with_row_shaped_results(client, monkeypatch):
+    """A 200 is NOT the bar — the broken page also answered 200. The page must render its six
+    zones and must NOT serve the data-missing fallback when the failure would be a code defect."""
+    from src.automation import results_calendar as RC
+    monkeypatch.setattr(RC, "upcoming_results", lambda days=14: _board_meeting_rows())
+    t = _text(client, "/dash/home/events")
+    assert t.count('<section class="g-zone"') >= 6, "the events page lost its zones"
+    assert "estate hasn" not in t, "the page degraded to the data-missing fallback"
+    assert "TCS" in t, "the injected results rows never reached the render"

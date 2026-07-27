@@ -33,6 +33,7 @@ already exists). A heavy or edge read must never 500 a page — every route is d
 from __future__ import annotations
 
 import datetime as _dt
+import logging
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
@@ -42,6 +43,11 @@ from src.web.home import internals_reads as R
 from src.web.home import shell
 
 router = APIRouter()
+
+# The never-500 contract keeps each page's catch-all, but a degradation must be VISIBLE: the
+# 2026-07-27 events-page defect (sqlite3.Row vs .get()) served the "data hasn't landed" fallback
+# for a CODE bug with a completely clean journal. Every fallback now logs its traceback.
+log = logging.getLogger(__name__)
 
 # ── the lane's cross-links: the four pages are each other's siblings until W6 wires nav ──────
 PAGES = (
@@ -278,6 +284,7 @@ def _dock(conn) -> str:
         from src.web.home import pat_dock
         return pat_dock.dock_html(conn)
     except Exception:  # noqa: BLE001 — the copilot dock is never load-bearing for a page
+        log.warning("pat dock failed to render — page serves without it", exc_info=True)
         return ""
 
 
@@ -543,6 +550,7 @@ def internals_page(request: Request):
             body = _internals_body(conn, window, drill)
             pat = _dock(conn)
     except Exception:  # noqa: BLE001 — a heavy/edge read must never 500 the page
+        log.warning("/dash/home/internals degraded to its fallback", exc_info=True)
         body = (C.fence("Market internals haven't landed on this host yet.")
                 + C.empty("Check back after the next nightly run."))
     return _page("Market internals", "internals", body, pat)
@@ -722,6 +730,7 @@ def flows_page(request: Request):
             body = _flows_body(conn, sort)
             pat = _dock(conn)
     except Exception:  # noqa: BLE001
+        log.warning("/dash/home/flows degraded to its fallback", exc_info=True)
         body = (C.fence("Flow and positioning data hasn't landed on this host yet.")
                 + C.empty("Check back after the next nightly run."))
     return _page("Flows & positioning", "flows", body, pat)
@@ -1107,6 +1116,7 @@ def events_page(request: Request):
             body = _events_body(conn, window, sym, evt, rview)
             pat = _dock(conn)
     except Exception:  # noqa: BLE001
+        log.warning("/dash/home/events degraded to its fallback", exc_info=True)
         body = (C.fence("The events estate hasn't landed on this host yet.")
                 + C.empty("Check back after the next nightly run."))
     return _page("Events & restrictions", "events", body, pat)
@@ -1259,6 +1269,7 @@ def attention_page(request: Request):
             body = _attention_body(conn, as_of, lens)
             pat = _dock(conn)
     except Exception:  # noqa: BLE001
+        log.warning("/dash/home/attention degraded to its fallback", exc_info=True)
         body = (C.fence("The signal-event bus hasn't landed on this host yet.")
                 + C.empty("Check back after the next nightly run."))
     return _page("What changed", "attention", body, pat)
