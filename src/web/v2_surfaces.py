@@ -55,6 +55,11 @@ _ROUTER_SPECS = [
     # surfaces ported as declared children of the Graphite home. Own router so the section stays
     # unpluggable; the watch WRITE stays the home's single `POST /dash/home/watch/add`.
     ("graphite-tracker", "src.web.home.tracker_pages", "/dash/home/tracker"),
+    # Graphite Strategies workspace (2026-07-27, milestone M7) — the 18 classic Strategies lenses
+    # consolidated into one hub + ten sub-pages (plan §1c + Part III §J). Declared children of the
+    # Graphite home (tests/test_dash_route_registry.INTERNAL_DEV); NO lens_registry entry until
+    # cutover, so the classic nav stays byte-identical. Own router, one additive spec entry.
+    ("graphite-strategies", "src.web.home.strategies_pages", "/dash/home/strategies"),
     # Replay the Tape — the standalone PIT-audit one-pager linked off the Coverage/Trust
     # front-door (D-PITCH-1/4). A tiny view that serves docs/replay-the-tape.html verbatim;
     # durably mounted here so the trail off Coverage never dead-ends after a main.py clobber.

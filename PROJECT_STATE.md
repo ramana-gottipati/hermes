@@ -203,6 +203,7 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 - `src/web/home/` — a self-contained, ISOLATED `/dash/home` section built completely separately from the classic site AND the existing v3 preview (owner decision 2026-07-23; spec `docs/redesign-graphite-home-spec.md`, two Codex passes, review-clean). `tokens.py` (Graphite palette both themes, scope `:root[data-ui-g]`/`.g-*`, corrected light candle-AA `#6f8096`/`#455468`) · `shell.py` (own chrome, none of the legacy `.uk-*`/preview `.pv3-*` markers) · `components.py` (`.g-*` DOM-safe kit + `safe_url`) · `reads.py` (self-contained read-only layer with a hard import-ban on all preview/`*_v3` render modules) · `__init__.py` (`router`: `/dash/home` + `/dash/home/toggle` POST-only + `/dash/home/_kit`). Direct-URL + `pvg` opt-in; **NO lens/nav until cutover** (zero classic-nav drift). Mounted by ONE additive `v2_surfaces._ROUTER_SPECS` entry.
 - **Graphite Markets estate (cutover wave W2-B, 2026-07-27) — 5 new lane-owned modules in `src/web/home/`:** `markets_reads.py` (the RS/rotation/sectors read layer — reuses the canonical `src/automation/` engines `rrg`·`rsband`·`capture`·`rs_phase`·`stock_rs` + the `momentum_scan` rows; bounded, defensive, plus the `DEMO_*` sample fallbacks) · `markets_ui.py` (the shared `.g-m*` atoms: view switcher, fixed-height internally-scrolling box, table, 0-100 position strip, phase/quadrant pills, the lane stylesheet) · `rotation_pages.py` (`/dash/home/rotation?view=journeys|weather|band|clock`) · `strength_pages.py` (`/dash/home/strength?view=…` + the lane's SINGLE `APIRouter`, which also serves `/dash/home/sectors`) · `sectors_pages.py` (`?tab=standing|economics`, `?sec=` drill). Mounted by ONE additive `v2_surfaces._ROUTER_SPECS` entry `("graphite-markets", "src.web.home.strength_pages", "/dash/home/strength")`; registered in `tests/test_dash_route_registry.INTERNAL_DEV`; **NO lens/nav until cutover**. Gate: `tests/test_home_markets.py` (17 tests — routes · view degradation · marker isolation · no classic-view import · `?sym=` links · verdict-key ban · read defensiveness · demo-shape parity · PORTED-targets-actually-serve).
 - `src/web/home/w2_reads.py` · `w2_kit.py` · `w2_pages.py` · `seasonal_pages.py` · `patterns_pages.py` · `anatomy_pages.py` · `compare_pages.py` — **the Graphite Markets W2-C children (2026-07-27, cutover lane)**: 10 classic lenses consolidated into 5 declared-child routes — `/dash/home/seasonal` (views `tape`/`screen`/`divergence`/`calendar`, + `format=csv`) · `/dash/home/patterns` (views `wolfe`/`harmonic`) · `/dash/home/anatomy` · `/dash/home/own-history` (`?sym=` drill) · `/dash/home/compare` (`?sym=&cmp=&idx=&r=`). `w2_reads.py` is the bounded, defensive read layer (rows only, never HTML) over `seasonal_cells`/`seasonal_stack`/`seasonal_outlook`/`seasonal_meta`/`x_setups_signals`/`wolfe_signals`/`harmonic_signals`/`stock_signals`/`index_rows`/`bhavcopy_rows`/`corporate_actions` + research.db `features`; `w2_kit.py` is the `.w2-*` stylesheet (injected via `shell(extra_head=)`, never appended to the shared `components.py`) + the fixed-size internally-scrolling box/table/view-bar/family-strip primitives; `w2_pages.py` is the ONE aggregator router so `home/__init__.py` takes a single anchored two-line insert. **Imports NO classic view module and NO analysis engine** — in particular never `seasonal_tape.py` (its `__doc__` is hashed into `frozen_family_hash()`), never `wolfe*.py`/`stock_chart*.py` (hot lane), never the `/dash/self-history` engine (breaks `test_home_isolation`). Gate: `tests/test_home_w2_markets.py` (17 tests). Declared children in `tests/test_dash_route_registry.py::INTERNAL_DEV` + allowlisted in `scripts/nav_integrity_gate.py::INTENTIONAL_NON_NAV`; **no `lens_registry` entry until cutover**.
+- `src/web/home/strategies_pages.py` + `strategies_blocks.py` + `strategies_reads.py` — the **Graphite Strategies workspace** (M7, lane W3-A, 2026-07-27): the 18 classic Strategies lenses consolidated into `/dash/home/strategies` + ten sub-routes per plan §1c + Part III §J. Same reads/render split as `reads.py`/`components.py` (`_reads` returns rows only, `_blocks` returns HTML only, `_pages` is the only place they meet); own `APIRouter` mounted by ONE additive `v2_surfaces._ROUTER_SPECS` tuple; all eleven routes registered in `tests/test_dash_route_registry.INTERNAL_DEV` as declared children (no `lens_registry` entry until cutover). Reuses ENGINE modules only (`strategy_registry` · `stock_rs.conviction_shortlist` · `insider_events` · `credit_ratings` · `sast_events` · `shareholding_xbrl` · `auto_portfolios` · `famous_strategies` · `factor_league` · `launchpad_signals`) — never a `src/web/*` view module, so the isolation gate holds. `python -m src.web.home.strategies_pages` = the 17-route selftest, which fails on the degraded branch and on any missing honesty fence.
 - `tests/test_home_isolation.py` + `tests/test_home_tokens_aa.py` — the increment-(i) gates: both-directions marker isolation · no preview import · route-gate registered · never linked from chrome · WCAG AA on every token pair incl. the candle fill+outline. **Green** (the only red across the run = the research lane's pre-existing `test_rule_lab` BLOCKING_ROWS 11≠10, unrelated to this lane). Not yet deployed.
 - **Increment (ii) (2026-07-23):** zones 1-3 wired over the self-contained reads — **market pulse** (index cards + NIFTY close sparkline + canonical `market_mood` + breadth) · **Today/what-changed** (severity count-band + humanised alert-rail rows over `signal_alert_state`) · **FII/DII flows** (signed diverging bars over `fii_dii_flows`, category `'FII/FPI'`). New reads `severity_counts`/`index_series`; gate `tests/test_home_zones.py` (defensive empty-state · seeded render · DOM-escape · no-marker-leak). Suite 788 pass.
 - **Increment (iii) (2026-07-23):** zones 4-7 — **Going-ex corporate actions** + **Results calendar** (agenda strips over `corp_actions.upcoming` [its `(rows, as_of)` tuple-unpack FIXED in `reads.upcoming_ca`] / `results_calendar.upcoming_results`) · **News wire** (every href via `safe_url`) · a **Go-deeper Delivery drawer** (`power_dvpt_3m`, progressive-disclosure `<details>`). New builders agenda/ca_agenda/results_agenda/wire/drawer/rowbars/delivery_drawer; gates `test_home_zones.py` (calendar/news/drawer render + defensive) + new `test_home_dom_safety.py` (news `javascript:`/`data:` collapse — Codex #9). Suite **793 pass**.
@@ -2677,6 +2678,49 @@ first to be fully accounted (ledger moved PORTED 2→7, DEFERRED 72→66, DROPPE
   520 px internally-scrolling boxes, the sticky index, and the Free⇄Pro switch hiding/showing
   `.pro-more`. Pixels remain an owner check (standing correction #9). Full suite after the pass:
   **879 passed / 0 failed / 1 skipped**; gate cluster 117 green.
+
+### Graphite Cutover W3-A — 2026-07-27 — THE STRATEGIES WORKSPACE (M7): 18 classic lenses → 1 hub + 10 sub-pages
+Lane `lane/w3-strategies` (worktree, base `f1ee223`). The Strategies half of milestone M7, built to the
+ratified consolidations in `docs/redesign-plan-2026-07-17.md` §1c + Part III §J. Additive + isolated;
+three NEW lane-owned modules, one anchored mount line, no classic view touched. Suite **852 / 0 / 1 skip**
+(baseline held); the 17-route workspace selftest is green.
+- **Routes (declared children of the Graphite home, `INTERNAL_DEV`-registered — NO `lens_registry`
+  entry, so classic nav stays byte-identical; registering them IS the cutover, W6's job):**
+  `/dash/home/strategies` (hub) · `/books?book=` · `/sector-rotation` · `/library?origin=&s=` ·
+  `/positioning?view=stealth` · `/conviction` · `/mep?dir=` · `/credibility?sym=` · `/growth?type=` ·
+  `/ownership?lens=` · `/launchpad?tab=evidence`.
+- **The five ratified consolidations, built:** factor-league + classics → ONE **Strategy library** with
+  the binding 🧑/🏠/📚 origin filters · stocks + stealth → one board, stealth a toggle (the classic
+  site already ran one renderer) · insider + ratings + sast + shp → ONE **Ownership & filings** hub,
+  four lenses over one pipeline, each reusing its OWN engine's classification so the hub can never
+  disagree with the classic lens · launchpad + launchpad-track → one page, the outcome study as its
+  evidence tab · **cpr DEMOTED** (verified: the standalone page's only unique evidence is cross-symbol
+  ranking; every per-name CPR fact already lives in the dossier panel + chart overlay).
+- **Fences that travel, rendered ABOVE the numbers they qualify:** D138 sector-rotation scope gap
+  ("picks SECTORS, not STOCKS") + the D141 two-step rejection · model-portfolios FUNDABLE-CORE vs
+  GROSS-LENS, with every ratio labelled a return/vol ratio, not a Sharpe (the `test_retvol_label_gate`
+  caught two of my own lines and they were relabelled) · CCI descriptive-only, board ordered
+  coverage-first not by score · MEP D62 descriptor-only · launchpad "validated screen with no fundable
+  edge net of cost" + the evidence tab's gross-of-cost/survivorship warning · conviction "a sorting
+  heuristic, not a validated model".
+- **🔴 A briefed fact was FALSE and is corrected here.** The lane brief said `/dash/growth` is powered by
+  the `screener.py` fundamentals path. It is not — `growth_view.py` reads `concall_signals` only. The
+  real Screener.in exposure is (a) the concall CORPUS (~98.6% of transcripts *discovered* via
+  Screener.in links, frozen legacy path) which powers growth AND credibility, and (b) the historical
+  fundamentals ARCHIVE (`research.db.fundamentals_history`) behind pt14 quality, which surfaces on
+  conviction. The disclosure is rendered on all three pages, correctly attributed — and growth now
+  carries a provenance note the classic page never had.
+- **Engineering note worth keeping:** the read layer swallows SQL errors by design (a missing table
+  must not 500 a page), which means a wrong column renders a plausible empty page. A `sym` helper that
+  shadowed a parameter did exactly that and survived a status-200 smoke test. The selftest now fails on
+  a `<!--g-degraded-->` marker AND on a missing fence string, and every table absent from the laptop
+  fixture (`credit_rating_events`, `launchpad_signals`, `auto_portfolio_*`, `sector_rotation_*`,
+  `factor_league`) was column-checked against its canonical engine DDL by hand.
+- **Honest parity:** 16 of my 18 keys are PORTED with per-key notes naming what did NOT come across;
+  `cpr` is DROPPED with a verified rationale; `shp` stays **DEFERRED** because `shareholding_history`
+  lives in the separate research store and cannot be verified off-box — the quarter matrix is built and
+  routed, and should be promoted only after box verification.
+
 ### Graphite Home — 2026-07-27 — HEATMAP ENHANCEMENTS (§5-E) — colour-by-delivery · size selector · Pro "unusual for this stock"
 Closed §5-E, the last queued Graphite home unit. Additive/isolated, 89 gates green, deployed + box-verified.
 - **Colour-by-delivery toggle.** `_hm_tile` now emits a second intensity `--d` (delivery 25%→0 … 80%→1,
