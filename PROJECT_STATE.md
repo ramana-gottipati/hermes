@@ -2447,7 +2447,12 @@ has no upcoming board meetings, so the Row path never ran.
   `[dict(r) for r in _u(days=days) or []]` — the single Row→dict normalisation point, so every home
   consumer may `.get()`. `results_calendar.upcoming_results` itself is untouched (its own CLI
   tuple-unpacks rows and dicts would silently unpack to KEY NAMES).
-- **Sweep verdict — this was the ONLY raw-Row leak into `.get()` consumers in the home estate.**
+- **Sweep verdict — this was the ONLY raw-Row leak into `.get()` consumers in the home estate**,
+  and it is OBSERVED, not reasoned: a reflective scan on the BOX called **127 public reads** across
+  `reads` · `internals_reads` · `markets_reads` · `stock_reads` · `screen_reads` · `strategies_reads`
+  · `trust_reads` · `tracker_reads` · `w2_reads` (106 conn-only/zero-arg + 21 symbol-taking) against
+  real data and deep-scanned every return value for `sqlite3.Row` → **zero leaks**. Reading confirms
+  why:
   Checked every `src.automation`/`src.pat` delegation: `corp_actions.upcoming` (builds dicts),
   `whatchanged_flow.changes` / `signal_alerts.active_alerts` (dicts), `results_board` (explicit
   dict zip), `surveillance.transitions` (dict events), `band_lock.active_streaks` (dicts),
