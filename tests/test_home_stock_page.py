@@ -562,3 +562,91 @@ def test_the_conviction_composite_is_labelled_a_heuristic_on_the_surface():
     html = SP.digest(core)
     assert "Conviction" in html
     assert "sorting heuristic" in html, "the composite must qualify itself where it is shown"
+
+
+# ── the candle legibility gate (CHART-CONTRAST lane) ───────────────────────────────────────────
+def _rel_lum(hexc: str) -> float:
+    """WCAG 2.x relative luminance of an opaque #rrggbb."""
+    h = hexc.strip().lstrip("#")
+    out = 0.0
+    for w, i in ((0.2126, 0), (0.7152, 2), (0.0722, 4)):
+        c = int(h[i:i + 2], 16) / 255.0
+        out += w * (c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4)
+    return out
+
+
+def _ratio(a: str, b: str) -> float:
+    la, lb = _rel_lum(a), _rel_lum(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def test_candle_contrast_floors_hold_in_both_themes():
+    """OWNER DEFECT (this lane): with both bodies painted SOLID, blue-up and grey-down sat close
+    enough in luminance that dense zooms read as one grey wash — "if the differences aren't clear,
+    the purpose is defeated". The fix is two channels; this gate pins the colour one, recomputed
+    from the shipped hexes so the numbers in the module docstring can never drift from the CSS.
+
+    Floors: the up OUTLINE (which is the entire up identity now that the body is hollow) must clear
+    2.5:1 against the down FILL, and each must clear the 3:1 graphical-object floor against the
+    canvas background — which is `--bg-0`, what LightweightCharts itself paints."""
+    from src.web.home.tokens import DARK, LIGHT
+    for theme, pal in (("dark", DARK), ("light", LIGHT)):
+        c = CH.CANDLES[theme]
+        up, dn, dnl = c["candle-up-line"], c["candle-dn"], c["candle-dn-line"]
+        bg0, bg2 = pal["bg-0"], pal["bg-2"]
+        assert _ratio(up, dn) >= 2.5, (theme, "up-outline vs down-fill", _ratio(up, dn))
+        assert _ratio(up, bg0) >= 3.0, (theme, "up-outline vs bg-0", _ratio(up, bg0))
+        assert _ratio(dn, bg0) >= 3.0, (theme, "down-fill vs bg-0", _ratio(dn, bg0))
+        # the down BORDER is most of a 1px candle at max zoom — it must clear the floor too
+        assert _ratio(dnl, bg0) >= 3.0, (theme, "down-border vs bg-0", _ratio(dnl, bg0))
+        # and the whole encoding must survive being placed on a panel rather than the page floor
+        assert _ratio(up, bg2) >= 3.0 and _ratio(dn, bg2) >= 3.0, theme
+
+
+def test_candles_are_encoded_on_two_channels_hollow_up_solid_down():
+    """The channel that survives greyscale, 1px widths and every colour-vision type is SHAPE, not
+    colour: rising = hollow (near-transparent body) + crisp blue outline, falling = solid grey.
+    Colour alone was the defect. This pins the shape channel so a future retune cannot quietly
+    re-solidify the up body and reintroduce the wash."""
+    for theme, c in CH.CANDLES.items():
+        assert c["candle-up"].startswith("rgba("), (theme, "the up body must be near-transparent")
+        alpha = float(c["candle-up"].rstrip(") ").rsplit(",", 1)[1])
+        assert 0 <= alpha <= 0.12, (theme, "hollow means <=12% alpha", alpha)
+        assert c["candle-dn"].startswith("#"), (theme, "the down body must be an opaque fill")
+    # the client must bind those tokens the right way round, and the wicks must follow their candle
+    snip = CH._SNIPPET
+    assert "upColor:C.cup" in snip and "downColor:C.cdn" in snip
+    assert "borderUpColor:C.cupl" in snip and "borderDownColor:C.cdnl" in snip
+    assert "wickUpColor:C.cupl" in snip and "wickDownColor:C.cdn" in snip
+    assert "borderVisible:true" in snip, "the outline IS the up candle — it can never be optional"
+
+
+def test_the_candle_identity_is_never_green_red_and_stays_tokenised():
+    """Standing identity rule: blue = rising, grey = falling, always outlined — never the retail
+    green/red. And every value stays a CSS variable so the skin layer can retune without Python."""
+    css = CH.CSS
+    for theme, c in CH.CANDLES.items():
+        for k, v in c.items():
+            assert "--" + k + ":" + v in css, (theme, k)
+            low = v.lower()
+            for banned in ("#3ad17f", "#0e8a57", "#f2617f", "#c93a52", "green", "red"):
+                assert banned not in low, (theme, k, v)
+    # scoped to the chart element, both themes, and nowhere near :root — `--candle-up` is also a
+    # generic brand accent in components.py and must NOT be repainted by this retune
+    assert ":root[data-ui-g] .g-chart{--candle-up:" in css
+    assert ':root[data-ui-g][data-theme="light"] .g-chart{--candle-up:' in css
+    assert ":root[data-ui-g]{--candle" not in css and ":root{" not in css
+
+
+def test_the_direction_free_panes_keep_their_own_encoding():
+    """Scope fence: DVPT (intensity), delivery % (level) and turnover-vs-delivered (part of whole)
+    never encoded direction, so the candle recut must not have bled a two-channel treatment into
+    them — they stay on warn/accent/ink-3."""
+    snip = CH._SNIPPET
+    assert "(d.r1m!=null&&d.r1m>1)?C.warn:C.ink3" in snip     # DVPT intensity flag, unchanged
+    assert "sDeliv.applyOptions({color:C.acc})" in snip       # delivery % line, unchanged
+    assert "sTv.applyOptions({color:C.ink3})" in snip         # turnover bars, unchanged
+    assert "sDv.applyOptions({color:C.acc})" in snip          # delivered part, unchanged
+    for tok in ("C.cup", "C.cdn"):
+        # the candle tokens must appear only in the candle call, never in a pane
+        assert snip.count(tok + ",") + snip.count(tok + "}") + snip.count(tok + ")") <= 4, tok
