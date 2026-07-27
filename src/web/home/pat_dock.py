@@ -9,6 +9,8 @@ data). Imports only `reads` + `components` from this package — no preview modu
 """
 from __future__ import annotations
 
+import re as _re
+
 from src.web.home import components as C
 from src.web.home import reads
 
@@ -95,6 +97,7 @@ _SUGG = [("changed", "What changed today?"), ("flows", "Who's buying?"),
 
 def dock_html(conn) -> str:
     answers = _answers(conn)
+    answers.update(_trust_answers())      # W5: the Proof-estate answers (see §w5-journey below)
 
     def _block(k, title, detail):
         more = (('<details class="g-pat-more"><summary>more</summary>'
@@ -104,7 +107,7 @@ def dock_html(conn) -> str:
 
     ans = "".join(_block(k, t, d) for k, (t, d) in answers.items())
     sug = "".join('<button type="button" class="g-pat-sug" data-key="' + k + '">' + C.esc(lbl) + "</button>"
-                  for k, lbl in _SUGG)
+                  for k, lbl in (_SUGG + _SUGG_TRUST))
     bubs = "".join("<li>" + x + "</li>" for x in _bubbles(conn))
     markup = (
         '<div class="g-pat" id="g-pat">'
@@ -126,7 +129,7 @@ def dock_html(conn) -> str:
         '<ul class="g-pat-bubsrc" id="g-pat-bubsrc" hidden>' + bubs + "</ul>"
         "</div>"
     )
-    return _CSS + markup + _JS
+    return _CSS + markup + _JS + _ASK_JS
 
 
 _CSS = """<style>/* g-pat */
@@ -182,7 +185,7 @@ _CSS = """<style>/* g-pat */
 :root[data-ui-g] .g-pat-more-b{font-size:12.5px;color:var(--ink-2);line-height:1.55;margin-top:6px}
 </style>"""
 
-_JS = """<script>(function(){
+_JS = r"""<script>(function(){
 var RM=matchMedia("(prefers-reduced-motion:reduce)").matches;
 var pat=document.getElementById("g-pat"),fab=document.getElementById("g-pat-fab"),panel=document.getElementById("g-pat-panel"),
     msg=document.getElementById("g-pat-msg"),ans=document.getElementById("g-pat-ans"),bub=document.getElementById("g-pat-bub"),
@@ -234,3 +237,241 @@ if(!RM){
   setTimeout(show,2400); setInterval(show,14000);
 }
 })();</script>"""
+
+
+# ═══ w5-journey additions — the dock gains the classic /dash/pat resolution ═══════════
+# THERE IS NO THIRD PAT. The Graphite dock above is the one assistant in this experience; what it
+# lacked versus the classic `/dash/pat` page was RESOLUTION — the ability to answer an arbitrary
+# typed question deterministically instead of falling back to a four-way regex. That is what this
+# section adds, through Pat's OWN auto-folding knowledge sources (docs/pat-knowledge-contract.md):
+#
+#   A. JARGON  — `src.pat.glossary.GLOSSARY`, which `_merge_web()` feeds from
+#                `docs/metrics-glossary.md` at import. A new metric bullet teaches the dock with
+#                ZERO code, exactly as it teaches the classic page.
+#   B. PAGES   — `src.pat.nav_flow`, which ranks `lens_registry` live. A newly registered lens
+#                becomes answerable the day it ships.
+#   C. SYMBOLS — a strict token check, deep-linking the Graphite stock page (`?sym=`).
+#
+# What is deliberately NOT carried over: `engine.route()`'s LLM fallback. `route()` calls a Gemini
+# classifier when every deterministic gate misses; a dock answer must be zero-cost and instant, and
+# paid spend is a surface-first action. So this resolver is closed-vocabulary and model-free by
+# construction — when nothing resolves it says so rather than guessing.
+#
+# Also not carried over (classic-page capabilities that need state the dock has no home for — each
+# an honest open item, not a silent gap): multi-turn threads (`pat_tid`), saved boards, the
+# thumbs-up/down loop that feeds few-shot routing, the avatar picker, and the grouped
+# example-question library.
+
+_SUGG_TRUST = [("proof", "How do you prove this?"), ("verdict", "Does any of it work?"),
+               ("terms", "Explain a term")]
+
+# Where a classic route already has a Graphite twin, Pat points at the twin. Anything not listed
+# keeps its classic route (one-way home -> classic is allowed and gate-tested).
+_GRAPHITE_TWIN = {
+    "/dash/coverage": "/dash/home/proof", "/dash/testing": "/dash/home/validation",
+    "/dash/glossary": "/dash/home/glossary", "/dash/strategy-ref": "/dash/home/strategy-ref",
+    "/dash/reading-guide": "/dash/home/guide", "/dash/spec-sheets": "/dash/home/prereg",
+    "/dash/rule-lab": "/dash/home/rule-lab", "/dash/replay-any-date": "/dash/home/replay",
+    "/dash/evidence-pack": "/dash/home/validation?pack=1",
+    "/dash/rrg": "/dash/home/rotation", "/dash/rotation": "/dash/home/rotation",
+    "/dash/markets": "/dash/home",
+}
+
+_SYM_RE = _re.compile(r"^[A-Z][A-Z0-9&]{1,14}$")
+_CANNED_RE = (
+    ("changed", _re.compile(r"chang|flip|state|new high|newly", _re.I)),
+    ("flows", _re.compile(r"buy|bought|sold|sell|fii|dii|flow|institution", _re.I)),
+    ("proof", _re.compile(r"prove|proof|trust|evidence|source|coverage|look.?ahead|honest", _re.I)),
+    ("verdict", _re.compile(r"work|validat|backtest|return|perform|fail|alpha|edge", _re.I)),
+    ("terms", _re.compile(r"glossar|define|definition|jargon|terminolog", _re.I)),
+    ("read", _re.compile(r"how do i|how to|read|start|new here|guide", _re.I)),
+)
+
+
+def _trust_answers() -> dict:
+    """The three Proof-estate answers, so the dock speaks for the trust layer too. Static text
+    (no DB) — every claim here is a pointer to a page that carries the numbers."""
+    return {
+        "proof": ("Every number names the table it came from, and the whole record is public — "
+                  "including what failed.",
+                  "Coverage and freshness live on the Proof page; the falsification record lists "
+                  "every strategy with its net result against the index; and you can replay any "
+                  "past date to check we are not using information we could not have had."),
+        "verdict": ("Mostly no — and we publish that. Most of what we built lost to simply owning "
+                    "the index after realistic costs.",
+                    "The validation record shows each strategy's net return/vol against the "
+                    "Nifty-500 buy-and-hold benchmark, plus the approaches recorded dead in the "
+                    "ledger. Descriptive lenses stay descriptive; they never rank a stock for you."),
+        "terms": ("Ask me any metric by name — I read the same dictionary the ? popovers use.",
+                  "Type a term like delivery, breadth or relative strength and I will define it in "
+                  "plain English. The full dictionary is on the Glossary page, grouped by family."),
+    }
+
+
+def resolve(q: str) -> dict:
+    """Closed-vocabulary, deterministic, model-free resolution of one typed question.
+
+    Returns {'kind': 'symbol'|'explain'|'navigate'|'canned'|'none', ...}. Never raises, never calls
+    a model, never touches the network. Order matters: a bare ticker is a symbol, an explicit
+    'where do I see X' is navigation, a term that resolves in the glossary is an explanation, and
+    everything else falls to the small canned set (or an honest 'I don't know')."""
+    raw = (q or "").strip()
+    if not raw:
+        return {"kind": "none"}
+
+    # 1. a bare token is ambiguous — a ticker and a metric code look identical (DVPT, CCI, MEP).
+    #    An EXACT glossary hit wins, because a code we can define is a question we can answer;
+    #    anything else that looks like a ticker goes to the stock page.
+    if " " not in raw:
+        tok = _re.sub(r"[^A-Za-z0-9&]", "", raw).upper()
+        exact = _exact_term(raw)
+        if exact:
+            return exact
+        if _SYM_RE.match(tok):
+            return {"kind": "symbol", "sym": tok}
+
+    # 2. an explicit navigational ask -> the registry (source B, auto-folding)
+    try:
+        from src.pat import nav_flow
+        nav = nav_flow.parse_navigate(raw)
+        if nav:
+            hits = nav_flow.resolve((nav.get("params") or {}).get("topic") or raw, limit=3)
+            if hits:
+                return {"kind": "navigate", "hits": [_twin(h) for h in hits]}
+    except Exception:  # noqa: BLE001 — resolution is best-effort; never break the dock
+        pass
+
+    # 3. a metric name -> the glossary (source A, auto-folding from docs/metrics-glossary.md)
+    try:
+        from src.pat import glossary as PG
+        hits = PG.find(raw, limit=1)
+        if hits:
+            slug, e = hits[0]
+            return {"kind": "explain", "slug": slug, "term": e.get("term") or slug,
+                    "plain": e.get("plain") or "", "detail": e.get("detail") or ""}
+    except Exception:  # noqa: BLE001
+        pass
+
+    # 4. the small canned set the dock already served
+    for key, rx in _CANNED_RE:
+        if rx.search(raw):
+            return {"kind": "canned", "key": key}
+    return {"kind": "none"}
+
+
+def _exact_term(raw: str):
+    """An EXACT glossary slug/alias/term match, or None. Deliberately exact-only: a fuzzy match on
+    a bare token would swallow every ticker."""
+    try:
+        from src.pat import glossary as PG
+        q = raw.strip().lower()
+        e = PG.get(q)
+        slug = q
+        if e is None:
+            for s, cand in PG.GLOSSARY.items():
+                aliases = {a.lower() for a in (cand.get("aliases") or [])}
+                if q == (cand.get("term") or "").lower() or q in aliases:
+                    e, slug = cand, s
+                    break
+        if e is None:
+            return None
+        return {"kind": "explain", "slug": slug, "term": e.get("term") or slug,
+                "plain": e.get("plain") or "", "detail": e.get("detail") or ""}
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _twin(hit: dict) -> dict:
+    h = C._d(hit)
+    route = h.get("route") or ""
+    return {"label": h.get("label") or h.get("key") or "", "route": _GRAPHITE_TWIN.get(route, route),
+            "blurb": h.get("blurb") or ""}
+
+
+def answer_html(conn, q: str) -> str:
+    """One question -> one escaped HTML fragment for the dock to inject. Everything is escaped
+    server-side (the dock never builds markup from data), so the fragment is safe to insert."""
+    r = resolve(q)
+    kind = r.get("kind")
+    if kind == "symbol":
+        s = C.esc(r["sym"])
+        return ('<div class="g-pat-a-title">Open <a href="/dash/home/stock?sym=' + s + '">'
+                + s + " &rsaquo;</a></div>"
+                '<div class="g-pat-more-b" style="margin-top:6px">I will take you to its evidence '
+                "page &mdash; descriptive only.</div>")
+    if kind == "navigate":
+        links = "".join('<div style="margin-top:6px"><a href="' + C.safe_url(h["route"]) + '">'
+                        + C.esc(h["label"]) + " &rsaquo;</a></div>" for h in r["hits"][:3])
+        return '<div class="g-pat-a-title">Here is where that lives:</div>' + links
+    if kind == "explain":
+        det = (('<details class="g-pat-more"><summary>more</summary><div class="g-pat-more-b">'
+                + C.esc(r["detail"]) + "</div></details>") if r.get("detail") else "")
+        return ('<div class="g-pat-a-title"><b>' + C.esc(r["term"]) + "</b> &mdash; "
+                + C.esc(r["plain"]) + "</div>" + det
+                + '<div class="g-pat-more-b" style="margin-top:6px">'
+                '<a href="/dash/home/glossary?q=' + C.esc(r["term"])
+                + '">See it in the glossary &rsaquo;</a></div>')
+    if kind == "canned":
+        answers = {}
+        try:
+            answers = _answers(conn) if conn is not None else {}
+        except Exception:  # noqa: BLE001
+            answers = {}
+        answers.update(_trust_answers())
+        pair = answers.get(r["key"])
+        if pair:
+            title, detail = pair
+            det = (('<details class="g-pat-more"><summary>more</summary><div class="g-pat-more-b">'
+                    + C.esc(detail) + "</div></details>") if detail else "")
+            return '<div class="g-pat-a-title">' + title + "</div>" + det
+    return ('<div class="g-pat-a-title">I do not have a deterministic answer for that &mdash; I only '
+            "speak in terms I can back with data.</div>"
+            '<div class="g-pat-more-b" style="margin-top:6px">Try a stock symbol, a metric name, '
+            'or <a href="/dash/home/guide">how to read this site &rsaquo;</a></div>')
+
+
+# The typed box now asks the server. A CAPTURE-phase listener on `document` runs BEFORE the form's
+# own bubble-phase handler above, so this supersedes the four-way regex without editing it; if the
+# request fails the visitor gets an honest message rather than a wrong guess. `innerHTML` is used
+# on a fragment the SERVER escaped — the same trust model as `showAns` above.
+_ASK_JS = """<script>(function(){
+var form=document.getElementById("g-pat-form"),ans=document.getElementById("g-pat-ans"),
+    input=document.getElementById("g-pat-in");
+if(!form||!ans||!input)return;
+function put(h){ans.innerHTML="";var c=document.createElement("div");c.className="g-card2";c.innerHTML=h;ans.appendChild(c);}
+document.addEventListener("submit",function(e){
+  if(e.target!==form)return;
+  e.preventDefault();e.stopPropagation();
+  var q=(input.value||"").trim();input.value="";
+  if(!q)return;
+  put("<div class='g-pat-a-title'>Looking that up...</div>");
+  fetch("/dash/home/pat/ask?q="+encodeURIComponent(q),{headers:{"X-Requested-With":"pat-dock"}})
+    .then(function(r){return r.ok?r.text():Promise.reject(r.status);})
+    .then(put)
+    .catch(function(){put("<div class='g-pat-a-title'>I could not reach my notes just now - "+
+      "try a stock symbol or a metric name.</div>");});
+},true);})();</script>"""
+
+
+def _selftest() -> int:
+    ok = 0
+    assert resolve("")["kind"] == "none"
+    assert resolve("TCS") == {"kind": "symbol", "sym": "TCS"}
+    ok += 1
+    assert resolve("what is delivery")["kind"] in ("explain", "canned")
+    ok += 1
+    assert resolve("who is buying today")["kind"] in ("canned", "explain", "navigate")
+    ok += 1
+    assert "/dash/home/stock?sym=TCS" in answer_html(None, "TCS")
+    ok += 1
+    assert "g-pat-a-title" in answer_html(None, "zzzqqq nonsense phrase here")
+    ok += 1
+    assert "<script>" not in answer_html(None, "<script>alert(1)</script>")
+    ok += 1
+    for banned in ("gemini", "anthropic", "call_classifier"):
+        assert banned not in _ASK_JS.lower(), banned
+    ok += 1
+    assert set(_trust_answers()) == {"proof", "verdict", "terms"}
+    ok += 1
+    print("pat_dock selftest OK (%d checks)" % ok)
+    return 0

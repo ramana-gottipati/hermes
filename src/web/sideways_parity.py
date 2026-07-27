@@ -90,6 +90,50 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                 "M5 Today IS the migrated markets overview / orientation home"),
     "wire":    ("PORTED", "/dash/preview",
                 "M3 news/flow dock (?ch=news) is the migrated News/Wire"),
+    # ── W5 / M6 — the Trust workspace (11 surfaces), ported into the Graphite identity ──
+    # 8 Graphite pages carry 9 of the 11; `pat` is carried by the extended floating dock rather
+    # than a page (there is deliberately no third Pat); `inbox` is structurally NA.
+    "coverage":     ("PORTED", "/dash/home/proof",
+                     "the Proof hub — leads with the published boundary ('what we do NOT claim'), "
+                     "then the same provenance.coverage_snapshot funnel + per-data-class matrix"),
+    "testing":      ("PORTED", "/dash/home/validation",
+                     "the validation record — the same research.db strategy_registry/runs/holdings "
+                     "verdict table, plus the ledger's BLOCKING rows verbatim beside it"),
+    "glossary":     ("PORTED", "/dash/home/glossary",
+                     "261 terms / 39 families rendered from the SAME docs/metrics-glossary.md parse "
+                     "(src.web.glossary) that feeds the ? popovers and Pat — never a second copy"),
+    "strategy-ref": ("PORTED", "/dash/home/strategy-ref",
+                     "the same docs/strategies/ pages, list DERIVED from the directory (so a new "
+                     "strategy page appears the day it lands) through a widened public sanitizer"),
+    "reading-guide": ("PORTED", "/dash/home/guide",
+                      "'How to read this site' — the newcomer exit and the standing destination of "
+                      "the M6 persistent help control; carries the five-step arc as structure"),
+    "spec-sheets":  ("PORTED", "/dash/home/prereg",
+                     "the same 9 pre-registered studies with hypothesis, gate-written-first, result "
+                     "and the registered SHA-256, read from the one content source"),
+    "rule-lab":     ("PORTED", "/dash/home/rule-lab",
+                     "the same closed-vocabulary rule engine (src.automation.rule_lab); every "
+                     "verdict state round-trips through the SAME query params as the classic page, "
+                     "so a shared URL reproduces the rule on either surface (ratified §K.4)"),
+    "replay-any-date": ("PORTED", "/dash/home/replay",
+                        "the same in-process /v1 point-in-time calls (credibility · attention · "
+                        "universe) with the envelopes verbatim; also ships journey.replay_card for "
+                        "the Today page"),
+    "evidence-pack": ("PORTED", "/dash/home/validation",
+                      "MERGED into the validation record as ?pack=1 — the classic page was an "
+                      "ASSEMBLY of spec-sheets + coverage material with only two self-originating "
+                      "claims (a verify-routes index and the replay narrative), both of which the "
+                      "merged view keeps; one page fewer, zero evidence lost"),
+    "pat":          ("PORTED", "/dash/home",
+                     "carried by the EXISTING Graphite floating dock, extended with the classic "
+                     "page's resolution (glossary + lens-registry auto-fold + symbol deep-link, "
+                     "model-free) via GET /dash/home/pat/ask — deliberately not a third Pat. Not "
+                     "yet carried: threads, saved boards, the feedback loop (open items)"),
+    "inbox":        ("NA", "",
+                     "owner review workflow, not a visitor surface: an approve/reject decision "
+                     "queue (POST /dash/inbox/decide) whose anonymous view is already reduced to "
+                     "aggregate counts. It belongs to ops, so the visitor-facing rebuild has no "
+                     "counterpart; the classic route stays live for the owner."),
 }
 
 _VALID_STATUS = {"PORTED", "DEFERRED", "DROPPED", "NA"}
