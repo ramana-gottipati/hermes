@@ -32,7 +32,7 @@ back + record verdicts on genuine forks.
 | W3 | M7 Strategies (18) + Tracker (6) | tracker ✅ · strategies 🔄 | 2 dev + wave review/verify | tracker `lane/w3-tracker` @ `e104b39` (872/0/1; 5 PORTED + 1 merge-DROP — first fully-accounted workspace; XIRR fidelity-gated, TWR headline) · strategies resumed post-restart (6 files WIP) |
 | W4 | M8 Screener (5 surfaces) | 🔄 RUNNING ∥ | 1 dev + wave review | `lane/w4-screener` — screen2 REBUILD (URL-state · server CSV · <500KB budget) + themes; screener/tags-review/workbench verdicts |
 | W5 | M6 Journey/help layer (trust 11) | 🔄 RUNNING ∥ | 1 dev + wave review | `lane/w5-journey` — trust pages + `journey.py` (nudge/help/teaching-empty per M6 spec v1.1) + Pat-dock reconciliation (no third Pat) |
-| W6 | Cutover mechanics — SCOPE SHRANK: the landing flip shipped EXTERNALLY (D148, owner call, LIVE: `/dash` → 302 `/dash/home` via new `src/web/home/cutover.py` middleware; classic byte-identical at `/dash/classic`; lens-registration mechanism (a) explicitly REJECTED — would drift classic nav). Remaining: old-preview retirement (owner OK'd) · isolation-contract rewrite (#3/#5) · Graphite in-app nav wiring (`shell.DESTS`) · `components.sym_link` retarget · parity 100% + docstring fix | queued | 1 dev | — |
+| W6 | Cutover mechanics — preview retirement · nav single-authority · DESTS · milestones · hygiene | ✅ DONE | 1 dev | `lane/w6-cutover` @ `HEAD` (suite **1027/0/1**, −22 all accounted; `nav_integrity_gate` **exit 0**, A/B/C/D PASS; doc gate 5/5). D149 recorded |
 | W7 | Full-estate walk on box + docs fold + ledger close | queued | walk fleet + parent | — |
 
 ## 2. W0 findings (2026-07-27)
@@ -251,15 +251,51 @@ back + record verdicts on genuine forks.
   under the prod venv before restart; writer-safe restart; full real-data walk incl. the
   &-ticker probe (`ARE&M`); rollback = `.bak-w6` set. Owner links hand-off on completion.
 
+- **2026-07-27 · W6 cutover mechanics (Opus) — the last build lane. Decision D149.**
+  **Preview RETIRED** (owner OK `3d13d97`): 4 `_ROUTER_SPECS` mounts → 1 compat router
+  `src/web/home/preview_retired.py`; `/dash/preview`→`/dash/home` · `/dash/preview/stock?sym=X`→
+  `/dash/home/stock?sym=X` (quoted) · `.../export`→the stock page · `/dash/_ui3`→`/dash/home/_kit`;
+  all **302** (D148's rollback argument). Modules de-routed, NOT deleted — traced first: nothing
+  outside the cluster imports them. `POST /dash/preview/toggle` de-routed, no replacement. Disclosed
+  gap: no Graphite series-CSV twin, so that URL preserves the link not the capability.
+  **Isolation contract: verdict (a) — the D148 cutover never falsified it**, proven by both
+  assertions being green in the 1049 baseline on origin/main (the middleware is a path rewrite; no
+  classic page was ever edited). What falsified ONE line was this lane's own retirement:
+  `/dash/preview` was a probe page in #3 and now redirects INTO Graphite. Re-spec = one list element.
+  **Nav single authority:** the script's own 28-entry `INTENTIONAL_NON_NAV` DELETED; it now derives
+  from `tests/test_dash_route_registry.classify()` (48-entry tables), pinned by
+  `test_the_nav_gate_has_no_second_allowlist`. The 2 pre-existing orphans needed no allowlist once
+  derived (`/dash/wolfe/learnings` = api_or_action, Wolfe code untouched; `/dash/sideways-parity` =
+  internal_dev "deliberately unlinked"). **NEW contract D** because B exempts `internal_dev` and
+  D148 put the ENTIRE Graphite site in that kind: 17 built pages had zero inbound links (measured on
+  the box AND locally, identical). Fixed by WIRING: DESTS Stocks→`/dash/home/screen`,
+  Proof→`/dash/home/proof` (unlocked the 8-page Trust cluster alone); the W2-A Markets-depth strip
+  ("until W6 wires nav") gained 8 cross-links reaching all of W2-B/W2-C; 3 stale in-package classic
+  links retargeted. Gate: 55 surfaces crawled from the real front door, 185 reachable, exit 0.
+  **Milestones:** M6+M8 → DONE; `shp` BOX-VERIFIED (40 syms × 8 quarters, cells match
+  `research.db.shareholding_history` exactly) → PORTED → M7 DONE. M-Markets stays PLANNED (11 real
+  DEFERRED). Parity **PORTED 56 · DEFERRED 11 · DROPPED 5 · NA 2 · 0 UNSCOPED**.
+  **Hygiene:** the parity docstring's stale counts REMOVED with the rule in their place (a derived
+  inventory never restates its own output); the duplicate `seasonal_screen_view` TRACED and ruled
+  **not a defect** (one module, two lenses, one router — the mount loop skips the second inclusion
+  and the second tuple is `wire()`'s self-check that the module's second route mounted).
+  **Suite 1049 → 1027**, every unit accounted: −11 `test_v3_today.py` and −18 `test_v3_stock_hub.py`
+  (deleted — every test asserted RENDERED preview surfaces that no longer serve), −2 from
+  `test_v3_isolation.py` (moved to the retirement gate; its still-live contracts kept), +8 new
+  `test_preview_retired.py`, +1 route-registry.
+
 ### Banked findings (not cutover work, tracked so they aren't lost)
 - `tests/test_home_featured.py::test_conviction_now_caches_by_date` silently passes/fails on
   AMBIENT DB presence (`data/hermes.db` is CWD-relative; empty schema-only DB → cache skipped
   by design → test red in any fresh clone/worktree). Latent CI landmine — spun off as a
   separate task chip.
-- `scripts/nav_integrity_gate.py` (NOT in the pytest suite) fails with 5 pre-existing orphans:
+- ~~`scripts/nav_integrity_gate.py` (NOT in the pytest suite) fails with 5 pre-existing orphans:
   `/dash/home` · `/dash/home/_kit` · `/dash/home/rotation` · `/dash/sideways-parity` ·
   `/dash/wolfe/learnings` — intentionally unlinked until cutover. **W6 must** either add
-  `INTENTIONAL_NON_NAV` entries or real nav links at the flip.
+  `INTENTIONAL_NON_NAV` entries or real nav links at the flip.~~ **CLOSED by W6/D149** — and the
+  premise was wrong in an instructive way: the fix was NOT to allowlist. Three of the five are now
+  genuinely LINKED, and the other two needed no new entry once the script stopped keeping its own
+  allowlist and started deriving kinds from the route registry.
 
 ## 4. Owner hand-offs
 

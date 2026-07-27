@@ -12,11 +12,22 @@ import html as _html
 from src.web.home import components as C
 from src.web.home.tokens import tokens_css
 
-# The 6 destinations. Graphite twins don't exist yet, so non-Today links point at the classic
-# routes (one-way home->classic is allowed; the classic site never links back — gate-tested).
-DESTS = [("Today", "/dash/home"), ("Markets", "/dash/home/internals"), ("Stocks", "/dash/stocks"),
-         ("Strategies", "/dash/home/strategies"), ("Tracker", "/dash/home/tracker"),
-         ("Proof", "/dash/coverage")]
+# The 6 destinations (the ratified nav contract — six fixed doors, no seventh without the owner).
+#
+# W6 CUTOVER COMPLETION (2026-07-27): all six now land inside Graphite. The last two were still
+# ejecting the reader into the classic site from the top bar of every Graphite page:
+#   * Stocks -> /dash/home/screen. The v3 contract made "Stocks" the stock WORKSPACE landing, with
+#     the Screener as its first sub-item; the Graphite workspace landing IS the screener (W4's
+#     rebuild), which links the per-symbol page and Themes. The alternative — /dash/home/stock — is
+#     a bare ticker input with nothing to browse, a dead end for anyone who doesn't already know the
+#     ticker, and it is already reached from every symbol link on the site.
+#   * Proof   -> /dash/home/proof. W5's Proof hub is the direct port of /dash/coverage and is the
+#     door to the whole Trust cluster (validation · prereg · rule-lab · replay · glossary ·
+#     strategy-ref · guide), none of which had ANY inbound link before this repoint.
+# Machine-pinned in tests/test_dash_route_registry.py — nothing else in the suite reads these hrefs.
+DESTS = [("Today", "/dash/home"), ("Markets", "/dash/home/internals"),
+         ("Stocks", "/dash/home/screen"), ("Strategies", "/dash/home/strategies"),
+         ("Tracker", "/dash/home/tracker"), ("Proof", "/dash/home/proof")]
 
 _FENCE = ("Descriptive only — everything here is past data from primary exchange sources "
           "(NSE · BSE). Never advice, a recommendation, or a prediction.")

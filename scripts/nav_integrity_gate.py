@@ -22,17 +22,36 @@ app serves. Two failure modes slipped past both gates because they are about
 
 This gate makes both a FAIL at commit time. It builds the app in-process exactly
 as production wires it (src.main + v2_surfaces.wire), enumerates the real route
-table, renders the navigable surfaces, and asserts three contracts:
+table, renders the navigable surfaces, and asserts four contracts:
 
     A. NO DEAD LINKS   — every /dash href the chrome renders resolves to a real route.
     B. NO ORPHANS      — every page route is reachable from a rendered surface, OR is
-                         on INTENTIONAL_NON_NAV (an explicit, REASONED allowlist).
+                         registered as a non-nav KIND (an explicit, REASONED act).
     C. NO DOUBLE STRIP — no page renders the contextual sub-nav container more than
                          once, and the legacy `_track_subnav` stays neutralised.
+    D. NO UNREACHABLE GRAPHITE PAGE — every `/dash/home*` page is reachable from the
+                         POST-CUTOVER front door, unless its own registry rationale
+                         declares that it is not a destination.
 
-The allowlist is the load-bearing part: a new orphan is a FAIL *unless* a human adds
-it to INTENTIONAL_NON_NAV with a reason. That converts "did the agent remember to
-look?" into "the build won't pass if the nav graph drifts."
+ONE ALLOWLIST, ONE AUTHORITY (cutover lane W6, 2026-07-27)
+----------------------------------------------------------
+This script used to keep its OWN `INTENTIONAL_NON_NAV` dict beside the machine-readable
+tables in `tests/test_dash_route_registry.py`. Two lists doing one job is one list too
+many, and they drifted exactly as you would expect: by the Graphite cutover the script's
+copy carried 28 entries against the test's 48, so the script reported real, linked pages
+(e.g. `/dash/home/internals`, which sits in the Graphite top bar) as orphans while the
+suite was green. Only one of them could be right, and neither could be trusted.
+
+The fix is structural, not cosmetic: the allowlist is now DERIVED, by importing that test
+module and asking its `classify()` for each route's KIND. Anything that is not a `lens` is
+legitimately not a nav tab — and every kind that module cannot derive already demands an
+owner + a specific rationale (playbook §5), so the "explicit human act" this gate depends
+on is unchanged; it just happens in ONE place now. The two gates can no longer disagree,
+because there is nothing left for them to disagree about.
+
+Reachability is measured on the nav graph a real visitor has. Since D148 the front door is
+`/dash` → 302 → the Graphite home, so the crawl seeds there and walks the Graphite estate
+alongside the classic surfaces — which is what makes contract D possible at all.
 
 Usage
 -----
@@ -56,86 +75,27 @@ _SUBRES_MARKERS = (
     "/memo", "/track/", "/dash/drawings", "/dash/scan",
 )
 
-# ── INTENTIONAL non-nav page routes (the REASONED allowlist) ──────────────────
-# Each entry is a real page route that is deliberately NOT a top-bar/sub-nav tab.
-# Adding here is the explicit human act that keeps the gate honest: a NEW orphan
-# fails until someone justifies it in this dict. Keep the reasons specific.
-INTENTIONAL_NON_NAV: dict[str, str] = {
-    "/dash":            "root — redirects into the app shell",
-    "/dash/index":      "home/landing surface (entered via the logo / root), not a lens tab",
-    "/dash/_ui":        "ui_kit design-system showcase — dev-only, deliberately unlinked",
-    "/dash/offline":    "PWA offline fallback page — served by the service worker, never a tab",
-    # redesign M0-M2 preview (docs/redesign-coordination.md; Codex B2): OPT-IN, direct-URL
-    # only — linking them from default chrome would break the byte-identity rule.
-    "/dash/preview":    "v3 preview landing + opt-in gate — additive preview program, deliberately "
-                        "unlinked from default chrome until cut-over ratification",
-    "/dash/_ui3":       "v3 design-system + term-chip showcase — preview/dev-only, deliberately unlinked",
-    "/dash/preview/stock": "M4 stock hub — preview-only surface, linked from the preview landing "
-                           "and by direct URL; never from default chrome (byte-identity rule)",
-    "/dash/preview/stock/export": "M4 chart series CSV — a data endpoint reached from the chart "
-                                  "rail's CSV link; an export, never a page",
-    # Graphite Markets children, lane W2-C (2026-07-27). Declared children of /dash/home (itself
-    # an intentional pre-cutover non-nav surface): direct-URL + cross-linked to each other by the
-    # 'More market context' strip, deliberately absent from classic nav until the cutover promotes
-    # them to lenses. Linking them from default chrome now would break the byte-identity rule.
-    "/dash/home/seasonal": "Graphite Seasonal (tape · this-month · divergence · expiry) — declared "
-                           "child of the Graphite home preview, no classic nav until cutover",
-    "/dash/home/patterns": "Graphite Patterns (Wolfe · harmonic) — declared child of the Graphite "
-                           "home preview, no classic nav until cutover",
-    "/dash/home/anatomy": "Graphite Move anatomy — declared child of the Graphite home preview, "
-                          "reached from the own-history page, no classic nav until cutover",
-    "/dash/home/own-history": "Graphite Own history (self-relative map) — declared child of the "
-                              "Graphite home preview, no classic nav until cutover",
-    "/dash/home/compare": "Graphite Compare — declared child of the Graphite home preview; the "
-                          "sacred classic /dash/compare keeps its own nav row untouched",
-    # /dash/pat left this allowlist (S-D): "Ask Pat" is now a registered Trust lens —
-    # reachable from the rendered nav, so the old "Cmd-K summon only" IA note is amended.
-    "/dash/api/symbol-search": "name→ticker JSON typeahead feed (S-D) — consumed by the Cmd-K bar, "
-                               "the home search box and the stock-miss page; an API, never a page",
-    # pre-existing gap found red on origin/main during the v3-preview lane (2026-07-17):
-    # the peers feed shipped beside symbol-search without its allowlist row — same class.
-    "/dash/api/peers": "per-symbol peers JSON feed (symbol_search.py) — consumed by dossier/compare "
-                       "typeahead surfaces; an API, never a page",
-    "/dash/stock":      "per-stock dossier — a DESTINATION reached by clicking a stock, claims no altitude",
-    "/dash/theme":      "per-theme detail — a DESTINATION reached from the Themes list",
-    "/dash/tracker":    "alias landing of /dash/dashboard (registry alias) — Tracker tab lands on dashboard",
-    "/dash/strategies": "RETIRED legacy Strategies hub — merged into /dash/strategist; kept alive (no 404), "
-                        "deliberately de-linked (v2_surfaces asserts it must not appear in the Strategist strip)",
-    # Wolfe/Harmonic: the per-stock CHART OVERLAY stays overlay-only (route=None records),
-    # AND the market-wide SCANNERS are now Markets "Patterns" nav lenses (Ramana 2026-07-02).
-    # /dash/harmonic + /dash/wolfe/scan are therefore REACHABLE (removed from this allowlist);
-    # /dash/wolfe (the picker landing) stays non-nav — reached from the chart + the scanner body.
-    "/dash/wolfe":      "Wolfe picker/landing — reached from the chart overlay + the Wolfe scanner body; the SCANNER (/dash/wolfe/scan) is the Markets·Patterns nav lens",
-    # per-stock news timeline — its CONTENT is now embedded as the dossier's News tab
-    # (render_stock_timeline), so it is surfaced in-page; the standalone route is kept as
-    # a shareable deep-link (/dash/news?sym=). Distinct from /dash/wire (market wire).
-    "/dash/news":       "per-stock news timeline — content embedded as the stock-dossier News tab; "
-                        "standalone route kept as a shareable deep-link. Distinct from /dash/wire.",
-    # per-stock RS-momentum pane — same pattern as /dash/news: its CONTENT is embedded as
-    # the stock-dossier Momentum tab (dashboard._mompane card_html), and every row of the
-    # nav-reachable /dash/divergence board deep-links here per symbol (links are DATA-driven,
-    # so an empty dev DB renders none for the gate to see).
-    "/dash/momentum":   "per-stock RS-momentum pane — content embedded as the stock-dossier "
-                        "Momentum tab; standalone route is the per-symbol deep-link target of "
-                        "the /dash/divergence board rows.",
-    # reachable via page-BODY cross-links (not the top chrome) — verified live:
-    "/dash/ratio":      "sacred ratio page — reached from the index/markets bodies (cockpit ratio links)",
-    "/dash/rs":         "full RS ranking — reached from the cockpit 'Full RS ranking' body link",
-    "/dash/replay":     "Replay-the-Tape — reached from the Trust/Coverage page body (the S55 trail)",
-    # Slow-rotation quarterly anchor (S132f): a declared NESTED CHILD of the momentum scanner
-    # (D80 nesting), reached from the on-page "⇄ Slow rotation (quarterly)" seg link.
-    "/dash/momentum-scan/slow": "quarterly large-cap LOWVOL_MOM anchor — reached from the "
-                                "scanner's on-page seg toggle, not a top-nav tab (S132f)",
-    # Wolfe open-trades view (D120/S121): a declared NESTED CHILD of the Patterns·Wolfe lens,
-    # reached via the on-page Fresh setups ⇄ Open trades toggle (emits active="wolfe"), not a tab.
-    # (tests/test_dash_route_registry.py classifies it 'nested_child'; this keeps the sister gate green.)
-    "/dash/wolfe/trades": "Wolfe open-trades remaining-ROI view — reached from the on-page "
-                          "Fresh ⇄ Open toggle on the Wolfe scanner, not a top-nav tab (D120)",
-    # Alert-rail dismiss action (D106/S123): a GET mutation endpoint, not a navigable page
-    # (POST-ification tracked as S-B2 debt). Sibling gate classifies it 'api_or_action'.
-    "/dash/attention/ack": "alert-rail dismiss action — a GET mutation endpoint (303 back), not a "
-                           "navigable page; reached from the ✕ controls on /dash/attention",
-}
+# -- the SINGLE ALLOWLIST AUTHORITY: tests/test_dash_route_registry.py --------
+# The route-registry gate already classifies every /dash route into exactly one KIND, with an
+# owner + rationale for every kind it cannot derive (playbook section 5). Importing it here --
+# rather than keeping a second copy of the same judgements -- is what makes the two gates incapable
+# of drifting apart. It is loaded by PATH (`tests/` is not a package), so this script still runs
+# standalone, from any cwd, with no test-runner involved.
+def _registry():
+    import importlib.util
+    path = os.path.join(_ROOT, "tests", "test_dash_route_registry.py")
+    spec = importlib.util.spec_from_file_location("_nav_route_registry", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+# A `/dash/home*` internal_dev page is exempt from contract D only when its OWN rationale says, in
+# so many words, that it is not a destination. These two phrases are the recorded vocabulary -- both
+# already appear verbatim on the surfaces that mean it (`/dash/home/_kit` = "deliberately unlinked";
+# `/dash/home/pat/ask` = "not a page, reached only by the dock's own input"). Anything else shipped
+# under /dash/home is a page somebody built for a reader, and it has to be reachable.
+_NOT_A_DESTINATION = ("deliberately unlinked", "not a page")
 
 # ── surfaces to render to discover what is reachable ──────────────────────────
 # The top-bar landings + the known body-cross-link hubs (index/markets/sectors/rrg/
@@ -217,18 +177,45 @@ def main() -> int:
     reachable: set[str] = set()
     linked: set[str] = set()
     render_fail: list[str] = []
-    for path in RENDER_SURFACES:
+    rendered: set[str] = set()
+
+    def _walk(path: str) -> set[str]:
+        """Render one surface, bank its hrefs, return them. Never raises.
+
+        Redirects are FOLLOWED (TestClient's default, and what this gate always did): under D80
+        every flat lens URL 307s to its nested canonical, and `/dash` itself 302s to the Graphite
+        home since the cutover — a crawl that stopped at the redirect would render nothing."""
+        if path in rendered:
+            return set()
+        rendered.add(path)
         try:
-            r = client.get(path)
+            r = client.get(path, follow_redirects=True)
         except Exception as e:  # noqa: BLE001
             render_fail.append(f"{path} -> render raised {type(e).__name__}: {e}")
-            continue
+            return set()
         if r.status_code != 200:
             render_fail.append(f"{path} -> {r.status_code} (expected 200)")
-            continue
+            return set()
         hs = _hrefs(r.text)
-        linked |= hs
-        reachable |= hs
+        linked.update(hs)
+        reachable.update(hs)
+        return hs
+
+    for path in RENDER_SURFACES:
+        _walk(path)
+
+    # POST-CUTOVER crawl (D148): the real front door is `/dash`, which 302s to the Graphite home.
+    # Walking it — and then every Graphite page it leads to, breadth-first — is what makes
+    # "reachable" mean what a visitor can actually click TODAY rather than what the classic chrome
+    # happened to emit. Bounded by the estate itself: only /dash/home* hrefs are followed, and each
+    # page is rendered at most once, so the crawl terminates on the graph's own size.
+    frontier = sorted(h for h in _walk("/dash") if h.startswith("/dash/home"))
+    reachable.add("/dash/home")
+    while frontier:
+        nxt = frontier.pop(0)
+        for h in sorted(_walk(nxt)):
+            if h.startswith("/dash/home") and h not in rendered:
+                frontier.append(h)
 
     # expand reachability across the flat↔nested equivalence (both directions).
     for _flat, _nested in flat_to_nested.items():
@@ -239,25 +226,61 @@ def main() -> int:
 
     fails: list[str] = list(render_fail)
 
-    # ── Contract A: no dead links (chrome points only at real routes) ──────────
-    dead = sorted(h for h in linked if h not in real_routes)
+    # ── Contract A: no dead links (chrome points only at things that answer) ───
+    # The route TABLE is not the whole truth any more: since D148 `/dash/classic` is served by the
+    # cutover MIDDLEWARE (it rewrites the path ahead of routing), so it is a perfectly live URL that
+    # appears in no `app.routes` entry. A table miss is therefore a suspicion, not a verdict —
+    # confirm it by asking the app, which is the thing a reader's click would actually ask.
+    dead = []
+    for h in sorted(linked):
+        if h in real_routes:
+            continue
+        try:
+            if client.get(h, follow_redirects=True).status_code != 404:
+                continue      # served by middleware / a mount — alive, just not a route row
+        except Exception:  # noqa: BLE001 — an unrenderable link is as dead as a 404
+            pass
+        dead.append(h)
     for h in dead:
-        fails.append(f"DEAD LINK: nav links {h} but no such route exists (404 risk)")
+        fails.append(f"DEAD LINK: nav links {h} but nothing answers it (404)")
 
-    # ── Contract B: no orphans (every page reachable or explicitly allowlisted) ─
+    # ── Contract B: no orphans (every page reachable, or registered as a non-nav KIND) ─
+    # The allowlist is DERIVED from tests/test_dash_route_registry.py — see the module docstring.
+    # A route classified as anything other than `lens` was a deliberate, owner+rationale'd act
+    # there; a route classified as NOTHING is that gate's failure to raise, not ours to duplicate.
+    reg = _registry()
+    kinds = {p: reg.classify(p, meta["methods"], meta["names"])
+             for p, meta in reg._dash_paths(app).items()}
     orphans = []
     for p in page_routes:
-        if p in reachable or p in INTENTIONAL_NON_NAV:
+        if p in reachable or kinds.get(p) not in (None, "lens"):
             continue
         orphans.append(p)
     for p in sorted(orphans):
-        fails.append(f"ORPHAN: page route {p} is reachable from no rendered surface "
-                     f"and is not in INTENTIONAL_NON_NAV (add it with a reason, or link it)")
+        fails.append(f"ORPHAN: page route {p} (kind={kinds.get(p)}) is reachable from no rendered "
+                     f"surface — link it, or register its kind in tests/test_dash_route_registry.py "
+                     f"with an owner and a reason")
 
-    # stale allowlist hygiene: an allowlisted route that no longer exists is dead config.
-    for p in sorted(INTENTIONAL_NON_NAV):
-        if p not in real_routes:
-            fails.append(f"STALE ALLOWLIST: {p} is in INTENTIONAL_NON_NAV but is no longer a route")
+    # ── Contract D: no unreachable Graphite page ───────────────────────────────
+    # Contract B lets `internal_dev` off the hook by design (that is what the kind MEANS). The
+    # Graphite estate is entirely internal_dev — the D148 owner decision REJECTED registering it in
+    # lens_registry, because that registry generates the CLASSIC nav and registering there would
+    # drift it. Without this contract the whole new site would sit in B's blind spot, and a page
+    # nobody can reach would gate green. So: under /dash/home, "registered" is not enough — a page
+    # is either reachable from the front door or its own rationale says it is not a destination.
+    unreachable = []
+    for p in page_routes:
+        if not p.startswith("/dash/home") or p in reachable:
+            continue
+        why = (reg.INTERNAL_DEV.get(p) or ("", ""))[1].lower()
+        if any(tok in why for tok in _NOT_A_DESTINATION):
+            continue
+        unreachable.append(p)
+    for p in sorted(unreachable):
+        fails.append(f"UNREACHABLE GRAPHITE PAGE: {p} is built and routed but no page in the "
+                     f"Graphite estate links it — wire it into the nav, or say in its "
+                     f"tests/test_dash_route_registry.INTERNAL_DEV rationale why it is not a "
+                     f"destination ({' / '.join(_NOT_A_DESTINATION)})")
 
     # ── Contract C: no double sub-nav strip ────────────────────────────────────
     # C1 — direct regression lock on the bug we fixed: the legacy Tracker strip must
@@ -279,14 +302,16 @@ def main() -> int:
                          f"(expected exactly 1) — a duplicated lens strip")
 
     # ── report ─────────────────────────────────────────────────────────────────
-    print(f"== nav-integrity: {len(page_routes)} page routes · "
-          f"{len(reachable)} reachable · {len(INTENTIONAL_NON_NAV)} allowlisted ==")
+    non_nav = sum(1 for p in page_routes if kinds.get(p) not in (None, "lens"))
+    print(f"== nav-integrity: {len(page_routes)} page routes · {len(rendered)} surfaces rendered · "
+          f"{len(reachable)} reachable · {non_nav} registered non-nav (derived) ==")
     print("  A. dead links     :", "PASS" if not dead else f"FAIL ({len(dead)})")
     print("  B. orphans        :", "PASS" if not orphans else f"FAIL ({len(orphans)})")
     print("  C. double sub-nav :", "PASS" if not any("DOUBLE STRIP" in f for f in fails) else "FAIL")
+    print("  D. graphite reach :", "PASS" if not unreachable else f"FAIL ({len(unreachable)})")
 
     if not fails:
-        print("PASS — nav graph coherent: no dead links, no orphans, no duplicate sub-nav.")
+        print("PASS — nav graph coherent: no dead links, no orphans, no duplicate sub-nav, every Graphite page reachable.")
         return 0
     print(f"\nFAIL — {len(fails)} nav-integrity issue(s). STOP: fix, link, or allowlist with a reason.")
     for line in fails:

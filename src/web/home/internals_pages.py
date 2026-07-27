@@ -51,13 +51,34 @@ PAGES = (
     ("attention", "/dash/home/attention", "What changed"),
 )
 
+# W6 WIRED THE NAV (2026-07-27) — the line above said "until W6 wires nav", and this is that.
+# The Markets top-bar door lands on `internals`, so this strip is the ONLY inbound path to the rest
+# of the Markets estate. W2-B (strength · sectors) and W2-C (seasonal · patterns · own-history ·
+# anatomy · compare) each shipped their pages cross-linked to EACH OTHER but with nothing linking
+# INTO the group — measured, not assumed: rendered on the box, `/dash/home/internals` emitted zero
+# hrefs to any of the seven. Post-cutover that is seven finished pages a reader cannot reach, so
+# they join the strip as a second row of cross-links. `scripts/nav_integrity_gate.py` contract D
+# now fails the build if a future Graphite page ships without an inbound link.
+CROSS = (
+    ("/dash/home/rotation", "Sector rotation"),
+    ("/dash/home/strength", "Relative strength"),
+    ("/dash/home/sectors", "Sectors"),
+    ("/dash/home/seasonal", "Seasonal"),
+    ("/dash/home/patterns", "Patterns"),
+    ("/dash/home/own-history", "Own history"),
+    ("/dash/home/anatomy", "Move anatomy"),
+    ("/dash/home/compare", "Compare"),
+)
+
 
 def _subnav(current: str) -> str:
     out = ['<nav class="gw2-sub" aria-label="Markets depth">']
     for key, href, label in PAGES:
         cur = ' aria-current="page"' if key == current else ""
         out.append('<a href="' + href + '"' + cur + ">" + label + "</a>")
-    out.append('<a class="gw2-sub-x" href="/dash/home/rotation">Sector rotation</a></nav>')
+    for href, label in CROSS:
+        out.append('<a class="gw2-sub-x" href="' + href + '">' + label + "</a>")
+    out.append("</nav>")
     return "".join(out)
 
 

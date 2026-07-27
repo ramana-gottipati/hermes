@@ -589,11 +589,14 @@ def sec_setups(core: dict, xs: dict) -> str:
                           " — the nightly setup scan has not landed in this database yet."))
     else:
         body = "".join(blocks)
+    # W6 cutover: both cross-links were classic routes whose Graphite twins are now live —
+    # /dash/launchpad -> the W3-A Launchpad page, /dash/seasonal-calendar -> the W2-C Seasonal
+    # page's expiry view. Read-only doors, so they retarget inward like every other symbol link.
     body += ('<p class="g-sub">Cross-links: '
-             + '<a href="/dash/launchpad?sym=' + _uq.quote(sym) + '">Launchpad</a> covers the '
-               "coiled, pre-breakout half of the same family; "
-             + '<a href="/dash/seasonal-calendar">expiry &amp; holiday conditioning</a> is the '
-               "fourth scan and lives with the seasonal family.</p>")
+             + '<a href="/dash/home/strategies/launchpad?sym=' + _uq.quote(sym) + '">Launchpad</a>'
+               " covers the coiled, pre-breakout half of the same family; "
+             + '<a href="/dash/home/seasonal?view=calendar">expiry &amp; holiday conditioning</a> '
+               "is the fourth scan and lives with the seasonal family.</p>")
     body += C.learn("These are descriptive scans of the tape: how long a base ran, where volume "
                     "actually piled up, and how much of a move happened while the market was shut. "
                     "They describe structure; none of them is a signal to act on.")
@@ -811,7 +814,9 @@ def miss(sym: str, suggestions) -> str:
         body += ('<p class="g-sub">Did you mean: '
                  + " · ".join(glink(s["symbol"]) + (" " + esc(s["name"]) if s.get("name") else "")
                               for s in suggestions) + "</p>")
-    body += ('<p><a href="/dash/screen2">Browse the screener</a> — the ticker is in the first '
+    # W6 cutover: was `/dash/screen2` (classic). The Graphite screener shipped in W4, so a
+    # not-found page no longer ejects the reader into the classic site to look up a ticker.
+    body += ('<p><a href="/dash/home/screen">Browse the screener</a> — the ticker is in the first '
              "column.</p>")
     return C.zone("Symbol not found", "NSE bhav copy · EOD", body) + picker()
 

@@ -97,10 +97,21 @@ def test_home_page_carries_graphite_marker_and_no_preview_legacy_markers():
         assert m not in r.text, ("home leaked a preview/legacy marker", m)
 
 
-def test_classic_and_preview_pages_carry_no_graphite_markers():
-    """Both-directions collision gate (Codex #8): Graphite must not leak onto legacy OR preview."""
+def test_classic_pages_carry_no_graphite_markers():
+    """Both-directions collision gate (Codex #8): Graphite must not leak onto the classic site.
+
+    W6 RE-SPEC, and ONLY this line of it (2026-07-27). The probe list used to read
+    ("/dash/glossary", "/dash/coverage", "/dash/preview") and the test was named
+    ...classic_AND_PREVIEW_pages... . The preview element is gone because the preview is gone: since
+    the retirement `/dash/preview` 302s to `/dash/home`, so following it and asserting "no Graphite
+    marker here" would be asserting that the Graphite home is not the Graphite home. Its replacement
+    contract is `tests/test_preview_retired.py` (302 → the twin, and the twin IS Graphite).
+
+    Nothing else about this gate moved. The two CLASSIC probes are unchanged and still green — the
+    D148 landing cutover is a pure-ASGI path rewrite, so no classic page was ever edited or reskinned
+    and Graphite has never leaked onto one."""
     client = TestClient(_app())
-    for path in ("/dash/glossary", "/dash/coverage", "/dash/preview"):
+    for path in ("/dash/glossary", "/dash/coverage"):
         r = client.get(path, follow_redirects=True)
         assert r.status_code == 200, (path, r.status_code)
         for m in GRAPHITE_MARKERS:
