@@ -182,7 +182,7 @@ _CSS = """<style>/* g-pat */
 :root[data-ui-g] .g-pat-more-b{font-size:12.5px;color:var(--ink-2);line-height:1.55;margin-top:6px}
 </style>"""
 
-_JS = """<script>(function(){
+_JS = r"""<script>(function(){
 var RM=matchMedia("(prefers-reduced-motion:reduce)").matches;
 var pat=document.getElementById("g-pat"),fab=document.getElementById("g-pat-fab"),panel=document.getElementById("g-pat-panel"),
     msg=document.getElementById("g-pat-msg"),ans=document.getElementById("g-pat-ans"),bub=document.getElementById("g-pat-bub"),

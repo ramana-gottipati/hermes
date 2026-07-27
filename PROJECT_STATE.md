@@ -2270,6 +2270,41 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Graphite Home — 2026-07-27 — hygiene: `pat_dock._JS` made a RAW string — the last invalid escape sequence in `src/` is gone
+`src/web/home/pat_dock.py:185` declared `_JS` as a normal (non-raw) triple-quoted string while the
+JavaScript inside carries the regex literal `/\s/` (the typed-box whitespace guard in `symToken`).
+Python does not recognise `\s`, so every real compile of the module emitted
+`DeprecationWarning: invalid escape sequence '\s'`. Today it merely passes through; it is scheduled to
+become a `SyntaxWarning` and then a **`SyntaxError`** — the VPS runs 3.11, so this was latent breakage,
+not cosmetics. **Fix: one character — `_JS = r"""…"""`.**
+- **Proven safe, not assumed.** Tokenised the literal first: `_JS` contained **exactly one backslash**
+  (`\s`) and **zero intended Python-level escapes** (no `\n`, `\"`, `\\`, `\t`) — the case that would
+  have made a raw conversion change meaning. Rendered value is byte-identical across the edit:
+  `sha256(_JS)` = `1b287bd8088e04a6…` before **and** after; `_CSS` holds no backslash at all and was
+  deliberately left untouched.
+- **Package-wide check (the brief's second half), and the answer is "leave them alone".** Every string
+  literal under `src/web/home/` was tokenised, not grepped. The other backslash-bearing embedded
+  literals are all *valid* escapes and are **correctly non-raw**: `components.py:778` and
+  `stock_view.py:330` use `'\\-'` to emit `\-` — an escaped hyphen inside an HTML `pattern=` character
+  class, which raw-ifying would corrupt into `\\-`; `components.py:1490` (`\"`), `tokens.py:53-67`
+  (`\n`, `\"`) and the several `\'` sites are ordinary intended escapes; `components.py:58` and
+  `reads.py:652,882` are already raw. **Whole-`src/` sweep: 0 files with an invalid escape sequence.**
+- **Verification.** `tests/test_home_pat_a11y.py` + `test_home_isolation.py` + `test_home_dom_safety.py`
+  → **18 passed, warning gone**. ⚠ Reproducing the baseline needed `__pycache__` cleared first: the
+  warning fires only on a genuine compile, so a warm `.pyc` silently hides it — a green run is NOT
+  evidence the escape is fixed. Rendered-dock walk: `dock_html()` renders (13,134 chars), `symToken`
+  present, the `/\s/` guard intact in delivered HTML, `<script>` tags balanced.
+- **Pre-existing failure, isolated and excluded.** The wider home/Pat surface is 269 passed / 1 failed —
+  `test_home_featured.py::test_conviction_now_caches_by_date` (a `reads.conviction_now` cache-hit
+  assertion, unrelated to this file). **Proven pre-existing**: reverted the one character, confirmed
+  `git status` clean at HEAD `4f09fdc`, and it still fails.
+- **🔴 Scope note — the brief's deep-link gate does not exist on this branch.** The brief asked to
+  confirm `tests/test_home_isolation.py::test_no_home_module_deep_links_the_classic_dossier`; that test
+  is absent here and `pat_dock.py:210` still emits **`/dash/stock?sym=`** (the classic dossier), not
+  `/dash/home/stock?sym=`. That retarget *and* its package-wide gate are commit **`10fd446`** on the
+  **unmerged** branch `claude/elated-meninsky-63e57b`. Deliberately **not** absorbed — it is another
+  lane's work (Guardrail #0). The two edits touch different lines of the same file and merge cleanly.
+
 ### Graphite Home — 2026-07-27 — 🚩 THE LANDING CUTOVER (D148) — `/dash` now lands on the Graphite home
 The owner chose mechanism **(b)**; executed. **`/dash` 302s to `/dash/home`; the classic home is
 preserved byte-identically at `/dash/classic`.** Full decision + rationale + rollback: **§Decision log
