@@ -48,8 +48,11 @@ def test_pat_answers_calibrate_terse_title_plus_detail_on_demand():
     symbol instead of always echoing the same canned block."""
     html = pat_dock.dock_html(_conn())
     assert "g-pat-a-title" in html and 'class="g-pat-more"' in html
-    for tok in ("function classify(", "function symToken(", "/dash/stock?sym="):
+    # POST-CUTOVER (2026-07-27): the dock's symbol chip deep-links the GRAPHITE stock page — the
+    # Graphite estate must be self-contained now that /dash/home IS the landing (D148).
+    for tok in ("function classify(", "function symToken(", "/dash/home/stock?sym="):
         assert tok in html, tok
+    assert '"/dash/stock?sym="' not in html, "the dock must not eject a reader into classic chrome"
 
 
 def test_pat_renders_defensively_on_empty_db():

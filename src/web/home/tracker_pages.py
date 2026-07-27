@@ -292,7 +292,7 @@ def _movers_block(rows) -> str:
         return C.empty("No day moves on the book yet — the tape lands after the close.")
 
     def chips(items):
-        return "".join('<a class="g-syma" href="/dash/stock?sym=' + C.esc(s) + '">' + C.esc(s)
+        return "".join('<a class="g-syma" href="/dash/home/stock?sym=' + C.esc(s) + '">' + C.esc(s)
                        + ' <b class="g-num ' + _tone(v) + '">' + C.esc(_pct(v)) + "</b></a> "
                        for s, v in items) or '<span class="g-sub">—</span>'
     ups = [m for m in mv if m[1] > 0][:5]

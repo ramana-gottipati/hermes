@@ -2293,6 +2293,7 @@ copy differs from HEAD in COMMENT WORDING ONLY (a parallel lane ASCII-ified the 
 `_ROUTER_SPECS` tuple identical, so the change went on by ANCHORED INSERT, never a full-scp.
 **NOT done, deliberately surfaced:** retiring `/dash/preview*` + its `*_v3` modules = deleting another
 lane's work → needs the owner's OK (Guardrail #0).
+- **Post-merge follow-up (integration lane `lane/integrate-1`, separate commit so deploy can include/exclude it consciously):** the last Graphite call sites that still deep-linked the CLASSIC stock page now point at `/dash/home/stock?sym=` — `pat_dock.py`'s symbol chip JS and `tracker_pages.py`'s movers chips (`components.sym_link` + `_hm_tile` were already retargeted by W1). `stock_view.py`'s explicit "Full classic view →" escape hatch is deliberately left on `/dash/stock`. `tests/test_home_pat_a11y.py` updated to assert the Graphite target AND that the classic one is gone.
 
 ### Graphite Home — 2026-07-27 — THE GRAPHITE STOCK PAGE (§5-F unblocker) — `/dash/home/stock`
 Built the per-symbol evidence scroll — **the one thing that was blocking cutover** (the old

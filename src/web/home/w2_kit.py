@@ -46,8 +46,8 @@ def signed(v, dp: int = 2, unit: str = "") -> str:
 def sym_link(symbol) -> str:
     """A symbol that deep-links to the GRAPHITE stock page (`/dash/home/stock?sym=`), not the
     classic dossier. Lane-owned rather than `components.sym_link` because that shared helper still
-    points at `/dash/stock` on this lane's base — switching it is the stock lane's call, not this
-    one's. Escaping is identical (`esc` on the symbol, which is alnum-ish by construction)."""
+    pointed at `/dash/stock` on this lane's base — the stock lane has since retargeted it, so the two
+    now agree. Escaping is identical (`esc` on the symbol, which is alnum-ish by construction)."""
     s = esc(symbol)
     return '<a class="g-syma" href="' + STOCK_PATH + "?sym=" + s + '">' + s + "</a>"
 
