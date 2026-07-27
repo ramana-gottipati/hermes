@@ -315,8 +315,13 @@ LIBRARY = (
      "Promise-keeping record from earnings calls + a deterioration veto."),
     ("launchpad", "Launchpad", "house", "", "/dash/home/strategies/launchpad",
      "Momentum with contracting volatility — a validated screen."),
-    ("cpr", "CPR structure", "classic", "cpr", "/dash/stock",
-     "Pivot-range structure, multi-timeframe. Lives on the stock chart."),
+    # INTEGRATION-2: retargeted classic `/dash/stock` -> the Graphite stock page, which is not a
+    # gate exception but a FIX — `stock_page.SECTIONS` carries ("cpr", "Structure"), so the D/W/M/Q
+    # pivot read this row promises genuinely lives there. SURFACE_PARITY["cpr"] is DROPPED-demoted
+    # on exactly that evidence ("every per-name CPR fact already lives in the stock dossier's CPR
+    # panel"); classic /dash/cpr stays live for bookmarks, but the directory points inward.
+    ("cpr", "CPR structure", "classic", "cpr", "/dash/home/stock",
+     "Pivot-range structure, multi-timeframe. Lives on the stock page."),
     ("rs", "Relative strength suite", "classic", "relative-strength", "/dash/home/rotation",
      "RRG, RS bands, rotation and capture — measured our way."),
     ("wolfe", "Wolfe waves", "classic", "wolfe-wave", "/dash/wolfe/scan",

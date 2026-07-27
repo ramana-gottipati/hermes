@@ -50,6 +50,7 @@ def test_pat_answers_calibrate_terse_title_plus_detail_on_demand():
     assert "g-pat-a-title" in html and 'class="g-pat-more"' in html
     # POST-CUTOVER (2026-07-27): the dock's symbol chip deep-links the GRAPHITE stock page — the
     # Graphite estate must be self-contained now that /dash/home IS the landing (D148).
+    # This pins the dock specifically; the PACKAGE-WIDE contract lives in test_home_isolation.py.
     for tok in ("function classify(", "function symToken(", "/dash/home/stock?sym="):
         assert tok in html, tok
     assert '"/dash/stock?sym="' not in html, "the dock must not eject a reader into classic chrome"
