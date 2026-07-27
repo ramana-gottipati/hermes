@@ -2308,6 +2308,29 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Graphite Markets — 2026-07-27 — the sector drill-down's empty state was a DEAD END (W2-B follow-up)
+Two suite failures surfaced the moment `python -m pytest -q` ran on a box with **no market data**.
+Both lanes had reported green (W1 869/0/1, Integration-1 955/0/1) because their boxes had rows. They
+looked like one defect class; they were **two different ones**, so each was traced before touching it.
+- **`test_sectors_tabs_and_drilldown` — a REAL PRODUCT BUG, not a test artifact.** `sectors_pages._drill`
+  emitted `← back to all sectors` **only on the populated branch**. When `markets_reads.sector_members`
+  returned nothing, the reader landed in a drill-down (`/dash/home/sectors?sec=…`) with **no way back** —
+  an honest empty state that was also a navigation dead end, against the no-orphan-nav rule. The test's
+  assertion was correct, so the **product** was fixed: one `back` local appended to BOTH branches, with
+  the populated branch's inline literal collapsed into it so the link has a single owner.
+  Verified both branches emit exactly one back-link (the populated path via a stubbed `sector_members`,
+  since this box has zero constituents).
+- **`test_conviction_now_caches_by_date` — a TEST defect (`49f1f7e`, pushed separately).** `reads.conviction_now`
+  caches by `MAX(trade_date) FROM stock_signals`; with 0 rows that key is NULL and the function
+  **deliberately** skips the cache write. Correct defensive behaviour, so the guard was left alone and the
+  test was made environment-independent (owns a `get_conn` stub over an in-memory `stock_signals`) and now
+  pins **both** branches — cached when dated, never cached under a null key.
+**Full suite 955 pass / 0 fail / 1 skip** — the same number Integration-1 reported, now reached on a box
+with no market data at all.
+**Carry-forward:** a lane's "N/0/1 green" is only as portable as its box's data. These two were found
+because the suite happened to run data-less; treat a data-dependent assertion as a lane-report caveat,
+not a proof. Only these two were observed — no claim is made about the rest of the estate.
+
 ### Graphite Home — 2026-07-27 — 🔗 SYMBOL SELF-CONTAINMENT (D148-b) — the fix CONVERGED with the integration lane; the lasting contribution is a PACKAGE-WIDE gate · ✅ DEPLOYED + LIVE
 **🔀 CONVERGENCE — two sessions fixed this independently, and the duplicate dissolved cleanly.** This
 worktree flipped `pat_dock.py` as `10fd446`; the integration lane had already landed the SAME change on

@@ -75,10 +75,16 @@ def _drill(conn, sector: str) -> str:
     """The per-sector drill-down the classic estate hid behind a deep link: which names inside this
     sector actually carry its relative strength, and how broad that is."""
     rows = R.sector_members(conn, sector, limit=30)
+    # The way OUT of the drill-down, needed on BOTH branches. An empty constituent list is still a
+    # drill-down the reader has to be able to leave: before this, a sector whose nightly RS pass had
+    # not landed rendered a dead end with no way back to the standing board (no-orphan nav rule).
+    back = ('<p class="g-mnote"><a class="g-syma" href="' + C.safe_url(U.SECTORS_HREF)
+            + '">← back to all sectors</a></p>')
     if not rows:
         return (U.head("Inside " + R._short(sector), "constituent detail")
                 + C.empty("No ranked constituents on record for this sector yet — that needs the "
-                          "nightly stock relative-strength pass."))
+                          "nightly stock relative-strength pass.")
+                + back)
     body = ""
     for r in rows:
         body += ("<tr><td>" + U.sym(r.get("symbol")) + "</td>"
@@ -101,8 +107,7 @@ def _drill(conn, sector: str) -> str:
                          + str(len(hot)) + " of these look stretched on relative strength and "
                          + str(len(cold)) + " look washed out. Breadth like that is what separates "
                          "a sector move carried by two names from one carried by twenty.</p>")
-            + '<p class="g-mnote"><a class="g-syma" href="' + C.safe_url(U.SECTORS_HREF)
-            + '">← back to all sectors</a></p>')
+            + back)
 
 
 def standing(conn, sector: str = "") -> str:
