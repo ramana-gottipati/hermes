@@ -438,6 +438,52 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                         "dip, per-setup cohorts, the outcome histogram and the recovery ladder, "
                         "under its own gross-of-cost + survivorship warning. NOT carried: the "
                         "click-through winners/losers drill"),
+    # ── W4 / M8 — the screener workspace (5 surfaces), lane `lane/w4-screener` 2026-07-27 ──
+    # Verdicts are per-CAPABILITY, not per-page: the rebuild had to CARRY every job the classic
+    # pages did, which is why two of the five are honestly retired rather than re-rendered.
+    "screen2": ("PORTED", "/dash/home/screen",
+                "The Graphite screener IS the migrated Screen+. Every capability carried — scope "
+                "chips + sector picker, the 0-6 confluence lead column with its pillar dots, the "
+                "self-scaling 30th-percentile turnover liquidity gate, the reclaim/slip descriptive "
+                "cuts, column-family toggles, saved screens and CSV. Three recorded debts fixed in "
+                "the rebuild: the ~2.3 MB single-document render became server-side pagination over "
+                "a fixed-size internally-scrolling frozen-pane grid; the client-side CSV blob became "
+                "a server ?format=csv export that honours the active filter/sort/column state; and "
+                "the localStorage-only column/sort/filter state became URL state, so a screen is now "
+                "a shareable link (saved screens = bookmarks, no per-browser silo)"),
+    "themes":  ("PORTED", "/dash/home/themes",
+                "Themes / Baskets carried as the non-ticker discovery door: the multi-label "
+                "company_tags layer, grouped in the canonical vocabulary order with approved-only "
+                "counts and index-seeded provenance shown, plus a per-theme participants view. New "
+                "connection the classic page lacked: a theme hands off directly into the screener "
+                "(/dash/home/screen?scope=theme:<tag>), so discovery and screening are one flow"),
+    "screener": ("DROPPED", "",
+                 "CUT (plan §1b). Two full screeners over the same universe and the same precomputed "
+                 "tables is duplication, not choice — /dash/screen2 was already the declared superset "
+                 "(it carries the classic screener's Identity/Conviction/Positioning/RS/Quality/"
+                 "Context groups plus MEP, CCI, Wolfe, reversal and capital-allocation), and the "
+                 "Graphite rebuild is a superset of THAT. Carrying a second grid would have meant two "
+                 "column registries, two export paths and two education scaffolds over one dataset. "
+                 "REVERSIBLE AND NON-DESTRUCTIVE: the classic route stays live and unmodified for "
+                 "existing bookmarks; nothing is deleted, only un-rebuilt in the new experience"),
+    "tags-review": ("NA", "",
+                    "Owner/ops tool, not a customer lens. The page is a tag QUALITY DESK — approve or "
+                    "reject AI-proposed theme tags, hand-add or remove them — i.e. it maintains the "
+                    "data that /dash/home/themes reads. A visitor has nothing to do here and every "
+                    "control on it is a write against the tag layer. It stays live and unmodified on "
+                    "the classic site as the owner workflow it always was; the new experience shows "
+                    "the RESULT (approved tags, with provenance) rather than the editing desk"),
+    "workbench": ("DROPPED", "",
+                  "EXAMINED, then absorbed (playbook §2.6 — 'what job does it do?'). The job was "
+                  "'every DVPT / key-price / character / activity signal for the latest day in ONE "
+                  "wide sortable exportable table' — which is exactly the job the screener now does, "
+                  "with more columns and a real server export. Its one DISTINCT data claim was the "
+                  "key-price family (key_price_p3m/6m/12m + their gaps, avg_close_p3m, avg_trade_qty, "
+                  "avg_deliv_qty_per_trade, delivery_value_today, total_value_today), which classic "
+                  "screen2 did NOT carry. That family is now IN the Graphite column pool and ships as "
+                  "the named 'Key-price read' view — so this is an absorption with the evidence "
+                  "carried, not a capability loss. Part III §J had already scoped the key-price "
+                  "family into the ~70-column pool. Classic route stays live for bookmarks"),
 }
 
 _VALID_STATUS = {"PORTED", "DEFERRED", "DROPPED", "NA"}

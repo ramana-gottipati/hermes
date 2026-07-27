@@ -291,3 +291,10 @@ def _compose(conn, on: bool, map_size: int = 150) -> str:
 # owns its OWN APIRouter in src/web/home/internals_pages.py; one additive include, no route here.
 from src.web.home import internals_pages as _w2_markets  # noqa: E402
 router.include_router(_w2_markets.router)
+
+# --- w4-screener additions: the M8 screener estate, mounted as declared children -------------
+# ONE line per lane convention. `screen_pages` owns its own APIRouter (routes /dash/home/screen +
+# /dash/home/themes); including it here keeps the single `/dash/home*` mount in _ROUTER_SPECS.
+from src.web.home import screen_pages as _screen_pages  # noqa: E402
+
+router.include_router(_screen_pages.router)

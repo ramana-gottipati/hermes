@@ -204,6 +204,8 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 - **Graphite Markets estate (cutover wave W2-B, 2026-07-27) — 5 new lane-owned modules in `src/web/home/`:** `markets_reads.py` (the RS/rotation/sectors read layer — reuses the canonical `src/automation/` engines `rrg`·`rsband`·`capture`·`rs_phase`·`stock_rs` + the `momentum_scan` rows; bounded, defensive, plus the `DEMO_*` sample fallbacks) · `markets_ui.py` (the shared `.g-m*` atoms: view switcher, fixed-height internally-scrolling box, table, 0-100 position strip, phase/quadrant pills, the lane stylesheet) · `rotation_pages.py` (`/dash/home/rotation?view=journeys|weather|band|clock`) · `strength_pages.py` (`/dash/home/strength?view=…` + the lane's SINGLE `APIRouter`, which also serves `/dash/home/sectors`) · `sectors_pages.py` (`?tab=standing|economics`, `?sec=` drill). Mounted by ONE additive `v2_surfaces._ROUTER_SPECS` entry `("graphite-markets", "src.web.home.strength_pages", "/dash/home/strength")`; registered in `tests/test_dash_route_registry.INTERNAL_DEV`; **NO lens/nav until cutover**. Gate: `tests/test_home_markets.py` (17 tests — routes · view degradation · marker isolation · no classic-view import · `?sym=` links · verdict-key ban · read defensiveness · demo-shape parity · PORTED-targets-actually-serve).
 - `src/web/home/w2_reads.py` · `w2_kit.py` · `w2_pages.py` · `seasonal_pages.py` · `patterns_pages.py` · `anatomy_pages.py` · `compare_pages.py` — **the Graphite Markets W2-C children (2026-07-27, cutover lane)**: 10 classic lenses consolidated into 5 declared-child routes — `/dash/home/seasonal` (views `tape`/`screen`/`divergence`/`calendar`, + `format=csv`) · `/dash/home/patterns` (views `wolfe`/`harmonic`) · `/dash/home/anatomy` · `/dash/home/own-history` (`?sym=` drill) · `/dash/home/compare` (`?sym=&cmp=&idx=&r=`). `w2_reads.py` is the bounded, defensive read layer (rows only, never HTML) over `seasonal_cells`/`seasonal_stack`/`seasonal_outlook`/`seasonal_meta`/`x_setups_signals`/`wolfe_signals`/`harmonic_signals`/`stock_signals`/`index_rows`/`bhavcopy_rows`/`corporate_actions` + research.db `features`; `w2_kit.py` is the `.w2-*` stylesheet (injected via `shell(extra_head=)`, never appended to the shared `components.py`) + the fixed-size internally-scrolling box/table/view-bar/family-strip primitives; `w2_pages.py` is the ONE aggregator router so `home/__init__.py` takes a single anchored two-line insert. **Imports NO classic view module and NO analysis engine** — in particular never `seasonal_tape.py` (its `__doc__` is hashed into `frozen_family_hash()`), never `wolfe*.py`/`stock_chart*.py` (hot lane), never the `/dash/self-history` engine (breaks `test_home_isolation`). Gate: `tests/test_home_w2_markets.py` (17 tests). Declared children in `tests/test_dash_route_registry.py::INTERNAL_DEV` + allowlisted in `scripts/nav_integrity_gate.py::INTENTIONAL_NON_NAV`; **no `lens_registry` entry until cutover**.
 - `src/web/home/strategies_pages.py` + `strategies_blocks.py` + `strategies_reads.py` — the **Graphite Strategies workspace** (M7, lane W3-A, 2026-07-27): the 18 classic Strategies lenses consolidated into `/dash/home/strategies` + ten sub-routes per plan §1c + Part III §J. Same reads/render split as `reads.py`/`components.py` (`_reads` returns rows only, `_blocks` returns HTML only, `_pages` is the only place they meet); own `APIRouter` mounted by ONE additive `v2_surfaces._ROUTER_SPECS` tuple; all eleven routes registered in `tests/test_dash_route_registry.INTERNAL_DEV` as declared children (no `lens_registry` entry until cutover). Reuses ENGINE modules only (`strategy_registry` · `stock_rs.conviction_shortlist` · `insider_events` · `credit_ratings` · `sast_events` · `shareholding_xbrl` · `auto_portfolios` · `famous_strategies` · `factor_league` · `launchpad_signals`) — never a `src/web/*` view module, so the isolation gate holds. `python -m src.web.home.strategies_pages` = the 17-route selftest, which fails on the degraded branch and on any missing honesty fence.
+- `src/web/home/screen_pages.py` + `src/web/home/screen_reads.py` — **the Graphite SCREENER estate (W4 · milestone M8, 2026-07-27).** `screen_pages.py` owns its own `APIRouter` (mounted by ONE anchored `router.include_router` line at the foot of `src/web/home/__init__.py`) and serves two declared children: **`/dash/home/screen`** — the rebuild of classic `/dash/screen2`, with the identity spine (3 frozen cols) + a **72-column pool** across 14 families, 12 defaults, ~20 soft cap, 6 named views (`VIEWS`), server-side filter/sort/pagination into a fixed-size internally-scrolling frozen-pane grid, **`?format=csv` server export honouring the active state**, and **full URL-addressable state** (`parse_state`/`qs` are a proven round-trip fixed point — the URL IS the saved screen); and **`/dash/home/themes`** — the multi-label themes/baskets door that hands off via `?scope=theme:<tag>`. Payload is bounded BY CONSTRUCTION via the `CELL_BUDGET`/`effective_n` pair (a wide view renders shorter pages, disclosed in the pager): worst reachable state 261 KB vs classic's ~2.3 MB. `screen_reads.py` is the lane-owned read layer (bounded, defensive, precomputed tables only; the self-scaling 30th-percentile turnover liquidity gate; auxiliary lookups run ONLY when the active view needs them). Both obey the isolation ban — no classic/preview render module, no `lens_registry` edit, no nav until cutover. Gate: `tests/test_home_screen.py`.
+- `tests/test_home_screen.py` — the W4 screener gate (24 tests): the three debt fixes pinned (payload projected across every reachable state, CSV-honours-filter/sort/columns, URL-state round-trip + every control carries state), plus glossary-backed columns, columns-never-paywalled, `?sym=` links to the Graphite stock page, descriptive fences travelling with their family, demo honesty, clamp-don't-422, and an explicit parity verdict for all five screener surfaces.
 - `tests/test_home_isolation.py` + `tests/test_home_tokens_aa.py` — the increment-(i) gates: both-directions marker isolation · no preview import · route-gate registered · never linked from chrome · WCAG AA on every token pair incl. the candle fill+outline. **Green** (the only red across the run = the research lane's pre-existing `test_rule_lab` BLOCKING_ROWS 11≠10, unrelated to this lane). Not yet deployed.
 - **Increment (ii) (2026-07-23):** zones 1-3 wired over the self-contained reads — **market pulse** (index cards + NIFTY close sparkline + canonical `market_mood` + breadth) · **Today/what-changed** (severity count-band + humanised alert-rail rows over `signal_alert_state`) · **FII/DII flows** (signed diverging bars over `fii_dii_flows`, category `'FII/FPI'`). New reads `severity_counts`/`index_series`; gate `tests/test_home_zones.py` (defensive empty-state · seeded render · DOM-escape · no-marker-leak). Suite 788 pass.
 - **Increment (iii) (2026-07-23):** zones 4-7 — **Going-ex corporate actions** + **Results calendar** (agenda strips over `corp_actions.upcoming` [its `(rows, as_of)` tuple-unpack FIXED in `reads.upcoming_ca`] / `results_calendar.upcoming_results`) · **News wire** (every href via `safe_url`) · a **Go-deeper Delivery drawer** (`power_dvpt_3m`, progressive-disclosure `<details>`). New builders agenda/ca_agenda/results_agenda/wire/drawer/rowbars/delivery_drawer; gates `test_home_zones.py` (calendar/news/drawer render + defensive) + new `test_home_dom_safety.py` (news `javascript:`/`data:` collapse — Codex #9). Suite **793 pass**.
@@ -2720,6 +2722,59 @@ three NEW lane-owned modules, one anchored mount line, no classic view touched. 
   `cpr` is DROPPED with a verified rationale; `shp` stays **DEFERRED** because `shareholding_history`
   lives in the separate research store and cannot be verified off-box — the quarter matrix is built and
   routed, and should be promoted only after box verification.
+
+### Graphite cutover W4 — 2026-07-27 — THE SCREENER REBUILT (M8): `/dash/home/screen` + `/dash/home/themes`
+Lane `lane/w4-screener` (worktree, base `f1ee223`). The M8 screener workspace (5 classic surfaces)
+rebuilt in the Graphite identity and given an explicit parity verdict each. Additive + isolated:
+two NEW lane-owned modules, ONE anchored mount line, no classic view touched, no `lens_registry`
+edit (nav stays the cutover's job).
+- **`/dash/home/screen` — a rebuild of `/dash/screen2`, not a transliteration.** Capability parity
+  is per-CAPABILITY: scope chips + sector picker, the 0-6 confluence lead column with pillar dots,
+  the self-scaling 30th-percentile turnover liquidity gate (CL-VIEW-15 — never a static rupee
+  threshold), the reclaim/slip descriptive cuts, column-family toggles, saved screens and CSV all
+  carried. **The three recorded debts are fixed by design:**
+  1. **Payload.** Classic shipped up to 600 rows x 43 columns in ONE document (~2.3 MB). The rebuild
+     paginates server-side into a fixed-size internally-scrolling frozen-pane grid (sticky header +
+     sticky Symbol column). Default render **103,775 B**. 🔴 The live-render check was NOT sufficient
+     evidence — on the 4-row fixture DB it would pass at any weight; projecting the real markup showed
+     `n=200` x the 75-column pool reaching **~585 KB, over budget**. Fixed by construction with a CELL
+     budget (`effective_n`): a wide view renders shorter pages, disclosed in the pager. Worst reachable
+     state is now **261 KB**. Gate: `test_payload_budget_holds_in_every_reachable_state` projects a FULL
+     page at every page size x both column sets, so it cannot pass by fixture accident.
+  2. **Export.** The client-side CSV blob became a server `?format=csv` that honours the ACTIVE scope,
+     text filter, minimum confluence, reversal cut, sort and column set, with the state echoed in a
+     header line and demo data marked `SAMPLE DATA`.
+  3. **URL state.** Column set / sort / filter lived in localStorage and could not be shared. Now every
+     control is a GET and the **URL is the saved screen** — `?scope=/cols=/view=/sort=/dir=/q=/minconf=
+     /rev=/n=/page=`. Round-trip is a proven fixed point; every control carries the state forward.
+- **Column architecture per Part III §J (ratified):** identity spine 3 (frozen) + **72-column pool**
+  across 14 families, 12 defaults, ~20 soft cap, 6 named views. Every column glossary-backed or an
+  explicit `''` opt-out (gate mirrors the classic Screen+ rule). **Columns are never paywalled** —
+  Free gets every column, filter, sort and the export; Pro adds only the reference layer (rank within
+  the current result set + the stored self-relative "vs own 1-mo" turnover), gate-asserted.
+- **`/dash/home/themes` — Themes / Baskets ported** as the non-ticker discovery door: the multi-label
+  `company_tags` layer grouped in canonical vocabulary order, approved-only counts, index-seeded
+  provenance shown, per-theme participants. New connection classic lacked: a theme hands off into the
+  screener (`?scope=theme:<tag>`), so discovery and screening are one flow.
+- **Verdicts recorded in `sideways_parity.SURFACE_PARITY` (all 5 keys):** `screen2` **PORTED** →
+  `/dash/home/screen` · `themes` **PORTED** → `/dash/home/themes` · `screener` (classic) **DROPPED**
+  (two full screeners over one dataset is duplication; the classic route stays live and unmodified for
+  bookmarks — un-rebuilt, not deleted) · `tags-review` **NA** (owner/ops tag-quality desk, every control
+  is a write; the new experience shows the RESULT, not the editing desk) · `workbench` **DROPPED —
+  ABSORBED**: examined per playbook §2.6, its job ("every signal in one wide sortable exportable table")
+  IS the screener's job, and its one distinct data claim — the key-price family — is now IN the pool and
+  ships as the named "Key-price read" view, so the evidence travelled. Parity now **PORTED 4 · DEFERRED
+  67 · DROPPED 2 · NA 1 · UNSCOPED 0**. M8 deliberately left **PLANNED**, not DONE: nothing is box-verified
+  yet (standing correction #9) — the parent flips it after the deploy walk.
+- **Gates:** full suite **876 passed / 0 failed / 1 skipped** (baseline 852/0/1; +24 = the new lane gate).
+  Graphite + governance cluster 114 green (isolation · read-contract · route-registry · parity · Pat
+  coverage · education). `sideways_parity` selftest OK (74 surfaces · 0 UNSCOPED · board 200).
+- **Open / for the reviewer:** local DB is the 4-row fixture, so all data claims are STRUCTURE-only —
+  row counts, liquidity-floor behaviour and per-request cost need the box. The shared `pat_dock.py` still
+  deep-links `/dash/stock?sym=` (classic dossier) rather than `/dash/home/stock` — a cutover item, not
+  touched here because the file is shared. The Fundamentals family (~15 cols) named in §J was
+  deliberately NOT built: it is sourced from the `screener.py` vendor path that Guardrail #8 puts under
+  XBRL remediation with "do not extend it".
 
 ### Graphite Home — 2026-07-27 — HEATMAP ENHANCEMENTS (§5-E) — colour-by-delivery · size selector · Pro "unusual for this stock"
 Closed §5-E, the last queued Graphite home unit. Additive/isolated, 89 gates green, deployed + box-verified.
