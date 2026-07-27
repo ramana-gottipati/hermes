@@ -722,9 +722,10 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                       "print stylesheet did not travel, so it is now just a long page; the "
                       "generated-at stamp, scope line and tamper-evidence paragraph are gone too"),
     "pat":          ("DEFERRED", "M6",
-                     "LANDED on the EXISTING Graphite floating dock, extended with the classic "
+                     "LANDED at /dash/home on the EXISTING Graphite floating dock (a dock, not a "
+                     "page — there is deliberately no third Pat), extended with the classic "
                      "page's resolution (glossary + lens-registry auto-fold + symbol deep-link, "
-                     "model-free) via GET /dash/home/pat/ask — deliberately not a third Pat. Not "
+                     "model-free) via GET /dash/home/pat/ask. Not "
                      "yet carried: threads, saved boards, the feedback loop. RE-OPENED by the "
                      "2026-07-28 gap audit (register §8j, 4 MAJOR): the open-items list missed the "
                      "biggest one — the ~15 GUIDED FLOWS (accumulation · rs · rslag · fundamentals · "
