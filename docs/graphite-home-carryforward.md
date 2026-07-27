@@ -174,8 +174,18 @@ depth. Reached via the new "See the full rotation →" link on the Today RRG.
 - ✅ Registered in `test_dash_route_registry` INTERNAL_DEV (graphite-home; declared child, no lens/nav
   until cutover — same as `/dash/home`). 89 gates green.
 
-**E. Heatmap enhancements (offered, owner may want):** colour-by-delivery toggle; full universe;
-per-tile "unusual move?" context (Pro).
+**E. Heatmap enhancements — ✅ DONE + DEPLOYED (commit `6c78663`).**
+- ✅ **Colour-by-delivery toggle** — `_hm_tile` emits a 2nd intensity `--d` (unsigned cyan conviction
+  ramp, 25%→80%) beside the signed `--i`; container `data-mode` + CSS repaint; legend swaps by pure
+  CSS sibling selector (no JS `innerHTML`).
+- ✅ **Full universe → SIZE SELECTOR** (verdict: 2,692 tiles is illegible): `?map=N` → Top **150/350/600**,
+  server-clamped to `components._HM_SIZES` (hostile input falls back to 150 — route-tested). 150 Free;
+  350/600 Pro. Box: 600 tiles = 8ms read + 8ms render, 161KB (no caching needed).
+- ✅ **Pro per-tile "unusual for THIS stock"** — `market_map` selects the precomputed
+  `stock_signals.turnover_surge_1m` + `avg_deliv_pct_1m`; hover gains a "vs its own history" block +
+  unusual/typical read. **Verdict on the reuse fork:** `/dash/self-history`'s engine lives in a
+  web-VIEW module — importing it breaks `test_home_isolation`, so we reuse the STORED columns (same
+  self-relative philosophy, zero coupling). 99.5% row coverage on the box.
 
 **F. Cutover (PARKED):** promote `/dash/home` into nav + retire old preview — only after the Graphite
 stock page exists (old preview uniquely serves `/dash/preview/stock`).
@@ -202,21 +212,23 @@ hermes-api` → `curl …/dash/home` 200 + structure grep → **the verify-curl 
 > autonomously (Guardrail #0); the Browser pane is DOWN so verify HTML/gates/data on the box and hand
 > `?v=N` links. Suite baseline **~844** (only `test_rule_lab` red, not ours — deselect it; 821 pass).
 >
-> **DONE + LIVE (2026-07-24, do NOT rebuild — verify first):** the ENTIRE **Pro reference layer**
-> (A1 reference chip on 5 pulse tiles · A2 FII/DII deeper · A3 portfolio attribution), the owner
-> corrections (B1 watchlist add-date · B2 the **+ Add** affordance / home-owned `POST
-> /dash/home/watch/add`), the **Pro-Ads** locked-teaser layer (`components.pro_teaser`), AND the
-> **Markets rotation page** (§5-D, `/dash/home/rotation` — 6/12/24-mo RRG, fixed-10-dot clutter-fix,
-> Pro-gated long journeys, `reads.rrg_journey`/`_block_means`). Commits `7c62e64 · 705c1ed · 91e20d0 ·
-> 7e32500`. Details + verdicts in §5-A/B/C/D. `market_internals_daily` staleness self-resolved (07-24).
+> **⭐ THE WHOLE §5 QUEUE (A–E) IS DONE + LIVE — do NOT rebuild any of it; verify first.** The Pro
+> reference layer (A1 reference chip on 5 pulse tiles · A2 FII/DII deeper · A3 portfolio attribution),
+> the owner corrections (B1 watchlist add-date · B2 the **+ Add** affordance / home-owned `POST
+> /dash/home/watch/add`), the **Pro-Ads** locked-teaser layer (`components.pro_teaser`), the **Markets
+> rotation page** (`/dash/home/rotation` — 6/12/24-mo RRG, fixed-10-dot clutter-fix), and the **heatmap
+> enhancements** (colour-by-delivery · Top 150/350/600 size selector · Pro "unusual for this stock").
+> Commits `7c62e64 · 705c1ed · 91e20d0 · 7e32500 · 6c78663`. Verdicts + details in §5-A/B/C/D/E.
 >
-> **THE MISSION THIS SESSION: §5-E heatmap enhancements** — the market-map (`components.heatmap` /
-> `reads.market_map`) gains (1) a **colour-by-delivery** toggle (vs the current colour-by-move), (2)
-> **full-universe** beyond the top-140-by-turnover, (3) a Pro per-tile **"is this move unusual for this
-> stock?"** context (align with `/dash/self-history` — reuse, don't duplicate the isolation-gated
-> engine). Then **§5-F cutover** (PARKED until a Graphite stock page exists — old `/dash/preview`
-> uniquely serves `/dash/preview/stock`). **DEFERRED (§5-B3):** "when a name is added,
-> when is its next trigger?" (results date · ex-date · cadence-overdue) — raise, don't build yet.
+> **THE MISSION THIS SESSION — pick with the owner, the queue is now open:**
+> 1. **§5-F CUTOVER (the blocker to everything):** promote `/dash/home` into nav + retire the old
+>    preview. Needs a **Graphite stock page** first (old `/dash/preview/stock` uniquely serves that) —
+>    so the real unit is **build the Graphite stock page**, then cut over. This is the highest-value
+>    remaining work; propose it first.
+> 2. **§5-B3 (DEFERRED, owner's own idea — raise it):** "when a name is added, when is its NEXT
+>    trigger?" (results date · ex-date · cadence-overdue). Discuss before building.
+> 3. Depth passes on what shipped (more Pro-Ads teaser spots; the CTA currently flips the preview tier
+>    — a real launch needs a checkout route).
 >
 > Every change: additive, isolated (`data-ui-g`/`.g-*`, no preview/legacy import), DOM-safe,
 > reduced-motion-safe, defensive + demo/sample-honest, gate-tested, deployed writer-safe per §6, box-
