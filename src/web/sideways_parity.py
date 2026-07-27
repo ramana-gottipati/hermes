@@ -90,6 +90,83 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                 "M5 Today IS the migrated markets overview / orientation home"),
     "wire":    ("PORTED", "/dash/preview",
                 "M3 news/flow dock (?ch=news) is the migrated News/Wire"),
+
+    # ── lane W2-C (2026-07-27): seasonal · patterns · anatomy · self-relative · compare ──
+    # 10 classic lenses -> 5 Graphite declared-child routes. Parity is judged PER EVIDENCE BLOCK,
+    # so a page that renders and reads well but is missing load-bearing blocks stays DEFERRED with
+    # an explicit shipped/outstanding note — it is not promoted to PORTED on look alone.
+    "seasonal-calendar": ("PORTED", "/dash/home/seasonal?view=calendar",
+                          "Expiry/holiday conditioning, all four window deltas in bps + both counts "
+                          "+ sort control + sym links + as-of + server CSV + the 0-certified null "
+                          "prior fence; reads the same bounded x_setups_signals snapshot"),
+    "seasonal-tape": ("DEFERRED", "M-Markets",
+                      "SHIPPED /dash/home/seasonal?view=tape — month/weekday/ISO-week script grids "
+                      "(grey by default, coloured only on full certification), the 'N of M cells "
+                      "certified' winnowing headline, per-cell year-by-year stack, Pro forward-"
+                      "outlook band with the white=noise read, frozen-family sha256 provenance, "
+                      "0-certified fence. OUTSTANDING: monthly/weekly consolidation panels, the "
+                      "per-cell placebo-null detail block, scope=stock + symbol search"),
+    "seasonal-screen": ("DEFERRED", "M-Markets",
+                        "SHIPPED /dash/home/seasonal?view=screen — Wilson-lower-bound ranking (not "
+                        "raw hit-%), the 95% band on every row, an explicit indistinguishable-from-"
+                        "chance flag, month + hot/cold selectors, server CSV. OUTSTANDING: the "
+                        "'Strength t' sort dimension, the per-name month-rank column, and the "
+                        "index=<Name> constituent filter"),
+    "seasonal-divergence": ("DEFERRED", "M-Markets",
+                            "SHIPPED /dash/home/seasonal?view=divergence — month-by-month cells for "
+                            "two entities side by side + the gap + per-side year counts. "
+                            "OUTSTANDING: the current-elapsed-year overlay read from seasonal_stack"),
+    "harmonic-scan": ("DEFERRED", "M-Markets",
+                      "SHIPPED /dash/home/patterns?view=harmonic — the full nine-column snapshot "
+                      "table (shape · side · state · in-zone · age · price · zone/PRZ · fit), "
+                      "as-of, read-by-side fence. OUTSTANDING: the weekly/monthly live multi-TF "
+                      "scan and the ?refresh=1 live recompute (both are on-demand compute the "
+                      "Graphite page deliberately does not do)"),
+    "wolfe-scan": ("DEFERRED", "M-Markets",
+                   "SHIPPED /dash/home/patterns?view=wolfe — snapshot table (side · in-zone · age · "
+                   "price · zone · stop · first target · room), as-of, and the 'edge is in the "
+                   "SELECTION, not the craft' fence. Ported READ-ONLY over wolfe_signals with no "
+                   "import of wolfe*.py / stock_chart*.py (that lane is hot on origin/main). "
+                   "OUTSTANDING: the §B quality components A-I/D + Q column, the three sort "
+                   "dimensions, and the Fresh-setups / Open-trades toggle"),
+    "move-anatomy": ("DEFERRED", "M-Markets",
+                     "SHIPPED /dash/home/anatomy — the precursor fingerprint as standardised gaps "
+                     "from the quiet baseline + the 6-month excursion envelope + the post-selection "
+                     "/ survivorship / 1-in-10-baseline fence + the momentum-not-accumulation "
+                     "finding. OUTSTANDING: the full ~20-precursor family breakdown and the "
+                     "big-move rate column"),
+    "self-history": ("DEFERRED", "M-Markets",
+                     "SHIPPED /dash/home/own-history — the self-relative map rebuilt from STORED "
+                     "stock_signals ratio columns (turnover vs own 1m/1y norm, delivery 1m vs 6m, "
+                     "delivery size vs own 30-day and own best month, distance from own 52w high), "
+                     "plus a per-symbol view ranking each ratio against that symbol's own trailing "
+                     "history. DISCLOSED DIFFERENCE: the classic lens's 3-year percentile over "
+                     "adjusted OHLC is NOT reproduced — the Graphite package may not import that "
+                     "web-view engine (tests/test_home_isolation.py). OUTSTANDING: the "
+                     "cross-sectional second lens (peer percentile + the both-extreme gold ring) "
+                     "and the five-universe selector"),
+    "compare": ("DEFERRED", "M-Markets",
+                "SHIPPED /dash/home/compare — a NEW route; the sacred classic /dash/compare stays "
+                "byte-untouched. Rebased-to-100 overlay of up to six stocks/indices, split/bonus "
+                "adjusted from corporate_actions, URL-as-state with ?sym=&cmp=&idx=&r=. "
+                "OUTSTANDING: the ratio-vs-denominator mode (mode=ratio&den=), the base=0 mode, and "
+                "the searchable symbol picker"),
+    "early-signals": ("DROPPED", "",
+                      "NAMED CHECK RUN 2026-07-27 (lane W2-C), mechanism traced not pattern-matched: "
+                      "the page owns NO data and NO compute of its own. Feed 1 is "
+                      "stock_rs.phase_movers() filtered to turn-ups into Recovery/Tailwind — the "
+                      "same rows /dash/rotation already renders (limit 40, both directions) and "
+                      "/dash/rs-hub's RS section shows; feed 2 is divergence_board._scan() filtered "
+                      "to the bullish half — that IS /dash/divergence's own scan. Its own docstring "
+                      "states 'reads only precomputed tables, no new compute/storage'. What is left "
+                      "after removing the duplication is a direction FILTER, i.e. a display preset, "
+                      "not a distinct data claim -> DROPPED as a lens. NOT LOST: the classic route "
+                      "stays live for bookmarks, and the claim must be re-homed as a 'just turned "
+                      "up' filter on the Graphite rotation + divergence ports (a recorded dependency "
+                      "on the W2 rotation/RS lane). NOTE for that lane: stock-grain rs_phase flips "
+                      "are NOT on the signal-alerts bus — signal_events' 'rs' lens is INDEX-grain "
+                      "(rsband_signals vs Nifty 500) — so the Graphite home's What-changed zone does "
+                      "NOT already carry this; the rotation port must"),
 }
 
 _VALID_STATUS = {"PORTED", "DEFERRED", "DROPPED", "NA"}
