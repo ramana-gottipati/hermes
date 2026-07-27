@@ -111,6 +111,18 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                              "fixed ~10-dot tails) — a declared child of the Graphite "
                                              "home, reached via 'See the full rotation →' from the Today "
                                              "RRG; direct-URL, no lens/nav until cutover"),
+    "/dash/home/screen": ("graphite-home", "Graphite screener (M8 rebuild of /dash/screen2) — a "
+                                           "declared child of the Graphite home, reached from the "
+                                           "Stocks destination and from the themes page; every "
+                                           "filter/sort/column choice is URL state, and "
+                                           "?format=csv is the server export of the same screen; "
+                                           "direct-URL, no lens/nav until cutover"),
+    "/dash/home/themes": ("graphite-home", "Graphite themes / baskets (M8) — non-ticker discovery "
+                                           "over the multi-label company_tags layer; a declared "
+                                           "child of the Graphite home, reached via 'browse by what "
+                                           "companies actually do' from the screener, and hands off "
+                                           "to /dash/home/screen?scope=theme:<tag>; direct-URL, no "
+                                           "lens/nav until cutover"),
     # Sideways migration-parity board (2026-07-24) — the internal governance dashboard proving no
     # classic element is silently missed in the modern-app rebuild (gate: tests/test_sideways_parity.py).
     # An owner/ops tool, deliberately unlinked; NOT a customer lens, so no lens_registry entry.

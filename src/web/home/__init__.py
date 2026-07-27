@@ -240,3 +240,11 @@ def _compose(conn, on: bool, map_size: int = 150) -> str:
     regime = C.regime_band(C.rrg_map(rrg_data), C.breadth_gauges(bd_data), rrg_demo, bd_demo)
 
     return ribbon + C.hidden_tray() + '<div class="g-dash">' + main + side + "</div>" + regime
+
+
+# --- w4-screener additions: the M8 screener estate, mounted as declared children -------------
+# ONE line per lane convention. `screen_pages` owns its own APIRouter (routes /dash/home/screen +
+# /dash/home/themes); including it here keeps the single `/dash/home*` mount in _ROUTER_SPECS.
+from src.web.home import screen_pages as _screen_pages  # noqa: E402
+
+router.include_router(_screen_pages.router)
