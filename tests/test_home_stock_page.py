@@ -650,3 +650,62 @@ def test_the_direction_free_panes_keep_their_own_encoding():
     for tok in ("C.cup", "C.cdn"):
         # the candle tokens must appear only in the candle call, never in a pane
         assert snip.count(tok + ",") + snip.count(tok + "}") + snip.count(tok + ")") <= 4, tok
+
+
+# ── the pane-alignment gate (owner defect: panes not time-aligned) ─────────────────────────────
+def test_the_payload_carries_ONE_shared_session_domain():
+    """OWNER DEFECT: the OHLC, DVPT and Delivery-% panes were not time-aligned — the same month
+    label sat at a different x in each pane. Root cause: every pane was fed `S.filter(<field> !=
+    null)`, so a pane whose coverage starts later (stock_signals needs a long lookback; the old
+    bhav format carried no delivery column) got its OWN time domain and still drew from ITS first
+    date at ITS left edge. The payload was never the problem — it has always been ONE time column —
+    so this pins the invariant the client must build on: one `t`, one row per session, every row
+    the same width."""
+    isl = {"series": [{"t": "2026-01-%02d" % i, "o": 1, "h": 2, "l": 0.5, "c": 1.5,
+                       # a deliberately RAGGED island: DVPT and delivery start late, exactly the
+                       # shape that used to fork the domain three ways
+                       "dvpt": (1000 * i) if i > 6 else None,
+                       "dp": (40 + i) if i > 4 else None,
+                       "r1m": 1.1, "tv": 5_000_000, "dv": (2_000_000 if i > 4 else None)}
+                      for i in range(1, 11)], "zones": []}
+    body = json.loads(CH._payload(isl))
+    assert body["cols"].count("t") == 1, "exactly one time column, emitted once"
+    assert body["cols"][0] == "t"
+    assert len(body["rows"]) == 10
+    assert all(len(r) == len(body["cols"]) for r in body["rows"]), "ragged rows would fork the domain"
+    times = [r[0] for r in body["rows"]]
+    assert times == sorted(times) and len(set(times)) == len(times), "oldest-first, no duplicates"
+    # the ragged fields survive as explicit nulls — the client turns those into whitespace points
+    assert [r[5] for r in body["rows"][:6]] == [None] * 6
+    assert body["rows"][-1][5] is not None
+
+
+def test_every_pane_is_reindexed_onto_the_master_domain():
+    """The fix in code form: no pane may build its own filtered array. Each is mapped over the
+    FULL master series, emitting a `{time}` whitespace point where it has no value — so all four
+    series have identical length and logical index i is the same trading date everywhere."""
+    snip = CH._SNIPPET
+    assert "function onMaster(" in snip, "the reindex helper must exist"
+    # the ban is on CODE, not on the comment that documents the old bug
+    for shape in ("=S.filter(", "setData(S.filter(", " S.filter(function"):
+        assert shape not in snip, "a filtered pane array re-forks the time domain: " + shape
+    for pane in ("sDeliv.setData(onMaster(", "sTv.setData(onMaster(", "sDv.setData(onMaster("):
+        assert pane in snip, pane
+    # DVPT carries a per-bar colour so it maps inline — but still over the WHOLE series
+    assert "sDvpt.setData(S.map(" in snip and "d.dvpt==null ? {time:d.t}" in snip
+
+
+def test_visible_ranges_and_gutters_and_crosshair_are_synced_across_panes():
+    """Three separate mechanisms, all required for the panes to line up:
+    logical-range sync (index-based, only sound because the domain is now shared), an equalised
+    right-hand price gutter (measured live at 54/60/78/100px — a 46px x-drift on its own), and a
+    crosshair that fans out so the dashed time-line lands on the same date in every pane."""
+    snip = CH._SNIPPET
+    assert "subscribeVisibleLogicalRangeChange" in snip and "setVisibleLogicalRange" in snip
+    assert "var syncing=false" in snip and "if(syncing||!r) return" in snip, "reentrancy guard"
+    assert "fitContent()" not in snip, "fitContent fits each pane to its OWN extent — the bug"
+    assert "minimumWidth" in snip and "priceScale('right').width()" in snip
+    assert "setCrosshairPosition" in snip and "clearCrosshairPosition" in snip
+    assert "var crossing=false" in snip, "crosshair fan-out needs its own reentrancy guard"
+    # a resize re-derives every gutter, so it has to re-level them
+    assert snip.count("equalize()") >= 3
