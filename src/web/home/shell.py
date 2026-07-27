@@ -15,7 +15,7 @@ from src.web.home.tokens import tokens_css
 # The 6 destinations. Graphite twins don't exist yet, so non-Today links point at the classic
 # routes (one-way home->classic is allowed; the classic site never links back — gate-tested).
 DESTS = [("Today", "/dash/home"), ("Markets", "/dash/markets"), ("Stocks", "/dash/stocks"),
-         ("Strategies", "/dash/strategist"), ("Tracker", "/dash/tracker/dashboard"),
+         ("Strategies", "/dash/strategist"), ("Tracker", "/dash/home/tracker"),
          ("Proof", "/dash/coverage")]
 
 _FENCE = ("Descriptive only — everything here is past data from primary exchange sources "

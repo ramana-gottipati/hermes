@@ -51,6 +51,10 @@ _ROUTER_SPECS = [
     # sector-economics · sector-momentum → one). Declared children of the Graphite home, registered
     # in tests/test_dash_route_registry.INTERNAL_DEV; NO lens_registry entry until cutover.
     ("graphite-markets", "src.web.home.strength_pages", "/dash/home/strength"),
+    # Graphite Tracker (2026-07-27, lane w3-tracker / milestone M7) — the six classic Tracker
+    # surfaces ported as declared children of the Graphite home. Own router so the section stays
+    # unpluggable; the watch WRITE stays the home's single `POST /dash/home/watch/add`.
+    ("graphite-tracker", "src.web.home.tracker_pages", "/dash/home/tracker"),
     # Replay the Tape — the standalone PIT-audit one-pager linked off the Coverage/Trust
     # front-door (D-PITCH-1/4). A tiny view that serves docs/replay-the-tape.html verbatim;
     # durably mounted here so the trail off Coverage never dead-ends after a main.py clobber.

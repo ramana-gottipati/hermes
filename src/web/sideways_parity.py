@@ -278,6 +278,50 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                       "are NOT on the signal-alerts bus — signal_events' 'rs' lens is INDEX-grain "
                       "(rsband_signals vs Nifty 500) — so the Graphite home's What-changed zone does "
                       "NOT already carry this; the rotation port must"),
+    # ── Tracker (milestone M7, lane w3-tracker, 2026-07-27) ────────────────────────────
+    # Five surfaces rebuilt as declared children of the Graphite home; the sixth is the
+    # admitted duplicate and is DROPPED as a merge. Notes name the RESIDUAL honestly —
+    # a port claim that hides what did not travel is worth nothing to the next session.
+    "dashboard": ("PORTED", "/dash/home/tracker",
+                  "Graphite Tracker overview: book totals · worth-a-look flags · movers · allocation "
+                  "+ concentration + Pro contribution · books table · the model-book door. RESIDUAL: "
+                  "alerts-firing, news-for-your-names and upcoming-corporate-actions blocks are NOT "
+                  "rebuilt here — the Graphite home already renders news (reads.recent_news) and "
+                  "going-ex (reads.upcoming_ca) for the whole market; filtering those to holdings is "
+                  "the open follow-up rather than a second rendering"),
+    "portfolios": ("PORTED", "/dash/home/tracker/portfolios",
+                   "Positions in the Part III §J tracker column set, Kite-norm labels (Avg. cost · LTP · "
+                   "Cur. val · P&L · Day chg.), frozen identity spine, Pro column layer, book chips with "
+                   "URL state, server CSV. RESIDUAL: per-row WRITES (edit / close / single-position add) "
+                   "and the dividends-since column stay on the classic page and are linked, not forked — "
+                   "the lane adds exactly one write (the importer)"),
+    "watchlists": ("PORTED", "/dash/home/tracker/watchlists",
+                   "The canonical stocks_in_play watch tier, added through the home's EXISTING "
+                   "POST /dash/home/watch/add (one write path, native date_added). RESIDUAL: per-row "
+                   "alerts, promote and remove stay on the classic page and are linked; the shared add "
+                   "POST still redirects to Today, so the confirmation lands there"),
+    "performance": ("PORTED", "/dash/home/tracker/performance",
+                    "Scoreboard: realised/unrealised ₹ P&L, hit-rate by strategy and book, average excess "
+                    "vs Nifty 500, average hold, a CHAINED TIME-WEIGHTED return curve vs the benchmark + "
+                    "its deepest fall. XIRR is rendered only when tracker_reads.cashflow_fidelity() passes "
+                    "on the live rows (ratified §K.4 pre-condition); otherwise the page prints the "
+                    "measurement and withholds the number. RESIDUAL: the classic page's CAGR and "
+                    "book-value equity curve are deliberately NOT carried — both inherit the same "
+                    "cash-flow defect (a deposit reads as a gain); the time-weighted chain replaces "
+                    "them. Dividends received are still absent from every return figure"),
+    "import": ("PORTED", "/dash/home/tracker/import",
+               "File-or-paste onboarding: any column order, keyword header detection, symbols validated "
+               "against bhavcopy_rows EQ/BE exactly as reads.watch_add does, unsaved preview with a "
+               "per-row verdict, then a confirm that RE-VALIDATES before writing. RESIDUAL: .xlsx is not "
+               "parsed (CSV/TSV/paste only) — the classic importer's openpyxl path did not travel"),
+    "model-books": ("DROPPED", "",
+                    "MERGE, not a deletion. model-books and model-portfolios rendered the SAME engine "
+                    "books — the Tracker copy's own nav rationale admitted the numbers were 'already "
+                    "covered by the model_portfolios data flow'. In the new experience there is one data "
+                    "source and two doors: the books live in Strategies, and the Tracker carries the "
+                    "'follow a book' view (a named book seeded with today's date and today's close, never "
+                    "the backtest's history) as a section of /dash/home/tracker. The classic route stays "
+                    "live and linked so existing bookmarks and the Adopt write keep working"),
 }
 
 _VALID_STATUS = {"PORTED", "DEFERRED", "DROPPED", "NA"}
