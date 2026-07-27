@@ -1023,7 +1023,7 @@ def _bandlock_block(pack: dict) -> str:
                      "sessions since " + C.esc(pack.get("feed_birth") or "")))
     body = ""
     for s in pack.get("streaks") or []:
-        up = s.get("dir") == "up"
+        up = R.is_upper_lock(s)          # the engine says "UP"/"DOWN" — never lowercase
         body += ('<tr><td class="l k">' + _sym(s.get("symbol")) + "</td>"
                  '<td class="l"><span class="gw2-pill ' + ("up" if up else "dn") + '">'
                  + ("▲ upper" if up else "▼ lower") + "</span></td>"

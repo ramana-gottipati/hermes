@@ -31,7 +31,16 @@ import sqlite3
 from src.web.home.reads import _has, _latest_date, _rows
 
 # ── seasonal ────────────────────────────────────────────────────────────────────
-_AXES = ("month", "week", "weekday")
+# TWO VOCABULARIES, translated HERE and nowhere else. The engine persists the weekly axis as
+# `iso_week` (src/automation/seasonal_tape.py:104, and the classic lens queries axis='iso_week' at
+# src/web/seasonal_view.py:216-218); the page + URL vocabulary is the shorter `week`. This port
+# asked the store for 'week', which matches no row — so the ISO-week grid and its cell-drill could
+# never render, on any entity, while the page still looked complete. The store keys live in
+# `_STORE_AXES`; callers keep saying "week".
+_AXES = ("month", "week", "weekday")              # page/URL vocabulary
+_STORE_AXES = ("month", "iso_week", "weekday")    # what seasonal_cells / seasonal_stack hold
+_AXIS_TO_STORE = {"week": "iso_week"}
+_AXIS_FROM_STORE = {"iso_week": "week"}
 MONTH_ABBR = {1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
               7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec"}
 WEEKDAY_ABBR = {0: "Mon", 1: "Tue", 2: "Wed", 3: "Thu", 4: "Fri"}
@@ -63,9 +72,9 @@ def seasonal_script(conn, scope: str, entity: str) -> dict:
                    "SELECT axis, cell, script_z, n_years, hit_rate, conf, colored, signed, "
                    "       emp_p_block, emp_p_phase, null_p95, sign_stable, fdr_pass, mechanism "
                    "FROM seasonal_cells WHERE scope=? AND entity=? AND axis IN (?,?,?) "
-                   "ORDER BY axis, cell", (scope, entity, *_AXES)):
+                   "ORDER BY axis, cell", (scope, entity, *_STORE_AXES)):
         try:
-            out.setdefault(r["axis"], {})[int(r["cell"])] = r
+            out.setdefault(_AXIS_FROM_STORE.get(r["axis"], r["axis"]), {})[int(r["cell"])] = r
         except (TypeError, ValueError):
             continue
     return out
@@ -83,13 +92,15 @@ def seasonal_certified_count(script: dict) -> tuple:
 
 
 def seasonal_year_stack(conn, scope: str, entity: str, axis: str, cell: int, limit: int = 30) -> list:
-    """The per-year residual behind ONE cell — 'behind the script'. Newest year last."""
+    """The per-year residual behind ONE cell — 'behind the script'. Newest year last.
+    `axis` is in page vocabulary ('week'); it is translated to the store's key here."""
     if not _has(conn, "seasonal_stack"):
         return []
     return _rows(conn,
                  "SELECT year, mean_z, n_obs FROM seasonal_stack "
                  "WHERE scope=? AND entity=? AND axis=? AND cell=? "
-                 "ORDER BY year DESC LIMIT ?", (scope, entity, axis, int(cell), limit))[::-1]
+                 "ORDER BY year DESC LIMIT ?",
+                 (scope, entity, _AXIS_TO_STORE.get(axis, axis), int(cell), limit))[::-1]
 
 
 def seasonal_outlook(conn, scope: str, entity: str, axis: str = "month") -> list:
@@ -103,7 +114,8 @@ def seasonal_outlook(conn, scope: str, entity: str, axis: str = "month") -> list
     return _rows(conn,
                  "SELECT axis, cell, horizon, k, n, ci_lo, ci_hi, base_rate, edge, light, mechanism "
                  "FROM seasonal_outlook WHERE scope=? AND entity=? AND axis=? AND asof=? "
-                 "ORDER BY cell LIMIT 40", (scope, entity, axis, d))
+                 "ORDER BY cell LIMIT 40",
+                 (scope, entity, _AXIS_TO_STORE.get(axis, axis), d))
 
 
 def seasonal_meta(conn) -> dict:

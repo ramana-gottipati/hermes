@@ -1014,3 +1014,103 @@ recorded at `stock_page.py:44-63` and ledger `:170-186`.
 Pro-gating check: the `own` panel `ref_chip`s (`stock_page.py:671`) and the `pos` reference row
 (`:401-403`) are `.pro-more`, but classic has no equivalent reference layer and the raw values stay
 free — **not a gap**.
+
+---
+
+## 10. Disposition ledger — what `lane/parity-truth` did with this register (2026-07-28)
+
+The register's own headline finding was that **the parity board over-claims**. This lane closed
+that half: it corrected `src/web/sideways_parity.py` so the board's dispositions match this
+document, and fixed the two XS correctness defects the audit found. It fixed **no capability rows**
+— those remain the fix program's P1-P7 work.
+
+**THE RULE APPLIED (one rule, every key):** a surface is downgraded `PORTED` → `DEFERRED` when
+this register holds **≥1 MAJOR row against it that is still open on `HEAD`**. A key keeps `PORTED`
+only when every MAJOR row against it is closed — by a fix landing in this lane, or by work already
+on `main` since the audit's base `ba2c259`. MINOR/COSMETIC residue never forces a downgrade; it
+earns a correction to the note instead. The cross-cutting rows (§0 X-1…X-6) are counted once in §0
+and are deliberately NOT used to downgrade individual keys.
+
+**Re-verification against `main` (`6fa87d3`):** the audit ran at `ba2c259`, before W6 `276762c`.
+W6 touched `internals_pages.py` · `screen_pages.py` · `shell.py` · `stock_page.py`, but only at
+link/nav level (DESTS repoints, the Markets-depth cross-link strip, 3 retargeted classic links) —
+it closes §0 X-3 and a handful of MINOR link rows, and **no per-surface MAJOR row**. Spot-verified
+still-open on HEAD before downgrading: `_ROT_PERIODS` = 6/12/24 with `data-pro` on 12M/24M · zero
+`svg` in `strength_pages.py` (capture scatter) · `_fno_table(board, 12)` free / 200 Pro · no `memo`
+route in `trust_pages.py` · no verdict-numbers table in rule-lab · no `pat/board/save` in
+`screen_pages.py` · no flow router in `pat_dock.resolve()`.
+
+### 10a. Downgraded PORTED → DEFERRED (34)
+
+`rrg` · `rotation` · `cycle-clock` · `rs-hub` · `leaders` · `capture-map` · `sectors` ·
+`sector-momentum` · `market-internals` · `participants` · `fno` · `results-reactions` ·
+`buyback-calc` · `surveillance` · `attention` → **M-Markets**;
+`dashboard` · `portfolios` · `watchlists` · `performance` · `import` · `stocks` · `classics` ·
+`factor-league` · `concalls` · `insider` · `ratings` → **M7**;
+`screen2` · `themes` → **M8**;
+`coverage` · `reading-guide` · `rule-lab` · `replay-any-date` · `evidence-pack` · `pat` → **M6**.
+
+Each note keeps its `LANDED at <route>` clause (a DEFERRED target is a milestone, so the route
+would otherwise be lost) and gains one `RE-OPENED by the 2026-07-28 gap audit (register §X, N
+MAJOR)` line naming the specific open rows.
+
+**Board before → after:** PORTED 56 → **22** · DEFERRED 11 → **45** · DROPPED **5** · NA **2** ·
+UNSCOPED **0** · 74 surfaces (verified by executing `summary()`).
+
+### 10b. Listed but kept PORTED — 1
+
+* **`band-locks`** — its ONLY MAJOR row was the live correctness defect in §3j, **fixed in this
+  lane**. Residue is MINOR/COSMETIC (Close column · longest-streak tile · ⚑ flag marker · 30-row
+  cap · cross-link), so under the rule above it keeps `PORTED` with a gap note.
+
+### 10c. Milestones re-opened
+
+`M6` · `M7` · `M8` flip **DONE → PLANNED**: each now holds non-PORTED surfaces, which
+`test_done_milestones_are_fully_ported` fails on by design. `M-Markets` was already PLANNED.
+`M3/M4/M5` keep DONE but **hold no routed lens at all**, so that gate passes over them vacuously —
+recorded in `MILESTONES`, because §9's 20 fresh MAJOR stock-dossier rows are invisible to it (the
+dossier is an integration hub, not a registry lens).
+
+### 10d. The two XS correctness defects — FIXED
+
+| defect | register row | fix | pin |
+|---|---|---|---|
+| band-locks direction case (`"UP"` vs `"up"`) — every row read "▼ lower", both tiles 0 | §3j row 1 | `internals_reads.is_upper_lock` / `is_lower_lock` case-fold once; `internals_pages._bandlock_block` calls them instead of comparing inline | `tests/test_graphite_parity_defects.py` (4 tests; RED pre-fix: tiles `up=0 down=0`, both rows "▼ lower") |
+| seasonal ISO-week grid structurally dead (read asks `axis='week'`, engine persists `'iso_week'`) | §4b row 1 | `w2_reads` translates at the store boundary (`_STORE_AXES` / `_AXIS_TO_STORE` / `_AXIS_FROM_STORE`) — grid, cell-drill and outlook all reach the real rows; page/URL vocabulary stays `week` | same file (4 tests; RED pre-fix: no `week` key, empty stack, no "By week of the year" section) |
+
+Both pins assert the ENGINE's vocabulary too (`band_lock` emits `UP`/`DOWN`; `seasonal_tape` writes
+`iso_week`), so a future engine rename trips the gate instead of silently blanking a board again.
+
+### 10e. The 7 RECORDED-BUT-FALSE notes — all rewritten
+
+| # | key | what the note claimed | what it now says |
+|---|---|---|---|
+| 1 | `rrg` (also §9b) | the `?idx=` and `?sym=` drills "belong to the Graphite stock hub" | neither is on the stock hub nor built anywhere — both are open MAJOR rows |
+| 2 | `seasonal-tape` | the ISO-week script grid SHIPPED | it could never render (axis-key mismatch); FIXED here, and the Pro forward-outlook regression is now recorded |
+| 3 | `model-books` | "the Tracker carries the 'follow a book' view … as a section of `/dash/home/tracker`" | it does not — prose + two links, one back to classic, as the module docstring concedes. DROP verdict stands; the follow/adopt WRITE has no Graphite door and the classic-public estate is invisible |
+| 4 | `stocks` | "NOT carried: the 14 default-hidden columns" | 3 of the 14 (RS#, 52w-hi, Gap3m) ARE carried; 11 are not |
+| 5 | `conviction` | "NOT carried: the client-side filter pills" | incomplete — the MEP-confirmation and entry-read COLUMNS also vanished (disposition unchanged: no MAJOR) |
+| 6 | `mep` | "the full component columns" | not the full set — the raw daily `mep_score` is absent and the cap fell 300 → 80 (disposition unchanged: no MAJOR) |
+| 7 | `launchpad` | "NOT carried: the regime banner and the genuine-buyer count tile" | ALL FOUR count tiles are gone (disposition unchanged: the regime banner was the only MAJOR and was already recorded) |
+| + | `insider` | recorded with NO residual at all | four controls and two columns missing — the 8th correction, and it forced a downgrade rather than only a note fix |
+
+### 10f. Escalated, then RULED ON — 5 more downgrades (orchestrator, 2026-07-28)
+
+Applying §10's rule mechanically to every key — not only to the ratified list — found five more
+surfaces still `PORTED` while holding an open MAJOR row **whose loss their note does not name**.
+This lane flagged them rather than acting unilaterally; the orchestrator ruled **"the rule is the
+rule, uniformly"**, so all five were downgraded in an addendum commit under identical treatment
+(`LANDED at <route>` clause + a `RE-OPENED` line citing the row):
+
+| key | → milestone | open MAJOR the note did not name | register |
+|---|---|---|---|
+| `actions` | M-Markets | the Pro-gated just-went-ex context is ALSO cut ~16× under the gate (30d/200 rows → 14d/12; security_events 180d/40 → 14d/6) | §3e row 2 |
+| `divergence` | M-Markets | every divergence name is a click-through to its RS-momentum pane in classic; Graphite names are dead text | §3b row 1 |
+| `sast` | M7 | the 30/90/180d window selector and the `?feed=` class filter did not travel (only the per-symbol drill was recorded) | §6i rows 2-3 |
+| `strategy-ref` | M6 | the "Open the live surface this page describes →" hand-off strip (a ratified 2026-07-15 requirement, on 13 of 16 pages) has no twin | §8d row 1 |
+| `model-portfolios` | M7 | recorded as a missing "time-travel stepper UI" = a CONTROL; the whole CAPABILITY is missing — **verified by mechanism, not by reading the row**: `book_holdings(conn, book, asof="")` accepts the parameter, its ONLY caller `strategies_pages.py:123` never passes it, and the books route never reads `?asof=`, so past-rebalance holdings are unreachable by any URL | §6b row 1 |
+
+**Board after the ruling:** PORTED 22 → **17** · DEFERRED 45 → **50** · DROPPED 5 · NA 2.
+
+Left `PORTED` deliberately, and the rule agrees: `strategist` · `growth` · `launchpad` · `shp` ·
+`event-cadence` each hold MAJOR rows their notes DO name honestly, so there is nothing to correct.

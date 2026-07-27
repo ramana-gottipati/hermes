@@ -31,6 +31,9 @@ improvements. Your mission: close the register, restore-don't-replace, nothing r
    tails · cadence smoothing — classic reference: `src/web/rrg_view.py` ~L372-580).
 4. Two XS correctness defects (band-locks `"UP"` case · seasonal `iso_week` axis) are being
    fixed by the parent session — `git pull` first and kickstart-pick-verify before touching.
+   **DONE by `lane/parity-truth` (2026-07-28): parity downgrades (34 keys PORTED→DEFERRED, board
+   now 22/45/5/2) + both XS defects (pinned by `tests/test_graphite_parity_defects.py`) + the 7
+   false SURFACE_PARITY notes + M6/M7/M8 re-opened to PLANNED — do not redo; see register §10.**
 
 ## Work order (by leverage; one phase = one worktree lane = one deploy)
 - **P1 — Cross-cutting (M, highest leverage, ~120 rows):** (a) ONE shared table-toolbar

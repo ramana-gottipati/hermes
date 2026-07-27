@@ -288,16 +288,24 @@ def test_the_five_views_are_reachable_from_each_other(client):
 
 
 def test_parity_entries_are_honest_and_point_at_live_routes(client):
+    """2026-07-28: the five built Tracker surfaces were downgraded PORTED -> DEFERRED by the gap
+    audit (register §5a-§5e — Pro-gated columns that were free in classic, the ready-to-act block,
+    return attribution, the import column-mapping override). The honesty contract is unchanged and
+    now stricter: whatever the disposition, the note must name the live route AND the residual, and
+    that route must still serve 200."""
     from src.web import sideways_parity as SP
     keys = ("dashboard", "portfolios", "model-books", "watchlists", "performance", "import")
     for k in keys:
         status, target, note = SP.SURFACE_PARITY[k]
-        assert status in ("PORTED", "DROPPED"), (k, status)
+        assert status in ("PORTED", "DEFERRED", "DROPPED"), (k, status)
         assert note.strip(), k
-        if status == "PORTED":
-            assert target.startswith("/dash/home/tracker"), (k, target)
-            assert client.get(target).status_code == 200, (k, target)
+        if status in ("PORTED", "DEFERRED"):
+            route = target if status == "PORTED" else note.split("LANDED at ", 1)[-1].split(":")[0]
+            assert route.startswith("/dash/home/tracker"), (k, route)
+            assert client.get(route).status_code == 200, (k, route)
             assert "RESIDUAL" in note, (k, "a port claim must name what did not travel")
+            if status == "DEFERRED":
+                assert target in SP.MILESTONES, (k, "DEFERRED needs a real milestone", target)
         else:
             assert target == "" and "MERGE" in note, k
 

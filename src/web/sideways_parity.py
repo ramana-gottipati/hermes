@@ -70,22 +70,26 @@ MILESTONES: dict[str, tuple[str, str]] = {
     # each one's surface to its Graphite twin. Still DONE — the capability did not move milestone,
     # it moved address: M3's wire → the home's Market-news zone, M4's hub → /dash/home/stock (the
     # W1-CONVERGENCE lineage), M5's Today → the Graphite home, which IS the default landing (D148).
+    # ⚠ HONESTY LIMIT on M4, recorded 2026-07-28: no ROUTED LENS is assigned to M3/M4/M5, so
+    # `test_done_milestones_are_fully_ported` passes over them VACUOUSLY. The classic stock dossier
+    # is an integration hub, not a registry lens (see the W1 note below), so the gap register's §9
+    # — 20 fresh MAJOR rows against /dash/home/stock (intervals · chart types · lower panes ·
+    # indicator family · compare overlay · momentum pane · RS overlay · DVPT inertia table …) —
+    # is INVISIBLE to this gate. M4's DONE means "the hub shipped", never "the dossier is at parity".
     "M3":       ("News / flow dock", "DONE"),
     "M4":       ("Stock hub (dossier)", "DONE"),
     "M5":       ("Today / orientation home", "DONE"),
-    # W6 FLIPS (2026-07-27) — each verified by running this module, not by reading the plan:
-    #   M6 → DONE: W5 ported all 11 trust surfaces (10 PORTED + inbox NA, owner write-desk); ZERO
-    #        surfaces still assigned to M6.
-    #   M7 → DONE: W3-A/W3-B ported Strategies + Tracker; the LAST holdout was `shp`, DEFERRED
-    #        pending a box read of the separate research store — box-verified this session (see its
-    #        SURFACE_PARITY note) and promoted to PORTED, which empties M7.
-    #   M8 → DONE: W4 rebuilt screen2 + themes (PORTED); screener + workbench DROPPED with
-    #        rationales, tags-review NA (owner write-desk). Nothing assigned to M8 is unbuilt.
-    # `tests/test_sideways_parity.test_done_milestones_are_fully_ported` is what makes each flip
-    # honest rather than optimistic: a DONE milestone with a non-PORTED surface fails the build.
-    "M6":       ("Journey / guided + help layer", "DONE"),
-    "M7":       ("Clusters & portfolios (Strategies + Tracker)", "DONE"),
-    "M8":       ("Screener", "DONE"),
+    # W6 (2026-07-27) flipped M6/M7/M8 to DONE. RE-OPENED to PLANNED 2026-07-28 by the gap audit
+    # (docs/graphite-gap-register.md, 464 rows / 160 MAJOR): the flips were honest against the board
+    # AS IT THEN READ, but the board over-claimed — 34 surfaces recorded PORTED still hold open
+    # MAJOR rows (capability that is FREE in classic sitting behind a Pro teaser, whole evidence
+    # blocks and controls that never travelled, two live correctness defects). Downgrading those to
+    # DEFERRED puts non-PORTED surfaces back inside M6/M7/M8, so the milestones must follow them —
+    # `test_done_milestones_are_fully_ported` is exactly the gate that says so, and it is doing its
+    # job rather than being worked around. Each flips back to DONE when its register rows close.
+    "M6":       ("Journey / guided + help layer", "PLANNED"),
+    "M7":       ("Clusters & portfolios (Strategies + Tracker)", "PLANNED"),
+    "M8":       ("Screener", "PLANNED"),
     # Added 2026-07-24 (owner) to close the gap the parity ledger surfaced: the M6-M8 plan
     # scoped journey/clusters/screener but not the Markets analytical estate. M-Markets carries it.
     "M-Markets": ("Markets analytical estate (internals · anatomy · self-history · rotation · RS · "
@@ -126,96 +130,164 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
     # Graphite pages. Consolidation, not transliteration — each page answers ONE question with its
     # evidence stacked under it. Every note below states what travelled AND what deliberately did
     # not, so a "PORTED" here can never over-claim (the classic lens stays live either way).
-    "market-internals": ("PORTED", "/dash/home/internals",
-                         "Graphite Market internals: the five vital signs with Pro percentile "
+    "market-internals": ("DEFERRED", "M-Markets",
+                         "LANDED at /dash/home/internals: the five vital signs with Pro percentile "
                          "references vs the full 2004-> history, the price-breadth-vs-tape hero, the "
                          "delivery/dispersion/coil regimes, the crisis-fingerprint anchors and a "
                          "session drill. NOT carried: the 1200-cell daily heat ribbon (the drill is "
-                         "reached from a 20-session strip instead) — classic keeps it"),
-    "divergence": ("PORTED", "/dash/home/internals",
-                   "the RSI-of-RS divergence watch (bullish/bearish columns + the momentum-extremes "
-                   "strip) is the Divergence-watch zone of the Graphite internals page; the home's "
-                   "own breadth-vs-delivery two-gauge stays the Today-level seed"),
-    "participants": ("PORTED", "/dash/home/flows",
-                     "Graphite Flows & positioning: the FII index-futures stance with its own-history "
-                     "percentile, the FII-vs-retail mirror, the four-participant matrix (index fut "
-                     "net · long:short · stock fut net · index option lean) and the recent-session "
-                     "history (Pro). Sits beside the home's existing FII/DII cash reads rather than "
-                     "duplicating them"),
-    "fno": ("PORTED", "/dash/home/flows",
-            "the own-history F&O board (OI · PCR · max-pain percentiles + build-up streak) with the "
-            "auto reality-check callouts and a server CSV; the Phase-0 fence travels ON the block "
-            "(PCR selects weakly, forward-test-only; max-pain/basis/OI-change failed). The "
-            "PER-SYMBOL F&O read (OI · change · quadrant · PCR · basis · max-pain · put/call walls "
-            "from fno_oi_signals) is the F&O section of /dash/home/stock (W1)"),
-    "actions": ("PORTED", "/dash/home/events",
-                "the forward corporate-actions calendar grouped by ex-date with type counts, the "
-                "recent-past + security-events context (Pro) and a server CSV; reuses the home's "
-                "reads.upcoming_ca (same corp_actions.upcoming single source). E-11/E-12 logistics "
-                "fence carried"),
-    "results-reactions": ("PORTED", "/dash/home/events",
-                          "the results-reaction board (surprise · delivery multiple · realized 22/60-"
-                          "day abnormal move) + who-reports-next, with the falsification fence stated "
-                          "ABOVE the table (tradeable book net ret/vol 0.10 vs bench 0.85). NOT "
-                          "carried: the CAR fan SVG and the published-brief cards — classic keeps them"),
+                         "reached from a 20-session strip instead) — classic keeps it. "
+                         "RE-OPENED by the 2026-07-28 gap audit (register §3a, 3 MAJOR): the three "
+                         "regime charts are Pro-BLURRED and the exact percentile ordinal Pro-only, "
+                         "both FREE in classic — this note claimed the regimes carried, with no "
+                         "Pro caveat"),
+    "divergence": ("DEFERRED", "M-Markets",
+                   "LANDED at /dash/home/internals: the RSI-of-RS divergence watch (bullish/bearish "
+                   "columns + the momentum-extremes strip) is the Divergence-watch zone of the "
+                   "Graphite internals page; the home's own breadth-vs-delivery two-gauge stays the "
+                   "Today-level seed. RE-OPENED by the 2026-07-28 gap audit (register §3b, 1 "
+                   "MAJOR): every divergence name is a click-through to its RS-momentum pane in "
+                   "classic and is DEAD TEXT here — a divergence you cannot open is a list, not a "
+                   "watch; the bull/bear lists are also truncated to 10 a side (classic unbounded)"),
+    "participants": ("DEFERRED", "M-Markets",
+                     "LANDED at /dash/home/flows: the FII index-futures stance with its own-history "
+                     "percentile, the four-participant matrix (index fut net · long:short · stock "
+                     "fut net · index option lean) and the recent-session history (Pro). Sits "
+                     "beside the home's existing FII/DII cash reads rather than duplicating them. "
+                     "RE-OPENED by the 2026-07-28 gap audit (register §3c, 3 MAJOR): the FII-vs-"
+                     "retail MIRROR CHARTS this note claimed are one conditional sentence, the "
+                     "stance-ratio chart regressed to the 40-day window the classic module was "
+                     "built to replace, and Free lost the percentile extremity read-out"),
+    "fno": ("DEFERRED", "M-Markets",
+            "LANDED at /dash/home/flows: the own-history F&O board (OI · PCR · max-pain percentiles "
+            "+ build-up streak) with the auto reality-check callouts and a server CSV; the Phase-0 "
+            "fence travels ON the block (PCR selects weakly, forward-test-only; max-pain/basis/"
+            "OI-change failed). The PER-SYMBOL F&O read (OI · change · quadrant · PCR · basis · "
+            "max-pain · put/call walls from fno_oi_signals) is the F&O section of /dash/home/stock "
+            "(W1). RE-OPENED by the 2026-07-28 gap audit (register §3d, 1 MAJOR): Free sees 12 of "
+            "~200 names and the rest is Pro-blurred — classic served the whole cross-section free"),
+    "actions": ("DEFERRED", "M-Markets",
+                "LANDED at /dash/home/events: the forward corporate-actions calendar grouped by "
+                "ex-date with type counts, the recent-past + security-events context (Pro) and a "
+                "server CSV; reuses the home's reads.upcoming_ca (same corp_actions.upcoming single "
+                "source). E-11/E-12 logistics fence carried. RE-OPENED by the 2026-07-28 gap audit "
+                "(register §3e, 2 MAJOR): the just-went-ex + restructure context is Pro-gated "
+                "(free in classic) AND cut ~16× under that gate — 30d/200 rows became 14d/12, "
+                "security_events 180d/40 became 14d/6 — a depth loss the note never named"),
+    "results-reactions": ("DEFERRED", "M-Markets",
+                          "LANDED at /dash/home/events: the results-reaction board (surprise · "
+                          "delivery multiple · realized 22/60-day abnormal move) + who-reports-next, "
+                          "with the falsification fence stated ABOVE the table (tradeable book net "
+                          "ret/vol 0.10 vs bench 0.85). NOT carried: the CAR fan SVG and the "
+                          "published-brief cards — classic keeps them. RE-OPENED by the 2026-07-28 "
+                          "gap audit (register §3f, 3 MAJOR): on top of those two, the STALE-TAPE "
+                          "BANNER did not travel — the read returns tape_max_trade_date and nothing "
+                          "consumes it, so a board N weekdays behind reads as current"),
     "event-cadence": ("PORTED", "/dash/home/events",
                       "overdue-vs-own-rhythm + expected-by-cadence tables with the event-type filter "
                       "and the dormant count, off the same bounded seasonal_events snapshot; TIME-only "
                       "fence carried verbatim. Index-membership filter not carried (event-type only)"),
-    "buyback-calc": ("PORTED", "/dash/home/events",
-                     "the tender-quota calculator (accepted · tender P&L · residual · net · breakeven "
-                     "exit) with the live ₹2L small-shareholder eligibility read-out, anchored by the "
-                     "buyback rows on the corporate-actions feed; the acceptance-ratio-is-YOUR-"
-                     "assumption fence carried"),
-    "surveillance": ("PORTED", "/dash/home/events",
-                     "the ASM/GSM/price-band transition tape + current-state counts, single-sourced "
-                     "through surveillance.transitions/current_state so page == card == pillar; "
-                     "'context, never a gate' fence carried"),
+    "buyback-calc": ("DEFERRED", "M-Markets",
+                     "LANDED at /dash/home/events: the tender-quota calculator (accepted · tender "
+                     "P&L · residual · net · breakeven exit) with the live ₹2L small-shareholder "
+                     "eligibility read-out, anchored by the buyback rows on the corporate-actions "
+                     "feed; the acceptance-ratio-is-YOUR-assumption fence carried. RE-OPENED by the "
+                     "2026-07-28 gap audit (register §3h, 2 MAJOR): the 20/33/50/66/100% "
+                     "acceptance-ratio SENSITIVITY TABLE — the classic module's stated substitute "
+                     "for refusing to fabricate a prior — and the days-locked/annualized-return "
+                     "pair did not travel"),
+    "surveillance": ("DEFERRED", "M-Markets",
+                     "LANDED at /dash/home/events: the ASM/GSM/price-band transition tape + "
+                     "current-state counts, single-sourced through surveillance.transitions/"
+                     "current_state so page == card == pillar; 'context, never a gate' fence "
+                     "carried. RE-OPENED by the 2026-07-28 gap audit (register §3i, 1 MAJOR): only "
+                     "the COUNTS carried — the per-framework 'under surveillance now' MEMBERSHIP "
+                     "LISTS (symbol · stage · dossier link) have no Graphite home, which this note "
+                     "implied rather than stated"),
     "band-locks": ("PORTED", "/dash/home/events",
                    "the close-at-band streak board single-sourced through band_lock.active_streaks, "
                    "with the honest-window note (bands reconstructable only back to the feed's first "
-                   "captured day) and the no-study-exists fence"),
-    "attention": ("PORTED", "/dash/home/attention",
-                  "the full magnitude-ranked queue with lens filters, per-batch counts, ?as_of= "
-                  "last-batch-on-or-before replay and the curated alert rail; the depth behind the "
-                  "home's 'What changed today' band (which keeps owning severity_counts/what_changed). "
-                  "NOT carried: the acknowledge WRITE and the cookie 'since you last looked' brief — "
-                  "owner actions that stay on the classic page"),
+                   "captured day) and the no-study-exists fence. GAP NOTE (register §3j): the one "
+                   "MAJOR row was a live CORRECTNESS defect — the read/render compared the "
+                   "direction against lowercase while the engine emits UP/DOWN, so every row read "
+                   "'▼ lower' and both tiles read 0. FIXED 2026-07-28 (lane/parity-truth) and "
+                   "pinned by tests/test_graphite_parity_defects.py; residue is MINOR only (Close "
+                   "column, longest-streak tile, ⚑ flag marker, 30-row cap)"),
+    "attention": ("DEFERRED", "M-Markets",
+                  "LANDED at /dash/home/attention: the magnitude-ranked queue with lens filters, "
+                  "per-batch counts, ?as_of= last-batch-on-or-before replay and the curated alert "
+                  "rail; the depth behind the home's 'What changed today' band (which keeps owning "
+                  "severity_counts/what_changed). NOT carried: the acknowledge WRITE and the cookie "
+                  "'since you last looked' brief — owner actions that stay on the classic page. "
+                  "RE-OPENED by the 2026-07-28 gap audit (register §3k, 4 MAJOR): 'full' was wrong "
+                  "— the queue renders 30 rows where classic renders 200 with a 'showing N of M' "
+                  "line, and the severity/valence rail filter chips did not travel"),
     # ── Graphite cutover wave W2-B (2026-07-27): the RS · rotation · sectors families ──
     # Eleven classic Markets lenses consolidated into THREE Graphite pages. The rule applied:
     # PORTED = the question the lens exists to answer is fully served at the new route.
     # DEFERRED = the headline block landed but a materially separate block is still owed — the
     # note names exactly what travelled and what did not, so nothing is silently missed.
-    "rrg":       ("PORTED", "/dash/home/rotation",
-                  "sector rotation map — the 6/12/24-month RRG journeys reuse the canonical JdK "
-                  "engine (automation/rrg._rs_ratio_momentum + quadrant). Per-symbol drills "
-                  "(?idx= constituents, ?sym= single stock) belong to the Graphite stock hub, not "
-                  "this page"),
-    "rotation":  ("PORTED", "/dash/home/rotation?view=weather",
-                  "RS weather — sector phase table (phases classified by the canonical "
-                  "rs_phase engine, not the additive column), the 2x2 lifecycle grid with the "
-                  "strict-diagonal shortlists, and the just-turned strip"),
-    "cycle-clock": ("PORTED", "/dash/home/rotation?view=clock",
-                    "the lifecycle dial — every sector's RS-Ratio x RS-Momentum on one radial "
-                    "plot plus the same dial as a table, from the same rs_extras snapshot"),
-    "rs-hub":    ("PORTED", "/dash/home/strength",
-                  "the RS hub — universe-wide standing counts, the four-reading card set, and "
-                  "today's strongest names with their phase and trend state. The PER-SYMBOL half "
-                  "(rank · trend state · phase · 1/3/6/12-month slopes · vs its own sector) is the "
-                  "Strength section of /dash/home/stock (W1), so the pair is complete: board here, "
-                  "dossier there"),
-    "leaders":   ("PORTED", "/dash/home/strength?view=leaders",
-                  "strong-in-strong / weak-in-weak, straight from the canonical "
-                  "stock_rs.leaders_laggards screen with all three trend states shown in Pro"),
-    "capture-map": ("PORTED", "/dash/home/strength?view=capture",
-                    "up-capture / down-capture / spread per sector at 3, 6 and 12 months, from "
-                    "the canonical automation/capture engine, with the four-way behaviour read"),
-    "sectors":   ("PORTED", "/dash/home/sectors",
-                  "the sector standing board — weather, 1/3/12-month RS, member breadth (the "
-                  "cross-check the classic board lacked) and the Pro return columns"),
-    "sector-momentum": ("PORTED", "/dash/home/sectors?sec=",
-                        "the constituent drill-down, promoted from a deep-link-only orphan to a "
-                        "URL-addressable view of the sector board it belongs to"),
+    "rrg":       ("DEFERRED", "M-Markets",
+                  "LANDED at /dash/home/rotation: the 6/12/24-month RRG journeys reuse the "
+                  "canonical JdK engine (automation/rrg._rs_ratio_momentum + quadrant). RE-OPENED "
+                  "by the 2026-07-28 gap audit (register §1a, 10 MAJOR): the whole Play apparatus "
+                  "(playback · 3 speeds · draggable scrubber · month badge · hover-to-trace), the "
+                  "3-month horizon, the RS-depth table with its 7 turn-flag Signals pills; 12M+24M "
+                  "are Pro-locked though FREE in classic; and BOTH per-symbol drills (?idx= "
+                  "constituents, ?sym= single stock) — which this note said 'belong to the "
+                  "Graphite stock hub' — are neither there nor built anywhere"),
+    "rotation":  ("DEFERRED", "M-Markets",
+                  "LANDED at /dash/home/rotation?view=weather: the sector phase table (phases "
+                  "classified by the canonical rs_phase engine, not the additive column), the 2x2 "
+                  "lifecycle grid with the strict-diagonal shortlists, and the just-turned strip. "
+                  "RE-OPENED by the 2026-07-28 gap audit (register §1b, 5 MAJOR): the classic lens "
+                  "is STOCK-grain and that half did not travel — no ?phase= selector, no 300-row "
+                  "member table, the per-cell count is a dead number not a 'see all' door, no "
+                  "7 leverage-read pills, and `early-signals`' DROP rationale still owes this page "
+                  "its just-turned-UP direction filter"),
+    "cycle-clock": ("DEFERRED", "M-Markets",
+                    "LANDED at /dash/home/rotation?view=clock: the lifecycle dial — every sector's "
+                    "RS-Ratio x RS-Momentum on one radial plot plus the same dial as a table, from "
+                    "the same rs_extras snapshot. RE-OPENED by the 2026-07-28 gap audit (register "
+                    "§1d, 2 MAJOR): the VELOCITY VECTOR (the tangent arrow that is the lens's "
+                    "stated reason to exist over the 2x2 grid) is absent, and RSI-of-RS is "
+                    "Pro-gated though free on the classic hover"),
+    "rs-hub":    ("DEFERRED", "M-Markets",
+                  "LANDED at /dash/home/strength: universe-wide standing counts, the four-reading "
+                  "card set, and today's strongest names with their phase and trend state. The "
+                  "PER-SYMBOL half (rank · trend state · phase · 1/3/6/12-month slopes · vs its own "
+                  "sector) is the Strength section of /dash/home/stock (W1). RE-OPENED by the "
+                  "2026-07-28 gap audit (register §2a, 2 MAJOR): the benchmark selector ?den= — the "
+                  "hub's ONLY control, which also re-drove every child-lens link — did not travel "
+                  "(markets_reads hardcodes Nifty 500 lane-wide), and 3m RS / 12m RS / RSI-of-RS "
+                  "are Pro-gated though free on every classic RS surface"),
+    "leaders":   ("DEFERRED", "M-Markets",
+                  "LANDED at /dash/home/strength?view=leaders: strong-in-strong / weak-in-weak, "
+                  "straight from the canonical stock_rs.leaders_laggards screen. RE-OPENED by the "
+                  "2026-07-28 gap audit (register §2b, 2 MAJOR): 'shown in Pro' IS the regression — "
+                  "RSI-of-RS and all three alignment-state columns (stock vs broad · stock vs "
+                  "sector · sector vs broad) were unconditionally visible in classic and ARE the "
+                  "screen's thesis, so Free now sees only symbol/rank/sector"),
+    "capture-map": ("DEFERRED", "M-Markets",
+                    "LANDED at /dash/home/strength?view=capture: up-capture / down-capture / spread "
+                    "per sector at 3, 6 and 12 months, from the canonical automation/capture "
+                    "engine, with the four-way behaviour read. RE-OPENED by the 2026-07-28 gap "
+                    "audit (register §2d, 2 MAJOR): the SCATTER — the lens itself, whose docstring "
+                    "says the two table columns hide the up=down diagonal — is not in the module at "
+                    "all, and the ?den= benchmark selector did not travel"),
+    "sectors":   ("DEFERRED", "M-Markets",
+                  "LANDED at /dash/home/sectors: the sector standing board — weather, 1/3/12-month "
+                  "RS, member breadth (the cross-check the classic board lacked) and the Pro return "
+                  "columns. RE-OPENED by the 2026-07-28 gap audit (register §2e, 1 MAJOR): 'the Pro "
+                  "return columns' IS the regression — 1m and 3m return were free in classic; the "
+                  "RS heat strip also collapsed 6 horizons to 3"),
+    "sector-momentum": ("DEFERRED", "M-Markets",
+                        "LANDED at /dash/home/sectors?sec=: the constituent drill-down, promoted "
+                        "from a deep-link-only orphan to a URL-addressable view of the sector board "
+                        "it belongs to. RE-OPENED by the 2026-07-28 gap audit (register §2f, 3 "
+                        "MAJOR): RSI-of-RS — the only thing the classic page ranks by — is "
+                        "Pro-gated, the momentum-breadth read is Pro-gated AND degraded (three free "
+                        "percentages with bars became a Pro sentence with two raw counts), and the "
+                        "sector picker chip row that IS the page's navigation is absent"),
 
     "rsband":    ("DEFERRED", "M-Markets",
                   "LANDED at /dash/home/rotation?view=band: the per-sector RS-band position 0-100 "
@@ -251,8 +323,16 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                       "(grey by default, coloured only on full certification), the 'N of M cells "
                       "certified' winnowing headline, per-cell year-by-year stack, Pro forward-"
                       "outlook band with the white=noise read, frozen-family sha256 provenance, "
-                      "0-certified fence. OUTSTANDING: monthly/weekly consolidation panels, the "
-                      "per-cell placebo-null detail block, scope=stock + symbol search"),
+                      "0-certified fence. CORRECTION 2026-07-28 (register §4b): the ISO-week grid "
+                      "was listed here as SHIPPED but could NEVER render on any entity — the read "
+                      "asked seasonal_cells for axis='week' while the engine persists 'iso_week', "
+                      "so the grid and its cell-drill were structurally dead. FIXED in "
+                      "lane/parity-truth (w2_reads translates the store key once) and pinned by "
+                      "tests/test_graphite_parity_defects.py. Also unrecorded until now: the "
+                      "forward-outlook band is FREE on classic and Pro-gated here. OUTSTANDING: "
+                      "monthly/weekly consolidation panels, the three per-year STACK grids "
+                      "(25-year month · 52-week · weekday), the per-cell placebo-null detail "
+                      "block, scope=stock + symbol search"),
     "seasonal-screen": ("DEFERRED", "M-Markets",
                         "SHIPPED /dash/home/seasonal?view=screen — Wilson-lower-bound ranking (not "
                         "raw hit-%), the 95% band on every row, an explicit indistinguishable-from-"
@@ -323,46 +403,71 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
     # Five surfaces rebuilt as declared children of the Graphite home; the sixth is the
     # admitted duplicate and is DROPPED as a merge. Notes name the RESIDUAL honestly —
     # a port claim that hides what did not travel is worth nothing to the next session.
-    "dashboard": ("PORTED", "/dash/home/tracker",
-                  "Graphite Tracker overview: book totals · worth-a-look flags · movers · allocation "
-                  "+ concentration + Pro contribution · books table · the model-book door. RESIDUAL: "
-                  "alerts-firing, news-for-your-names and upcoming-corporate-actions blocks are NOT "
-                  "rebuilt here — the Graphite home already renders news (reads.recent_news) and "
-                  "going-ex (reads.upcoming_ca) for the whole market; filtering those to holdings is "
-                  "the open follow-up rather than a second rendering"),
-    "portfolios": ("PORTED", "/dash/home/tracker/portfolios",
-                   "Positions in the Part III §J tracker column set, Kite-norm labels (Avg. cost · LTP · "
-                   "Cur. val · P&L · Day chg.), frozen identity spine, Pro column layer, book chips with "
-                   "URL state, server CSV. RESIDUAL: per-row WRITES (edit / close / single-position add) "
-                   "and the dividends-since column stay on the classic page and are linked, not forked — "
-                   "the lane adds exactly one write (the importer)"),
-    "watchlists": ("PORTED", "/dash/home/tracker/watchlists",
-                   "The canonical stocks_in_play watch tier, added through the home's EXISTING "
-                   "POST /dash/home/watch/add (one write path, native date_added). RESIDUAL: per-row "
-                   "alerts, promote and remove stay on the classic page and are linked; the shared add "
-                   "POST still redirects to Today, so the confirmation lands there"),
-    "performance": ("PORTED", "/dash/home/tracker/performance",
-                    "Scoreboard: realised/unrealised ₹ P&L, hit-rate by strategy and book, average excess "
-                    "vs Nifty 500, average hold, a CHAINED TIME-WEIGHTED return curve vs the benchmark + "
-                    "its deepest fall. XIRR is rendered only when tracker_reads.cashflow_fidelity() passes "
-                    "on the live rows (ratified §K.4 pre-condition); otherwise the page prints the "
-                    "measurement and withholds the number. RESIDUAL: the classic page's CAGR and "
-                    "book-value equity curve are deliberately NOT carried — both inherit the same "
-                    "cash-flow defect (a deposit reads as a gain); the time-weighted chain replaces "
-                    "them. Dividends received are still absent from every return figure"),
-    "import": ("PORTED", "/dash/home/tracker/import",
-               "File-or-paste onboarding: any column order, keyword header detection, symbols validated "
-               "against bhavcopy_rows EQ/BE exactly as reads.watch_add does, unsaved preview with a "
-               "per-row verdict, then a confirm that RE-VALIDATES before writing. RESIDUAL: .xlsx is not "
-               "parsed (CSV/TSV/paste only) — the classic importer's openpyxl path did not travel"),
+    "dashboard": ("DEFERRED", "M7",
+                  "LANDED at /dash/home/tracker: book totals · worth-a-look flags · movers · "
+                  "allocation + concentration + Pro contribution · books table · the model-book "
+                  "door. RESIDUAL: alerts-firing, news-for-your-names and upcoming-corporate-"
+                  "actions blocks are NOT rebuilt here — the Graphite home already renders news "
+                  "(reads.recent_news) and going-ex (reads.upcoming_ca) for the whole market. "
+                  "RE-OPENED by the 2026-07-28 gap audit (register §5a, 4 MAJOR): beyond the "
+                  "recorded three, the zero-config READY-TO-ACT block is gone, the attention flags "
+                  "dropped 6 -> 4 (no DISTRIBUTION character, no RS-decay or conviction drift vs "
+                  "the frozen entry snapshot) and contributors/detractors — a free bar chart in "
+                  "classic — is Pro-only"),
+    "portfolios": ("DEFERRED", "M7",
+                   "LANDED at /dash/home/tracker/portfolios: positions in the Part III §J tracker "
+                   "column set, Kite-norm labels (Avg. cost · LTP · Cur. val · P&L · Day chg.), "
+                   "frozen identity spine, Pro column layer, book chips with URL state, server CSV. "
+                   "RESIDUAL: per-row WRITES (edit / close / add) and the dividends-since column "
+                   "stay on the classic page and are linked, not forked. RE-OPENED by the "
+                   "2026-07-28 gap audit (register §5b, 4 MAJOR): the 'Pro column layer' hides SIX "
+                   "columns that were free in classic (Weight · Target · Stop · Days held · RS "
+                   "phase · Book), the Thesis-health column is absent, and 'single-position add' "
+                   "understates a 9-field quick-capture form with symbol autocomplete"),
+    "watchlists": ("DEFERRED", "M7",
+                   "LANDED at /dash/home/tracker/watchlists: the canonical stocks_in_play watch "
+                   "tier, added through the home's EXISTING POST /dash/home/watch/add (one write "
+                   "path, native date_added). RESIDUAL: per-row alerts, promote and remove stay on "
+                   "the classic page and are linked; the shared add POST still redirects to Today. "
+                   "RE-OPENED by the 2026-07-28 gap audit (register §5c, 4 MAJOR): six of thirteen "
+                   "columns are Pro-gated (four free in classic), the add form collapsed 9 fields "
+                   "to a bare symbol box, and the Signal/alerts column (ready badge + firing chips) "
+                   "did not travel"),
+    "performance": ("DEFERRED", "M7",
+                    "LANDED at /dash/home/tracker/performance: realised/unrealised ₹ P&L, hit-rate "
+                    "by strategy and book, average excess vs Nifty 500, average hold, a CHAINED "
+                    "TIME-WEIGHTED return curve vs the benchmark + its deepest fall. XIRR is "
+                    "rendered only when tracker_reads.cashflow_fidelity() passes on the live rows "
+                    "(ratified §K.4 pre-condition); otherwise the page prints the measurement and "
+                    "withholds the number. RESIDUAL: the classic page's CAGR and book-value equity "
+                    "curve are deliberately NOT carried — both inherit the same cash-flow defect (a "
+                    "deposit reads as a gain). Dividends received are still absent from every "
+                    "return figure. RE-OPENED by the 2026-07-28 gap audit (register §5d, 1 MAJOR): "
+                    "the RETURN-ATTRIBUTION section (by holding · sector · book · strategy) is gone "
+                    "entirely and was not in the recorded removals"),
+    "import": ("DEFERRED", "M7",
+               "LANDED at /dash/home/tracker/import: file-or-paste onboarding — any column order, "
+               "keyword header detection, symbols validated against bhavcopy_rows EQ/BE exactly as "
+               "reads.watch_add does, unsaved preview with a per-row verdict, then a confirm that "
+               "RE-VALIDATES before writing. RESIDUAL: .xlsx is not parsed (CSV/TSV/paste only). "
+               "RE-OPENED by the 2026-07-28 gap audit (register §5e, 2 MAJOR): the manual "
+               "column-mapping override also did not travel — classic guesses then lets you fix "
+               "five selects against the real header list, so in Graphite a bad guess is "
+               "unrecoverable"),
     "model-books": ("DROPPED", "",
                     "MERGE, not a deletion. model-books and model-portfolios rendered the SAME engine "
                     "books — the Tracker copy's own nav rationale admitted the numbers were 'already "
-                    "covered by the model_portfolios data flow'. In the new experience there is one data "
-                    "source and two doors: the books live in Strategies, and the Tracker carries the "
-                    "'follow a book' view (a named book seeded with today's date and today's close, never "
-                    "the backtest's history) as a section of /dash/home/tracker. The classic route stays "
-                    "live and linked so existing bookmarks and the Adopt write keep working"),
+                    "covered by the model_portfolios data flow'. In the new experience the books live "
+                    "in Strategies (/dash/home/strategies/books) and the classic route stays live and "
+                    "linked so existing bookmarks and the Adopt write keep working. "
+                    "CORRECTION 2026-07-28 (register §5f): this note used to claim 'the Tracker "
+                    "carries the follow-a-book view … as a section of /dash/home/tracker'. IT DOES "
+                    "NOT — tracker_pages._model_books_block is prose plus two links, one of them "
+                    "back to the classic page, and its own docstring concedes 'the FOLLOW door "
+                    "deliberately stays on classic'. The DROP verdict stands (one engine, one data "
+                    "source) but the follow/adopt WRITE has no Graphite door, and the Graphite books "
+                    "page covers only the 4 auto books — classic also lists the classic_portfolio_nav "
+                    "estate with adopt buttons"),
     # ── W1, the Graphite stock page (2026-07-27) ──────────────────────────────────────
     # HONESTY NOTE, recorded deliberately: the classic stock DOSSIER (`/dash/stock`) is an
     # integration hub, not a registry lens, so it has no row of its own here. /dash/home/stock
@@ -381,45 +486,70 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                    "the Strategies hub: registry health cards + the estate's honest headline + the "
                    "directory of every sub-page. NOT yet carried: the confluence-alerts strip, the "
                    "per-strategy new/dropped diff, the CCI-RRG divergence tile and 'Your boards'"),
-    "model-portfolios": ("PORTED", "/dash/home/strategies/books",
-                         "the 4 engine-locked books: per-book stats (return/vol labelled as a ratio, "
-                         "not a Sharpe), NAV vs Nifty 500, the §J identity spine + book-core "
-                         "constituents, the rebalance ledger, FUNDABLE-CORE vs GROSS-LENS banners. "
-                         "NOT carried: survivability ballast overlay, all-books comparative chart, "
-                         "time-travel stepper UI, Union/graduating table, CSV"),
+    "model-portfolios": ("DEFERRED", "M7",
+                         "LANDED at /dash/home/strategies/books: the 4 engine-locked books — "
+                         "per-book stats (return/vol labelled as a ratio, not a Sharpe), NAV vs "
+                         "Nifty 500, the §J identity spine + book-core constituents, the rebalance "
+                         "ledger, FUNDABLE-CORE vs GROSS-LENS banners. NOT carried: survivability "
+                         "ballast overlay, all-books comparative chart, Union/graduating table, "
+                         "CSV. CORRECTED + RE-OPENED 2026-07-28 (register §6b, 2 MAJOR): this note "
+                         "said 'time-travel stepper UI', i.e. a missing CONTROL — the whole "
+                         "TIME-TRAVEL CAPABILITY is missing. The route never passes ?asof= and "
+                         "book_holdings(conn, book) is called without it, so holdings at a past "
+                         "rebalance cannot be read at all, by any URL. The since-year chips "
+                         "(2012/2019/2022) are likewise parsed with no door rendered"),
     "sector-rotation": ("PORTED", "/dash/home/strategies/sector-rotation",
                         "the V21 sector-index book with the D138 scope gap ('picks SECTORS, not "
                         "STOCKS') and the D141 rejection rendered ABOVE the headline stat; weights, "
                         "rebalance diff, NAV, stats. NOT carried: the year-strip stepper UI, CSV"),
-    "factor-league": ("PORTED", "/dash/home/strategies/library",
-                      "MERGED with `classics` into one Strategy library with 🧑/🏠/📚 origin filters. "
-                      "Live family rosters render from factor_league; the MEASURED verdicts "
-                      "(return/vol, CAGR, excess, MaxDD, pass/fail) are deliberately LINKED to the "
-                      "validation record + reference pages rather than restated — one copy of every "
-                      "number. NOT carried: the churn feed"),
-    "classics": ("PORTED", "/dash/home/strategies/library",
-                 "the merge target: the classic-screens catalog + per-screen roster + NAV with the "
-                 "'insufficient history — not a track record' fence. NOT carried: year-by-year "
-                 "table, backdate form, holdings-as-of, CSV"),
+    "factor-league": ("DEFERRED", "M7",
+                      "LANDED at /dash/home/strategies/library, MERGED with `classics` into one "
+                      "Strategy library with 🧑/🏠/📚 origin filters. Live family rosters render from "
+                      "factor_league; the MEASURED verdicts (return/vol, CAGR, excess, MaxDD, "
+                      "pass/fail) are deliberately LINKED to the validation record + reference pages "
+                      "rather than restated — one copy of every number. NOT carried: the churn feed. "
+                      "RE-OPENED by the 2026-07-28 gap audit (register §6j, 3 MAJOR shared with "
+                      "`classics`): the library renders ONE fixed 5-column roster for every family, "
+                      "so the per-screen custom column sets are gone; the factor-league roster "
+                      "specifically loses 6m · 12m · Vol · Turn₹cr, and its per-family ?fmt=csv is "
+                      "unrecorded and absent"),
+    "classics": ("DEFERRED", "M7",
+                 "LANDED at /dash/home/strategies/library as the merge target: the classic-screens "
+                 "catalog + per-screen roster + NAV with the 'insufficient history — not a track "
+                 "record' fence. NOT carried: year-by-year table, backdate form, holdings-as-of, "
+                 "CSV. RE-OPENED by the 2026-07-28 gap audit (register §6j, 3 MAJOR): those first "
+                 "three ARE MAJOR, not residue, and a fourth was unrecorded — classic renders a "
+                 "screen-specific column list with per-header glossary popovers, Graphite one fixed "
+                 "#/Symbol/Sector/Price/Score roster for every screen"),
     "conviction": ("PORTED", "/dash/home/strategies/conviction",
                    "the cross-pillar shortlist with the 'a sorting heuristic, not a validated model' "
                    "chip ABOVE the table and the Screener-archive provenance note on the Quality "
-                   "column. NOT carried: the client-side filter pills. + W1 dossier tab: the "
-                   "per-symbol conviction read ships as a digest tile on /dash/home/stock, "
-                   "carrying the same heuristic label"),
-    "stocks": ("PORTED", "/dash/home/strategies/positioning",
-               "the DVPT positioning board. NOT carried: the 14 default-hidden columns, the "
-               "weekly/monthly rollup, watchlist chips and filter pills. + W1 dossier tab: the "
-               "per-symbol Positioning/DVPT read also lands on /dash/home/stock"),
+                   "column. NOT carried: the client-side filter pills — CORRECTED 2026-07-28 "
+                   "(register §6d): that list was incomplete, TWO DATA COLUMNS also vanished (the "
+                   "MEP confirmation column and the entry-read column: near-key / discount / "
+                   "extended / at-cost). Disposition unchanged — every open row is MINOR or "
+                   "COSMETIC, no MAJOR. + W1 dossier tab: the per-symbol conviction read ships as a "
+                   "digest tile on /dash/home/stock, carrying the same heuristic label"),
+    "stocks": ("DEFERRED", "M7",
+               "LANDED at /dash/home/strategies/positioning: the DVPT positioning board. NOT "
+               "carried: the weekly/monthly rollup, watchlist chips and filter pills. CORRECTED "
+               "2026-07-28 (register §6c): this note claimed all 14 default-hidden columns were "
+               "dropped — 3 of them (RS#, 52w-hi, Gap3m) ARE carried; 11 genuinely are not. "
+               "RE-OPENED (2 MAJOR): the ?sector= constituent filter did not travel at all, and the "
+               "8 filter pills became a 2-item All/Stealth strip. + W1 dossier tab: the per-symbol "
+               "Positioning/DVPT read also lands on /dash/home/stock"),
     "stealth": ("PORTED", "/dash/home/strategies/positioning?view=stealth",
                 "MERGED into `stocks` as a toggle — the classic site already admitted one renderer "
                 "(/dash/stealth delegated to view=='stealth'); the stealth filter is reproduced "
                 "exactly (accumulation + p>=3 + thinning trade count + <=-10% off the 52w high)"),
     "mep": ("PORTED", "/dash/home/strategies/mep",
-            "the accumulation/distribution tape with the D62 descriptor-only fence first, the five "
-            "phase counts, and the full component columns. NOT carried: glossary popovers. "
-            "+ W1 dossier tab: the per-symbol Accumulation read (same D62 fence) also lands on "
-            "/dash/home/stock"),
+            "the accumulation/distribution tape with the D62 descriptor-only fence first and the "
+            "five phase counts. NOT carried: glossary popovers. CORRECTED 2026-07-28 (register "
+            "§6e): this note said 'the full component columns' — it is not the full set. The raw "
+            "daily 'Today' score (mep_score), which classic shows BESIDE the smoothed phase score, "
+            "is absent; the row cap also fell 300 -> 80. Disposition unchanged — both rows are "
+            "MINOR, no MAJOR. + W1 dossier tab: the per-symbol Accumulation read (same D62 fence) "
+            "also lands on /dash/home/stock"),
     "cpr": ("DROPPED", "",
             "DEMOTED, not deleted (plan §1c). Verified against the source: the standalone page's "
             "ONLY unique evidence is cross-SYMBOL ranking (reversal leaderboard, compression "
@@ -428,12 +558,15 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
             "structure read is actually used. Classic /dash/cpr stays live and reachable for "
             "bookmarks; it simply leaves primary nav in the new experience. + W1 dossier tab: that "
             "per-name CPR panel (D/W/M/Q pivots) is now concretely on /dash/home/stock"),
-    "concalls": ("PORTED", "/dash/home/strategies/credibility",
-                 "management credibility, ABSORBING the orphaned /dash/credibility fingerprint as "
-                 "?sym=. Gate-B fence rendered first ('descriptive only — never ranked') and the "
-                 "board is ordered coverage-first, not by score. NOT carried: the three ·AI "
-                 "behaviour columns (concall_behavior). + W1 dossier tab: the per-symbol "
-                 "Credibility read (same Gate-B fence) also lands on /dash/home/stock"),
+    "concalls": ("DEFERRED", "M7",
+                 "LANDED at /dash/home/strategies/credibility, ABSORBING the orphaned "
+                 "/dash/credibility fingerprint as ?sym=. Gate-B fence rendered first ('descriptive "
+                 "only — never ranked') and the board is ordered coverage-first, not by score. NOT "
+                 "carried: the three ·AI behaviour columns (concall_behavior). RE-OPENED by the "
+                 "2026-07-28 gap audit (register §6f, 1 MAJOR): 'ordered coverage-first' removed a "
+                 "CONTROL — classic offers an Avoid / Track-record view toggle that re-sorts "
+                 "worst-first, and the Graphite route takes only ?sym=. + W1 dossier tab: the "
+                 "per-symbol Credibility read (same Gate-B fence) also lands on /dash/home/stock"),
     "growth": ("PORTED", "/dash/home/strategies/growth",
                "the growth-intent proposal ledger with the placebo-kill verdict first. Adds the "
                "concall-corpus provenance disclosure (~98.6% discovered via Screener.in links, "
@@ -441,18 +574,32 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                "instant text filter and the pullback tab (min-₹/since are query params, no UI). "
                "+ W1 dossier tab: the per-symbol Quality read (pt14 + capital allocation) also "
                "lands on /dash/home/stock"),
-    "insider": ("PORTED", "/dash/home/strategies/ownership",
-                "MERGED into the Ownership & filings hub (registry anomaly H): tiles + by-symbol "
-                "board + the tape, all classified by the insider_events engine so the hub can never "
-                "disagree with the classic lens"),
-    "ratings": ("PORTED", "/dash/home/strategies/ownership?lens=ratings",
-                "same hub, lens 2: company-level deduped transitions (credit_ratings engine) + the "
-                "tape. ⚠ credit_rating_events is ABSENT from the laptop fixture, so this lens is "
-                "SQL-verified against the canonical DDL but data-verified only on the box"),
-    "sast": ("PORTED", "/dash/home/strategies/ownership?lens=sast",
-             "same hub, lens 3: the stake × pledge confluence board (sast_events engine keeps the "
-             ">=25% control exclusion and the Reg29(1) level-vs-flow split) + a unified tape over "
-             "both feeds. NOT carried: the per-symbol drill"),
+    "insider": ("DEFERRED", "M7",
+                "LANDED at /dash/home/strategies/ownership, MERGED into the Ownership & filings hub "
+                "(registry anomaly H): tiles + by-symbol board + the tape, all classified by the "
+                "insider_events engine so the hub can never disagree with the classic lens. "
+                "CORRECTED + RE-OPENED 2026-07-28 (register §6i, 3 MAJOR): this key was recorded "
+                "with NO residual at all, which was false — the 30/90/180-day WINDOW SELECTOR is "
+                "hardcoded to 90, the class tab filters (?cls=conviction|caution|…) and the "
+                "per-symbol drill (?sym=, ?min_cr=) did not travel, and the Net-90d and Pledge-ev. "
+                "columns are gone"),
+    "ratings": ("DEFERRED", "M7",
+                "LANDED at /dash/home/strategies/ownership?lens=ratings — same hub, lens 2: "
+                "company-level deduped transitions (credit_ratings engine) + the tape. ⚠ "
+                "credit_rating_events is ABSENT from the laptop fixture, so this lens is "
+                "SQL-verified against the canonical DDL but data-verified only on the box. "
+                "RE-OPENED by the 2026-07-28 gap audit (register §6i, 3 MAJOR): the 90/180/365-day "
+                "window selector is hardcoded to 180, the ?cls=UPGRADE|DOWNGRADE tab filter and the "
+                "per-symbol drill did not travel; the Action column and the filing link are also "
+                "off the board"),
+    "sast": ("DEFERRED", "M7",
+             "LANDED at /dash/home/strategies/ownership?lens=sast — same hub, lens 3: the stake × "
+             "pledge confluence board (sast_events engine keeps the >=25% control exclusion and the "
+             "Reg29(1) level-vs-flow split) + a unified tape over both feeds. NOT carried: the "
+             "per-symbol drill. RE-OPENED by the 2026-07-28 gap audit (register §6i, 3 MAJOR): the "
+             "drill was the only loss recorded, but the 30/90/180-day WINDOW SELECTOR is hardcoded "
+             "to 90 and the ?feed=INVOKE|… class filter did not travel either; the Acq-90d, "
+             "Sold-90d and Invoked columns are also off the board"),
     "shp": ("PORTED", "/dash/home/strategies/ownership?lens=shp",
             "the ratified §I.5 quarter matrix (symbol × quarter × promoter/FII/DII, mixed-source "
             "cells marked). W3-A held this DEFERRED because shareholding_history lives in the "
@@ -465,7 +612,10 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
     "launchpad": ("PORTED", "/dash/home/strategies/launchpad",
                   "the setup screen with the 'validated screen, no fundable edge net of cost' "
                   "verdict above it. Reads the nightly snapshot only — never the live market-wide "
-                  "scan. NOT carried: the regime banner and the genuine-buyer count tile"),
+                  "scan. NOT carried: the regime banner and — CORRECTED 2026-07-28 (register §6h) — "
+                  "ALL FOUR count tiles, not just the genuine-buyer one (Fresh triggers · ⭐ With "
+                  "genuine buyer · Precursor universe · Coiled). Disposition unchanged: the regime "
+                  "banner is the only MAJOR row and it was already recorded"),
     "launchpad-track": ("PORTED", "/dash/home/strategies/launchpad?tab=evidence",
                         "MERGED into `launchpad` as its evidence tab (it IS the screen's evidence): "
                         "the ignition_outcomes study — signals studied, hit rate, median 12m, median "
@@ -475,8 +625,8 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
     # ── W4 / M8 — the screener workspace (5 surfaces), lane `lane/w4-screener` 2026-07-27 ──
     # Verdicts are per-CAPABILITY, not per-page: the rebuild had to CARRY every job the classic
     # pages did, which is why two of the five are honestly retired rather than re-rendered.
-    "screen2": ("PORTED", "/dash/home/screen",
-                "The Graphite screener IS the migrated Screen+. Every capability carried — scope "
+    "screen2": ("DEFERRED", "M8",
+                "LANDED at /dash/home/screen as the migrated Screen+ — scope "
                 "chips + sector picker, the 0-6 confluence lead column with its pillar dots, the "
                 "self-scaling 30th-percentile turnover liquidity gate, the reclaim/slip descriptive "
                 "cuts, column-family toggles, saved screens and CSV. Three recorded debts fixed in "
@@ -484,13 +634,23 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                 "a fixed-size internally-scrolling frozen-pane grid; the client-side CSV blob became "
                 "a server ?format=csv export that honours the active filter/sort/column state; and "
                 "the localStorage-only column/sort/filter state became URL state, so a screen is now "
-                "a shareable link (saved screens = bookmarks, no per-browser silo)"),
-    "themes":  ("PORTED", "/dash/home/themes",
-                "Themes / Baskets carried as the non-ticker discovery door: the multi-label "
+                "a shareable link (saved screens = bookmarks, no per-browser silo). CORRECTED + "
+                "RE-OPENED 2026-07-28 (register §7a, 2 MAJOR): 'Every capability carried' was not "
+                "true — the FIVE inline instrument micro-visualisations that are the page's declared "
+                "identity (DVPT-vs-power ladder · accum/distrib signed bar · RS spark · multi-TF RS "
+                "heat strip · character triglyph) are absent, the table emits text cells and pillar "
+                "dots only, and the Pat bridge ('Ask Pat: confluence here' + '★ Save as Pat board' "
+                "+ the scope->NL-query mapper) did not travel. The ~15 §J fundamentals columns stay "
+                "a RATIFIED EXCLUSION (Guardrail #8), not a gap"),
+    "themes":  ("DEFERRED", "M8",
+                "LANDED at /dash/home/themes as the non-ticker discovery door: the multi-label "
                 "company_tags layer, grouped in the canonical vocabulary order with approved-only "
                 "counts and index-seeded provenance shown, plus a per-theme participants view. New "
                 "connection the classic page lacked: a theme hands off directly into the screener "
-                "(/dash/home/screen?scope=theme:<tag>), so discovery and screening are one flow"),
+                "(/dash/home/screen?scope=theme:<tag>), so discovery and screening are one flow. "
+                "RE-OPENED by the 2026-07-28 gap audit (register §7b, 1 MAJOR): the theme-detail "
+                "participants table drops 6 of 11 columns (Themes chips · Trigger rank · p-score · "
+                "%52wH · DVPT ₹cr · Δhot)"),
     "screener": ("DROPPED", "",
                  "CUT (plan §1b). Two full screeners over the same universe and the same precomputed "
                  "tables is duplication, not choice — /dash/screen2 was already the declared superset "
@@ -521,42 +681,79 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
     # ── W5 / M6 — the Trust workspace (11 surfaces), ported into the Graphite identity ──
     # 8 Graphite pages carry 9 of the 11; `pat` is carried by the extended floating dock rather
     # than a page (there is deliberately no third Pat); `inbox` is structurally NA.
-    "coverage":     ("PORTED", "/dash/home/proof",
-                     "the Proof hub — leads with the published boundary ('what we do NOT claim'), "
-                     "then the same provenance.coverage_snapshot funnel + per-data-class matrix"),
+    "coverage":     ("DEFERRED", "M6",
+                     "LANDED at /dash/home/proof — leads with the published boundary ('what we do "
+                     "NOT claim'), then the same provenance.coverage_snapshot funnel + "
+                     "per-data-class matrix. RE-OPENED by the 2026-07-28 gap audit (register §8a, "
+                     "3 MAJOR): the print-ready /dash/coverage/memo (the dated, sourced Coverage & "
+                     "Provenance Memo with its SEBI record-keeping footer) has no twin, EIGHT "
+                     "sections did not travel (universe & survivorship · CCI settlement crosstab · "
+                     "modeled-vs-filed · provenance receipts · methodology · degradation · "
+                     "principles & limits · strategy validation), and the provenance registry table "
+                     "is reduced to a single count tile"),
     "testing":      ("PORTED", "/dash/home/validation",
                      "the validation record — the same research.db strategy_registry/runs/holdings "
                      "verdict table, plus the ledger's BLOCKING rows verbatim beside it"),
     "glossary":     ("PORTED", "/dash/home/glossary",
                      "261 terms / 39 families rendered from the SAME docs/metrics-glossary.md parse "
                      "(src.web.glossary) that feeds the ? popovers and Pat — never a second copy"),
-    "strategy-ref": ("PORTED", "/dash/home/strategy-ref",
-                     "the same docs/strategies/ pages, list DERIVED from the directory (so a new "
-                     "strategy page appears the day it lands) through a widened public sanitizer"),
-    "reading-guide": ("PORTED", "/dash/home/guide",
-                      "'How to read this site' — the newcomer exit and the standing destination of "
-                      "the M6 persistent help control; carries the five-step arc as structure"),
+    "strategy-ref": ("DEFERRED", "M6",
+                     "LANDED at /dash/home/strategy-ref: the same docs/strategies/ pages, list "
+                     "DERIVED from the directory (so a new strategy page appears the day it lands) "
+                     "through a widened public sanitizer. RE-OPENED by the 2026-07-28 gap audit "
+                     "(register §8d, 1 MAJOR): the SURFACE HAND-OFF STRIP — 'Open the live surface "
+                     "this page describes →' on 13 of 16 pages, a ratified 2026-07-15 requirement — "
+                     "has no twin; the port renders the markdown only, and doc-relative cross-links "
+                     "are no longer rewritten to served hrefs"),
+    "reading-guide": ("DEFERRED", "M6",
+                      "LANDED at /dash/home/guide — 'How to read this site', the newcomer exit and "
+                      "the standing destination of the M6 persistent help control; carries the "
+                      "five-step arc as structure. RE-OPENED by the 2026-07-28 gap audit (register "
+                      "§8e, 2 MAJOR): the page carries NO CHARTS — the live 22-year breadth "
+                      "heat-ribbon WORKED EXAMPLE read in four numbered steps, and the 'six shapes' "
+                      "card gallery (six real charts, each with what-it-is / how-to-read / an "
+                      "'on: <page>' deep-link), are the two things a reading guide exists to be"),
     "spec-sheets":  ("PORTED", "/dash/home/prereg",
                      "the same 9 pre-registered studies with hypothesis, gate-written-first, result "
                      "and the registered SHA-256, read from the one content source"),
-    "rule-lab":     ("PORTED", "/dash/home/rule-lab",
-                     "the same closed-vocabulary rule engine (src.automation.rule_lab); every "
-                     "verdict state round-trips through the SAME query params as the classic page, "
-                     "so a shared URL reproduces the rule on either surface (ratified §K.4)"),
-    "replay-any-date": ("PORTED", "/dash/home/replay",
-                        "the same in-process /v1 point-in-time calls (credibility · attention · "
-                        "universe) with the envelopes verbatim; also ships journey.replay_card for "
-                        "the Today page"),
-    "evidence-pack": ("PORTED", "/dash/home/validation",
-                      "MERGED into the validation record as ?pack=1 — the classic page was an "
-                      "ASSEMBLY of spec-sheets + coverage material with only two self-originating "
-                      "claims (a verify-routes index and the replay narrative), both of which the "
-                      "merged view keeps; one page fewer, zero evidence lost"),
-    "pat":          ("PORTED", "/dash/home",
-                     "carried by the EXISTING Graphite floating dock, extended with the classic "
+    "rule-lab":     ("DEFERRED", "M6",
+                     "LANDED at /dash/home/rule-lab over the same closed-vocabulary rule engine "
+                     "(src.automation.rule_lab); every verdict state round-trips through the SAME "
+                     "query params as the classic page, so a shared URL reproduces the rule on "
+                     "either surface (ratified §K.4). RE-OPENED by the 2026-07-28 gap audit "
+                     "(register §8g, 2 MAJOR): the params round-trip but the ARTIFACT does not — "
+                     "the VERDICT CARD (verdict + qualifier + the 9-row numbers table + the prereg "
+                     "SHA-256 chip + the refusal reason) renders pre-run ledger citations only, "
+                     "real numbers appearing solely in the synthetic demo, and the roster/current-"
+                     "cohort block is absent"),
+    "replay-any-date": ("DEFERRED", "M6",
+                        "LANDED at /dash/home/replay over the same in-process /v1 point-in-time "
+                        "calls (credibility · attention · universe) with the envelopes verbatim; "
+                        "also ships journey.replay_card for the Today page. RE-OPENED by the "
+                        "2026-07-28 gap audit (register §8h, 1 MAJOR): the CURL LINE under every "
+                        "panel — the 'reproduce this yourself' affordance the page's whole thesis "
+                        "rests on — is nowhere in the file; ?symbol= was also renamed ?sym=, so "
+                        "classic deep links do not carry across"),
+    "evidence-pack": ("DEFERRED", "M6",
+                      "LANDED at /dash/home/validation?pack=1, MERGED into the validation record — "
+                      "the classic page was an ASSEMBLY of spec-sheets + coverage material with two "
+                      "self-originating claims (a verify-routes index and the replay narrative), "
+                      "both of which the merged view keeps. RE-OPENED by the 2026-07-28 gap audit "
+                      "(register §8i, 1 MAJOR): 'zero evidence lost' skipped the ARTIFACT — the "
+                      "pack is a procurement deliverable and the print / save-as-PDF button and its "
+                      "print stylesheet did not travel, so it is now just a long page; the "
+                      "generated-at stamp, scope line and tamper-evidence paragraph are gone too"),
+    "pat":          ("DEFERRED", "M6",
+                     "LANDED at /dash/home on the EXISTING Graphite floating dock (a dock, not a "
+                     "page — there is deliberately no third Pat), extended with the classic "
                      "page's resolution (glossary + lens-registry auto-fold + symbol deep-link, "
-                     "model-free) via GET /dash/home/pat/ask — deliberately not a third Pat. Not "
-                     "yet carried: threads, saved boards, the feedback loop (open items)"),
+                     "model-free) via GET /dash/home/pat/ask. Not "
+                     "yet carried: threads, saved boards, the feedback loop. RE-OPENED by the "
+                     "2026-07-28 gap audit (register §8j, 4 MAJOR): the open-items list missed the "
+                     "biggest one — the ~15 GUIDED FLOWS (accumulation · rs · rslag · fundamentals · "
+                     "movers · index · distribution · consolidation · pt14 · redflags · confluence · "
+                     "credibility · deterioration · trend · oscillators · strategy · why) and their "
+                     "chip-parameter drill have no flow router in pat_dock.resolve()"),
     "inbox":        ("NA", "",
                      "owner review workflow, not a visitor surface: an approve/reject decision "
                      "queue (POST /dash/inbox/decide) whose anonymous view is already reduced to "
