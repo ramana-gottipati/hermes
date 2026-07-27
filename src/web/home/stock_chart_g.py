@@ -25,11 +25,12 @@ separation. See `CANDLES` for the numbers and the floors they clear.
 
 CANDLE VARIANTS (owner course-correction, CANDLE-LINEUP lane): the hollow up-body read as "too
 experimental", and the owner's bar is that a candle be identifiable at NORMAL viewing size with the
-naked eye. So the encoding is now a NAMED, pinnable set — `VARIANTS` — of which exactly one is
-active (`VARIANT`). Three of the four are conservative and fully solid (both directions filled, no
-hollow, no tricks); the fourth is the committed hollow treatment, kept as the reference row. Every
-variant is held to the SAME computed floors in BOTH themes (`tests/test_home_stock_page.py`), so
-whichever the owner pins is legible by construction, not by taste.
+naked eye. So the encoding is a NAMED, pinnable set — `VARIANTS` — of which exactly one is active
+(`VARIANT`). Three of the four are conservative and fully solid (both directions filled, no hollow,
+no tricks); the fourth is the earlier hollow treatment, kept as the reference row. Every variant is
+held to the SAME computed floors in BOTH themes (`tests/test_home_stock_page.py`), so whichever is
+pinned is legible by construction, not by taste. **ACTIVE = `c`** (owner pick 2026-07-28, off the
+rendered lineup): bright cool blue up vs warm dark graphite down, both bodies solid.
 """
 from __future__ import annotations
 
@@ -158,14 +159,18 @@ VARIANTS = {
     },
 }
 
-# THE ACTIVE VARIANT — shipping the owner's pick is this one letter and nothing else.
-VARIANT = "d"
+# THE ACTIVE VARIANT — one letter, and nothing else, decides what the chart paints.
+# OWNER PICK 2026-07-28: `c` — bright cool blue up vs warm dark graphite down, chosen off the
+# rendered lineup. Both bodies SOLID (the ordinary candle shape; the hollow up-body of `d` read as
+# "too experimental"), and the read is carried by luminance first with hue temperature stacked on
+# top: body-vs-body 3.17:1 dark / 3.51:1 light. `d` stays in the table as the reference row.
+VARIANT = _PINNED = "c"
 # DEV-ONLY override, so the lineup harness can render all four out of one tree without editing the
-# file between shots. It is never set in a deploy, and an unknown value falls back to the pin above
-# rather than to a half-painted chart.
-VARIANT = (_os.environ.get("PATEARN_CANDLE_VARIANT") or VARIANT).strip().lower()
+# file between shots. It is never set in a deploy, and an unknown value falls back to THE PIN —
+# never to a fixed letter, which would silently un-ship the owner's choice on a typo.
+VARIANT = (_os.environ.get("PATEARN_CANDLE_VARIANT") or _PINNED).strip().lower()
 if VARIANT not in VARIANTS:
-    VARIANT = "d"
+    VARIANT = _PINNED
 
 CANDLES = VARIANTS[VARIANT]
 # the JS fallbacks must equal the dark CSS values (asserted in `_selftest`)
