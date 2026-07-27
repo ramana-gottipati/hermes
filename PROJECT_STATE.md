@@ -192,7 +192,8 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 
 **Sideways migration-parity ledger (2026-07-24) — new:**
 - `src/web/sideways_parity.py` — internal governance board at **`/dash/sideways-parity`** (INTERNAL_DEV route, deliberately unlinked) guaranteeing no classic element is silently missed in the modern-app ("Sideways") rebuild. DERIVES the product inventory from the single-sources-of-truth (73 routed lenses via `lens_registry` · 257 metrics via `docs/metrics-glossary.md` · 16 strategies via `docs/strategies/`) — a new element appears the day it ships — and holds a DISPOSITION per surface: PORTED (with the live Sideways route) / DEFERRED (a milestone or UNSCOPED) / DROPPED (reason) / NA (reason); unlisted surfaces fall to a per-workspace DEFERRED default so everything is always ACCOUNTED (never invisible). Board + CSV; descriptive, read-only.
-- `tests/test_sideways_parity.py` — the gate (sibling of the no-orphan route gate + Pat-coverage gate): integrity (no stale keys · PORTED→route · DROPPED/NA→reason · DEFERRED→real milestone) + completeness (a DONE milestone can't have un-ported assigned surfaces) + a brand-new surface is always accounted. **State today: 2 ported (markets→M5, wire→M3) · 71 deferred · 0 UNSCOPED** — owner added the **M-Markets** milestone (2026-07-24) that scopes the 31-surface Markets analytical estate, so every Markets lens now has a home milestone (M-Markets, PLANNED). Mounted via `_ROUTER_SPECS`; route-gate INTERNAL_DEV exemption added same commit. v2: honesty-verdict carry per item.
+- `tests/test_sideways_parity.py` — the gate (sibling of the no-orphan route gate + Pat-coverage gate): integrity (no stale keys · PORTED→route · DROPPED/NA→reason · DEFERRED→real milestone) + completeness (a DONE milestone can't have un-ported assigned surfaces) + a brand-new surface is always accounted. **State today (2026-07-28, after the gap-audit reconciliation D150): 74 surfaces · PORTED 22 · DEFERRED 45 · DROPPED 5 · NA 2 · 0 UNSCOPED** — 34 keys were downgraded PORTED→DEFERRED because they still hold open MAJOR rows in `docs/graphite-gap-register.md`, which put non-PORTED surfaces back inside M6/M7/M8 and re-opened those milestones to PLANNED. Milestones: M3/M4/M5 DONE (no routed lens assigned — the gate passes over them vacuously) · M6/M7/M8 + M-Markets PLANNED. Mounted via `_ROUTER_SPECS`; route-gate INTERNAL_DEV exemption. v2: honesty-verdict carry per item.
+- `tests/test_graphite_parity_defects.py` — pins the two XS correctness defects the 2026-07-28 gap audit found in the Graphite ports, both "read the store with the wrong key" bugs that rendered a healthy-looking but wrong page: (a) band-locks compared the streak direction against lowercase while `band_lock` emits `UP`/`DOWN`, so every row read "▼ lower" and both tiles read 0; (b) the seasonal ISO-week grid asked `seasonal_cells` for `axis='week'` while `seasonal_tape` persists `'iso_week'`, so the grid and its cell-drill were structurally dead on every entity. Each test also asserts the ENGINE's vocabulary, so a future rename trips the gate instead of silently blanking a board.
 
 **Own-history map — the self-relative lens (2026-07-24) — new:**
 - `src/web/self_history_view.py` — a registered Markets/"Big picture" lens at **`/dash/self-history`**. Ranks 5 metrics (price · 3m momentum · delivery-% · ₹ turnover · range/coil) for each stock in a bounded universe (Nifty 50 / Next 50 / Midcap 100 / Smallcap 100) as a **0–100 percentile vs that stock's OWN trailing 3-year history** — the third axis beside absolute reads and RS-vs-benchmark. Compute-on-read (`lru_cache` keyed on `(universe, latest_trade_date)` → recomputes once a day), reads `bhavcopy_rows` + `stock_index_membership`. **Corporate-action hygiene is load-bearing:** price & momentum use a split/bonus-**adjusted** close (raw NSE close fakes a crash on a 1:1 bonus / a 1:10 split ÷10; verified — Nestlé's raw 28th-pctl became its true 97th after adjustment); delivery/turnover/range are action-neutral. Diverging blue→red heat table, sym-links to `/dash/stock?sym=`, `?u=`/`?sort=` URL state, server-side `format=csv`. Descriptive-only (self-relative percentile = context, not a signal). Additive; durably mounted via one `v2_surfaces._ROUTER_SPECS` entry.
@@ -652,6 +653,55 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 ---
 
 ## Decision log (the big ones)
+
+### D150 — THE PARITY BOARD TELLS THE TRUTH: 34 surfaces re-opened, M6/M7/M8 back to PLANNED, and the ONE rule that decides a disposition (2026-07-28, lane/parity-truth)
+The 2026-07-28 gap audit (`docs/graphite-gap-register.md` — 464 rows, 160 MAJOR, over 55 then-PORTED
+surfaces) found the Graphite cutover's own scoreboard over-claiming. This lane fixed the SCOREBOARD,
+not the capability: zero register capability rows were closed here, they remain the fix program's
+P1-P7 work.
+
+**1. One rule, applied to every key (recorded so a future session can re-derive the same board).**
+A surface is downgraded `PORTED` → `DEFERRED` when the register holds **≥1 MAJOR row against it that
+is still open on `HEAD`**; it keeps `PORTED` only when every MAJOR row is closed — by a fix landing
+here, or by work already on main since the audit's base `ba2c259`. MINOR/COSMETIC residue never
+forces a downgrade; it earns a correction to the note. Cross-cutting rows (§0 X-1…X-6) are counted
+once in §0 and never used to downgrade an individual key. **Result: PORTED 56 → 22 · DEFERRED 11 →
+45 · DROPPED 5 · NA 2 · 74 surfaces · 0 UNSCOPED** (executed, not estimated).
+
+**2. A downgraded note must still say where the capability LANDED.** A `DEFERRED` target is a
+milestone, so the route would otherwise be lost from the board. Every downgraded entry keeps its
+`LANDED at <route>` clause and gains one `RE-OPENED by the 2026-07-28 gap audit (register §X, N
+MAJOR)` line naming the specific open rows. Three lane tests that hard-coded `PORTED` were rewritten
+to assert this stricter contract rather than deleted.
+
+**3. M6 / M7 / M8 go DONE → PLANNED.** Downgrading put non-PORTED surfaces back inside them and
+`test_done_milestones_are_fully_ported` failed — the gate doing its job, so the milestones follow the
+evidence rather than the gate being worked around. ⚠ Recorded limit: M3/M4/M5 keep DONE but hold **no
+routed lens at all**, so that gate passes over them vacuously — the register's §9 (20 fresh MAJOR
+rows against `/dash/home/stock`) is invisible to it, because the stock dossier is an integration hub,
+not a registry lens. M4's DONE means "the hub shipped", never "the dossier is at parity".
+
+**4. Two XS correctness defects fixed — same species, both "read the store with the wrong key".**
+Band-locks compared the direction against lowercase while `band_lock` emits `UP`/`DOWN` (every row
+rendered "▼ lower"; both tiles read 0 on a board full of locks); the seasonal ISO-week grid asked
+`seasonal_cells` for `axis='week'` while `seasonal_tape` persists `'iso_week'` (the grid and its
+cell-drill could never render, on any entity, while the ledger recorded them SHIPPED). Both fixed at
+the boundary — one case-folding predicate pair, one store-key translation — and pinned RED-then-GREEN
+by `tests/test_graphite_parity_defects.py`, which also asserts each ENGINE's vocabulary so a rename
+trips the gate instead of blanking a board again.
+
+**5. Eight recorded-but-false notes rewritten** (rrg's "the drills belong to the stock hub" — they
+are neither there nor built · seasonal-tape's SHIPPED ISO-week grid · model-books' "the Tracker
+carries the follow-a-book view" — it is prose plus two links, one back to classic · stocks' "the 14
+default-hidden columns" — 3 are carried · conviction's and mep's incomplete NOT-carried lists ·
+launchpad's "the genuine-buyer count tile" — all four tiles are gone · insider recorded with NO
+residual while four controls and two columns are missing). Dispositions moved only where the register
+says the disposition itself is false.
+
+**6. Argued back, recorded rather than silently skipped:** four surfaces the ratified downgrade list
+omits (`actions` · `divergence` · `sast` · `strategy-ref`) hold an open MAJOR row their note does not
+name, i.e. they still over-claim under rule 1. Left `PORTED` (outside this lane's ratified scope) and
+recorded in register §10f for the owner to rule on.
 
 ### D149 — THE PREVIEW IS RETIRED (de-routed, not deleted), the nav gets ONE allowlist authority, and the six Graphite doors all land inside Graphite (2026-07-27, cutover lane W6)
 The last cutover unit. Four decisions, each with the observation that forced it.
@@ -2375,6 +2425,40 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### The parity board stops over-claiming (D150) — 2026-07-28 — 34 surfaces re-opened, M6/M7/M8 back to PLANNED, two silent correctness defects killed
+Lane `lane/parity-truth`, off `origin/main` `6fa87d3`. The 2026-07-28 gap audit found the Graphite
+cutover's own scoreboard was the least honest artifact in the estate: 464 gap rows / 160 MAJOR
+sitting behind 55 `PORTED` claims. This lane fixed the SCOREBOARD and the two XS defects; it closed
+**zero** capability rows — those stay with the fix program (`docs/graphite-fix-program-brief.md`,
+whose Rule 4 now records this work so the Opus session does not redo it).
+- **The board, executed not estimated:** PORTED 56 → **22** · DEFERRED 11 → **45** · DROPPED 5 · NA 2
+  · 74 surfaces · 0 UNSCOPED. 34 downgrades: 15 → M-Markets, 11 → M7, 2 → M8, 6 → M6. The rule that
+  produced each one is written down in D150 §1 and in register §10, so the board is re-derivable.
+- **`band-locks` is the one listed key that KEPT `PORTED`** — its only MAJOR row was the correctness
+  defect, fixed here; the residue is MINOR. Recorded as an explicit exception rather than a silent one.
+- **Two defects, both "read the store with the wrong key", both invisible to every existing test:**
+  band-locks direction case (`"UP"` vs `"up"` — every row read "▼ lower", both tiles 0) and the
+  seasonal ISO-week axis (`'week'` vs `'iso_week'` — the weekly grid and its drill could never render).
+  Fixed at the boundary and pinned RED-then-GREEN: the 6 relevant new tests fail on the pre-fix tree
+  for the right reasons (tiles `up=0 down=0`; both rows "lower"; no `week` key; empty stack; no
+  "By week of the year" section) and pass after.
+- **Three lane tests hard-coded the over-claim** (`test_home_markets_pages` · `test_home_screen` ·
+  `test_home_tracker` asserted `PORTED` literally). Rewritten to a STRICTER contract — a downgraded
+  surface must still name the route it landed at, that route must serve 200, and DEFERRED must target
+  a real milestone — rather than relaxed or deleted.
+- **Gates:** full suite **1039 passed / 1 skipped / 0 failed** (baseline 1031 + 8 new pins) ·
+  `doc_hygiene_gate` PASS (A-E clean) · `python -m src.web.sideways_parity` selftest OK (74 surfaces ·
+  265 metrics · 16 strategies · 0 UNSCOPED · board 200) · `tests/test_sideways_parity.py` 7 passed.
+- **Argued back rather than skipped:** `actions` · `divergence` · `sast` · `strategy-ref` also hold an
+  open MAJOR row their notes do not name. Outside the ratified list, so left alone and recorded in
+  register §10f for an owner ruling. NOT deployed — `sideways_parity.py` and both fixes ride the next
+  parent deploy.
+- Files: `src/web/sideways_parity.py` · `src/web/home/internals_reads.py` ·
+  `src/web/home/internals_pages.py` · `src/web/home/w2_reads.py` ·
+  `tests/test_graphite_parity_defects.py` (new) · `tests/test_home_markets_pages.py` ·
+  `tests/test_home_screen.py` · `tests/test_home_tracker.py` · `docs/graphite-gap-register.md` (§10)
+  · `docs/graphite-fix-program-brief.md`.
 
 ### The label correction reaches the BLOCKING wall (D142 carve-out b) — 2026-07-27 — the ledger and its byte-verbatim mirror moved together; a dead page-gate repaired on the way
 The failure ledger's § "❌ BLOCKING FAILURE MODELS" still carried the retired ratio word, and

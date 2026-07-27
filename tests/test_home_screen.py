@@ -338,8 +338,12 @@ def test_screen_scope_accepts_a_theme():
 
 # ── the parity ledger records a verdict for all five screener surfaces ────────────────────────
 def test_all_five_screener_surfaces_have_an_explicit_verdict():
+    """2026-07-28: screen2 + themes were downgraded PORTED -> DEFERRED by the gap audit (register
+    §7a/§7b — the five inline instrument visuals and the Pat bridge never travelled, and the theme
+    participants table lost 6 of 11 columns), so the expectation here is DEFERRED-with-a-route, not
+    PORTED. The verdict must still be EXPLICIT for all five — that is what this gate protects."""
     from src.web import sideways_parity as SPY
-    expected = {"screen2": "PORTED", "themes": "PORTED", "screener": "DROPPED",
+    expected = {"screen2": "DEFERRED", "themes": "DEFERRED", "screener": "DROPPED",
                 "tags-review": "NA", "workbench": "DROPPED"}
     for key, status in expected.items():
         assert key in SPY.SURFACE_PARITY, ("no explicit disposition recorded", key)
@@ -347,5 +351,9 @@ def test_all_five_screener_surfaces_have_an_explicit_verdict():
         assert st == status, (key, st, status)
         if st == "PORTED":
             assert target.startswith("/dash/home/"), (key, target)
+        elif st == "DEFERRED":
+            assert target in SPY.MILESTONES, (key, "DEFERRED needs a real milestone", target)
+            assert "LANDED at /dash/home/" in note, (
+                key, "a downgraded surface must still name the route it landed at")
         else:
             assert len(note) > 80, (key, "a DROPPED/NA verdict needs a real rationale")

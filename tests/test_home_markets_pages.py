@@ -157,15 +157,26 @@ LANE_SURFACES = {
 }
 
 
-def test_parity_ledger_marks_the_eleven_ported_at_the_live_route():
+def test_parity_ledger_points_every_one_of_the_eleven_at_its_live_route():
     """The ledger claim and the running app must agree: every one of the eleven surfaces this lane
-    consolidated is PORTED, and its target is one of the four routes that actually serve."""
+    consolidated resolves to one of the four routes that actually serve.
+
+    2026-07-28: nine of the eleven were downgraded PORTED -> DEFERRED by the gap audit (they hold
+    open MAJOR rows — `docs/graphite-gap-register.md` §10). A DEFERRED target is a MILESTONE, so
+    the route would be lost if the note did not carry it: this gate now requires that a downgraded
+    surface still names where it LANDED, which is what keeps the board navigable while it is honest.
+    """
     from src.web import sideways_parity as SP
     for key, route in LANE_SURFACES.items():
         st, tgt, note = SP.SURFACE_PARITY[key]
-        assert st == "PORTED", (key, st)
-        assert tgt == route, (key, tgt, route)
-        assert len(note) > 60, (key, "a PORTED note must say what travelled AND what did not")
+        assert st in ("PORTED", "DEFERRED"), (key, st)
+        assert len(note) > 60, (key, "the note must say what travelled AND what did not")
+        if st == "PORTED":
+            assert tgt == route, (key, tgt, route)
+        else:
+            assert tgt in SP.MILESTONES, (key, "DEFERRED needs a real milestone", tgt)
+            assert ("LANDED at " + route) in note, (
+                key, "a downgraded surface must still name the route it landed at")
 
 
 def test_parity_notes_disclose_what_did_not_travel():
