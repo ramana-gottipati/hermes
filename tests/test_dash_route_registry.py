@@ -111,6 +111,22 @@ INTERNAL_DEV: dict[str, tuple[str, str]] = {
                                              "fixed ~10-dot tails) — a declared child of the Graphite "
                                              "home, reached via 'See the full rotation →' from the Today "
                                              "RRG; direct-URL, no lens/nav until cutover"),
+    # Graphite Markets estate (cutover wave W2-B, 2026-07-27) — the two consolidated Markets pages.
+    # Declared children of the Graphite home, each reached from a visible control: the Strength page
+    # from the 'Four ways to read one question' cards and the Today RS zone; the Sectors page from
+    # the Strength overview cards and the rotation switcher. Direct-URL, no lens/nav until cutover.
+    "/dash/home/strength": ("graphite-home", "Relative strength — the RS hub, leaders/laggards, "
+                                             "risk-adjusted momentum and the all-weather capture "
+                                             "map as four URL-addressable views (?view=) of one "
+                                             "page; reached from the Graphite home and the Sectors "
+                                             "/ Rotation pages; direct-URL, no lens/nav until "
+                                             "cutover"),
+    "/dash/home/sectors": ("graphite-home", "Sectors — the standing board with constituent breadth "
+                                            "and a per-sector drill-down (?sec=), plus an economics "
+                                            "tab (?tab=economics) carrying a decade of sector "
+                                            "fundamentals and what the strength cost in risk; "
+                                            "reached from the Strength overview cards; direct-URL, "
+                                            "no lens/nav until cutover"),
     # Sideways migration-parity board (2026-07-24) — the internal governance dashboard proving no
     # classic element is silently missed in the modern-app rebuild (gate: tests/test_sideways_parity.py).
     # An owner/ops tool, deliberately unlinked; NOT a customer lens, so no lens_registry entry.

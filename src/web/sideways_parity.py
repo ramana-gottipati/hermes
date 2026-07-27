@@ -90,6 +90,61 @@ SURFACE_PARITY: dict[str, tuple[str, str, str]] = {
                 "M5 Today IS the migrated markets overview / orientation home"),
     "wire":    ("PORTED", "/dash/preview",
                 "M3 news/flow dock (?ch=news) is the migrated News/Wire"),
+
+    # ── Graphite cutover wave W2-B (2026-07-27): the RS · rotation · sectors families ──
+    # Eleven classic Markets lenses consolidated into THREE Graphite pages. The rule applied:
+    # PORTED = the question the lens exists to answer is fully served at the new route.
+    # DEFERRED = the headline block landed but a materially separate block is still owed — the
+    # note names exactly what travelled and what did not, so nothing is silently missed.
+    "rrg":       ("PORTED", "/dash/home/rotation",
+                  "sector rotation map — the 6/12/24-month RRG journeys reuse the canonical JdK "
+                  "engine (automation/rrg._rs_ratio_momentum + quadrant). Per-symbol drills "
+                  "(?idx= constituents, ?sym= single stock) belong to the Graphite stock hub, not "
+                  "this page"),
+    "rotation":  ("PORTED", "/dash/home/rotation?view=weather",
+                  "RS weather — sector phase table (phases classified by the canonical "
+                  "rs_phase engine, not the additive column), the 2x2 lifecycle grid with the "
+                  "strict-diagonal shortlists, and the just-turned strip"),
+    "cycle-clock": ("PORTED", "/dash/home/rotation?view=clock",
+                    "the lifecycle dial — every sector's RS-Ratio x RS-Momentum on one radial "
+                    "plot plus the same dial as a table, from the same rs_extras snapshot"),
+    "rs-hub":    ("PORTED", "/dash/home/strength",
+                  "the RS hub — universe-wide standing counts, the four-reading card set, and "
+                  "today's strongest names with their phase and trend state"),
+    "leaders":   ("PORTED", "/dash/home/strength?view=leaders",
+                  "strong-in-strong / weak-in-weak, straight from the canonical "
+                  "stock_rs.leaders_laggards screen with all three trend states shown in Pro"),
+    "capture-map": ("PORTED", "/dash/home/strength?view=capture",
+                    "up-capture / down-capture / spread per sector at 3, 6 and 12 months, from "
+                    "the canonical automation/capture engine, with the four-way behaviour read"),
+    "sectors":   ("PORTED", "/dash/home/sectors",
+                  "the sector standing board — weather, 1/3/12-month RS, member breadth (the "
+                  "cross-check the classic board lacked) and the Pro return columns"),
+    "sector-momentum": ("PORTED", "/dash/home/sectors?sec=",
+                        "the constituent drill-down, promoted from a deep-link-only orphan to a "
+                        "URL-addressable view of the sector board it belongs to"),
+
+    "rsband":    ("DEFERRED", "M-Markets",
+                  "LANDED at /dash/home/rotation?view=band: the per-sector RS-band position 0-100 "
+                  "with band label, regime honesty gate and (Pro) the trend-removed position, from "
+                  "the canonical automation/rsband engine; the engine's verdict KEY is never "
+                  "rendered, only its descriptive state label. STILL OWED: the per-index channel "
+                  "chart (support/median/resistance rails, POC, value area), the per-stock channel, "
+                  "the constituent lanes and the journey scrubber"),
+    "momentum-scan": ("DEFERRED", "M-Markets",
+                      "LANDED at /dash/home/strength?view=momentum: the risk-adjusted momentum "
+                      "table read from the same canonical momentum_scan rows, carrying the "
+                      "beta-not-skill fence. NOT CARRIED BY DECISION: the C-blend overlay "
+                      "(flat-cost-only, not fundable, and Screener-derived under primary-source "
+                      "remediation). STILL OWED: the insider/credit veto flag column, the "
+                      "equal-weight ensemble sort and the /dash/momentum-scan/slow child"),
+    "sector-economics": ("DEFERRED", "M-Markets",
+                         "LANDED at /dash/home/sectors?tab=economics: the sector x financial-year "
+                         "median ROCE/OPM heat grid with the survivorship, thin-N, financials-blank "
+                         "and Screener-provenance fences intact, plus a new risk-economics table. "
+                         "UNVERIFIED ON DATA — the research fundamentals archive is absent from "
+                         "the local fixture, so only structure is proven. STILL OWED: the per-cell "
+                         "company breakdown and the biggest-swings panel"),
 }
 
 _VALID_STATUS = {"PORTED", "DEFERRED", "DROPPED", "NA"}
