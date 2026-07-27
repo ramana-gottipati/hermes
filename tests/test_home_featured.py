@@ -157,10 +157,33 @@ def test_today_additions_escape_untrusted():
 
 def test_conviction_now_caches_by_date(monkeypatch):
     """The canonical conviction query is ~3.9s (it joins 5.9M-row stock_signals); it's nightly data,
-    so conviction_now caches by the latest stock_signals date — the second call must NOT recompute."""
-    from src.web.home import reads
+    so conviction_now caches by the latest stock_signals date — the second call must NOT recompute.
+
+    The cache key is `SELECT MAX(trade_date) FROM stock_signals`, so this test OWNS that connection
+    instead of borrowing the host's DB: on a box with no market data the key is NULL and
+    conviction_now DELIBERATELY skips caching (never cache under a null key), which used to fail
+    this test for environment reasons rather than product ones. Both branches are pinned below.
+    """
+    import sqlite3
+    from contextlib import contextmanager
+    import src.core.db as db
     import src.automation.stock_rs as sr
-    reads._CONV_CACHE.clear()
+    from src.web.home import reads
+
+    def conn_with(latest):
+        """A get_conn stub over an in-memory stock_signals whose MAX(trade_date) is `latest`."""
+        c = sqlite3.connect(":memory:")
+        c.row_factory = sqlite3.Row
+        c.execute("CREATE TABLE stock_signals(symbol TEXT, trade_date TEXT)")
+        if latest is not None:
+            c.execute("INSERT INTO stock_signals VALUES('TCS',?)", (latest,))
+
+        @contextmanager
+        def _get_conn():
+            yield c
+
+        return _get_conn
+
     calls = {"n": 0}
 
     def fake(limit=40, trade_date=None):
@@ -168,10 +191,22 @@ def test_conviction_now_caches_by_date(monkeypatch):
         return [{"symbol": "TCS", "rs_rank": 90}]
 
     monkeypatch.setattr(sr, "conviction_shortlist", fake)
+
+    # a box WITH market data: the second call is served from the cache
+    monkeypatch.setattr(db, "get_conn", conn_with("2026-07-23"))
+    reads._CONV_CACHE.clear()
     a = reads.conviction_now()
     b = reads.conviction_now()
     assert a and b and a[0]["symbol"] == "TCS"
     assert calls["n"] == 1, ("second call must hit the cache, not recompute", calls["n"])
+
+    # a data-less box: MAX(trade_date) is NULL -> never cache under a null key (recompute, no stale)
+    monkeypatch.setattr(db, "get_conn", conn_with(None))
+    reads._CONV_CACHE.clear()
+    calls["n"] = 0
+    assert reads.conviction_now() and reads.conviction_now()
+    assert calls["n"] == 2, ("a null date key must never be cached", calls["n"])
+    assert not reads._CONV_CACHE, ("null key must leave the cache empty", reads._CONV_CACHE)
 
 
 def test_regime_band_rrg_and_breadth_render_safely():
